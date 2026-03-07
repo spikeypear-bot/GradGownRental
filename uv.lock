@@ -1,0 +1,55 @@
+version = 1
+revision = 3
+requires-python = ">=3.13"
+
+[manifest]
+members = [
+    "auth-service",
+    "error-service",
+    "gradgownrental",
+    "inventory-service",
+    "logistics-service",
+    "notification-service",
+    "order-service",
+    "payment-service",
+]
+
+[[package]]
+name = "auth-service"
+version = "0.1.0"
+source = { virtual = "services/auth-service" }
+
+[[package]]
+name = "error-service"
+version = "0.1.0"
+source = { virtual = "services/error-service" }
+
+[[package]]
+name = "gradgownrental"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "inventory-service"
+version = "0.1.0"
+source = { virtual = "services/inventory-service" }
+
+[[package]]
+name = "logistics-service"
+version = "0.1.0"
+source = { virtual = "services/logistics-service" }
+
+[[package]]
+name = "notification-service"
+version = "0.1.0"
+source = { virtual = "services/notification-service" }
+
+[[package]]
+name = "order-service"
+version = "0.1.0"
+source = { virtual = "services/order-service" }
+
+[[package]]
+name = "payment-service"
+version = "0.1.0"
+source = { virtual = "services/payment-service" }

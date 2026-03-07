@@ -5,7 +5,7 @@ Repository is a service structure supporting a graduation gown rental website, c
 ---
 
 ## Project Structure
-
+```
 project-root/
 ├─ docker-compose.yml
 ├─ .env.example
@@ -24,7 +24,7 @@ project-root/
 │ ├─ order-service/
 │ └─ payment-service/
 └─ volumes/
-
+```
 
 - `services/<service-name>/` – code, Dockerfile, and database scripts for each microservice  
 - `db/init.sql` – optional SQL scripts to initialize the database  
