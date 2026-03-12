@@ -1,3 +1,29 @@
+services:
+  inventory-service-db:
+    image: postgres:latest
+    container_name: inventory-service-db
+    environment:
+      POSTGRES_USER: inventory_user
+      POSTGRES_DB: inventory
+      POSTGRES_PASSWORD: inventory_pass
+    networks:
+      - app-network
+    volumes:
+      - inventory-data:/var/lib/postgresql
+      - ./services/inventory-service/db:/docker-entrypoint-initdb.d
+    
+
+volumes: 
+  inventory-data:
+
+
+
+
+networks:
+  app-network:
+    driver: bridge
+    
+  
 
  
     
