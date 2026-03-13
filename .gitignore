@@ -293,4 +293,4 @@ pyrightconfig.json
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,flask,python,git
+# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,flask,python,git.env
