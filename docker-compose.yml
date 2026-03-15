@@ -28,10 +28,11 @@ services:
     volumes:
       - inventory-data:/var/lib/postgresql
       - ./services/inventory-service/db:/docker-entrypoint-initdb.d
-    
-  
 
-volumes: 
+
+
+
+volumes:
   inventory-data:
 
 
@@ -40,10 +41,9 @@ volumes:
 networks:
   app-network:
     driver: bridge
-    
-  
 
- 
-    
 
-  
+
+
+
+
