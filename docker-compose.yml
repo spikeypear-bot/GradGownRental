@@ -11,6 +11,24 @@ services:
     volumes:
       - inventory-data:/var/lib/postgresql
       - ./services/inventory-service/db:/docker-entrypoint-initdb.d
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "5002:5000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:password@postgres:5432/order_db  # postgres hostname
     
 
 volumes: 
@@ -24,8 +42,6 @@ networks:
     driver: bridge
     
   
-
- 
-    
+version: '3.8'
 
   
