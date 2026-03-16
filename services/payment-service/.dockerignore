@@ -1,0 +1,10 @@
+# Common
+README.md
+CHANGELOG.md
+
+Dockerfile
+.dockerignore
+
+__pycache__/
+*.egg-info/
+

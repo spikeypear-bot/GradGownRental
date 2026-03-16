@@ -10,10 +10,9 @@ def create_app():
 
     app = Flask(__name__)
 
-    stripe_client = StripeClient(STRIPE_API_KEY)
+    # stripe_client = StripeClient(STRIPE_API_KEY)
 
     return app
 
-print(STRIPE_API_KEY)
 
 

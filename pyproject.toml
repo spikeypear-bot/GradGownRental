@@ -15,7 +15,7 @@ payment-service = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "services/*"
+    "services/payment-service"
 ]
 
 # [build-system]

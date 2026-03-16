@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 WORKDIR /app
 
@@ -6,12 +6,12 @@ WORKDIR /app
 ARG REBUILD=0
 
 # Install necessary tools
-RUN apt-get update && apt-get install -y dos2unix curl wget && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y dos2unix curl wget && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml /app/
+
+RUN uv sync
 
 # Make sure Werkzeug version is compatible with Flask
 # RUN pip install --no-cache-dir Werkzeug==2.2.3
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Convert line endings and ensure script is executable
-RUN dos2unix /app/entrypoint.sh
+# RUN dos2unix /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables
@@ -29,11 +29,10 @@ ENV PYTHONUNBUFFERED=1 \
     FLASK_APP=run.py
 
 # Create database migrations directory if it doesn't exist
-RUN mkdir -p migrations
+# RUN mkdir -p migrations
 
 # Expose the port the app runs on
-EXPOSE 5002
+EXPOSE 3000
 
 # Use entrypoint script to handle migrations before starting the app
-# ENTRYPOINT ["/app/entrypoint.sh"]
-# ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
