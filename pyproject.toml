@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dotenv>=0.9.9",
     "flask>=3.1.3",
+    "gunicorn>=25.1.0",
     "kafka-python>=2.3.0",
     "payment-service",
 ]
@@ -15,7 +17,10 @@ payment-service = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "services/payment-service"
+    "services/*"
+]
+exclude = [
+    "services/inventory-service"
 ]
 
 # [build-system]

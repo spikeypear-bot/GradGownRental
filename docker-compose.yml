@@ -28,6 +28,17 @@ services:
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     #   CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
+  payment-service:
+    build:
+      context: ./services/payment-service
+    container_name: payment-service
+    # depends_on:
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+
   inventory-service:
     build:
       context: ./services/inventory-service
