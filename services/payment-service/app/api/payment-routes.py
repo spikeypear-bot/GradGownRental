@@ -5,8 +5,8 @@ import os
 
 dotenv.load_dotenv()
 
-STRIPE_API_KEY  = os.getenv("STRIPE_API_KEY")
-stripe_client = StripeClient(STRIPE_API_KEY)
+STRIPE_SECRET_KEY  = os.getenv("STRIPE_SECRET_KEY")
+stripe_client = StripeClient(STRIPE_SECRET_KEY)
 
 @app.route('/checkout/<order_id>/', methods=["POST"])
 def create_payment_intent(self, parameter_list):
