@@ -10,5 +10,12 @@ dependencies = [
     "flask-cors>=4.0.0",
     "gunicorn>=25.1.0",
     "kafka-python>=2.3.0",
+    "psycopg[binary]>=3.3.3",
     "stripe>=14.4.1",
 ]
+
+[tool.setuptools.packages.find]
+# where = ["src", "app"]  # list of folders that contain the packages (["."] by default)
+include = [ "app"]  # package names should match these glob patterns (["*"] by default)
+exclude = [ "db" ]  # exclude packages matching these glob patterns (empty by default)
+# namespaces = false  # to disable scanning PEP 420 namespaces (true by default)

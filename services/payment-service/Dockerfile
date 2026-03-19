@@ -29,7 +29,7 @@ ENV PYTHONUNBUFFERED=1 \
     FLASK_APP=run.py
 
 # Create database migrations directory if it doesn't exist
-# RUN mkdir -p migrations
+RUN mkdir -p migrations
 
 # Expose the port the app runs on
 EXPOSE 3000
