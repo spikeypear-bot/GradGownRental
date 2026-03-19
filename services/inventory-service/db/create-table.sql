@@ -4,6 +4,7 @@ SET search_path TO inventory_service;
 
 
 
+
 CREATE TABLE InventoryStyle (
     style_id INT PRIMARY KEY,
     item_name VARCHAR(100),
@@ -36,11 +37,22 @@ CREATE TABLE Package(
 CREATE TABLE InventoryQuantityTrack (
     date DATE,
     model_id VARCHAR(50),
+    reserved_qty INT DEFAULT 0,
+    rented_qty INT DEFAULT 0,
     wash_qty INT DEFAULT 0,
-    damaged_qty INT DEFAULT 0,
     backup_qty INT DEFAULT 0,
     PRIMARY KEY (date, model_id),
     FOREIGN KEY (model_id) REFERENCES Inventory(model_id)
+);
+
+CREATE TABLE ItemHold (
+    hold_id VARCHAR(50) NOT NULL,
+    model_id VARCHAR(50) NOT NULL,
+    qty INT,
+    created_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (hold_id, model_id),
+    FOREIGN KEY (model_id) REFERENCES Inventory(model_id)
+
 );
 
 

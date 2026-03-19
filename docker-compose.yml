@@ -1,7 +1,78 @@
 services:
+  kafka:
+    image: apache/kafka:latest
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - 9092:9092
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_PROCESS_ROLES: broker,controller
+
+    #   KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    #   KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+    #   KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    #   CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+    container_name: payment-service
+    depends_on:
+      - payment-service-db
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+  payment-service-db:
+    image: postgres:latest
+    container_name: payment-service-db
+    ports:
+      - "3001:3001"
+    environment:
+      POSTGRES_USER: payment_user
+      POSTGRES_DB: payment
+      POSTGRES_PASSWORD: payment_pass
+    networks:
+      - app-network
+    volumes:
+      - payment-data:/var/lib/postgresql
+      - ./services/payment-service/db:/docker-entrypoint-initdb.d
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+    container_name: inventory-service
+    depends_on:
+      - inventory-service-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-service-db:5432/inventory
+      SPRING_DATASOURCE_USERNAME: inventory_user
+      SPRING_DATASOURCE_PASSWORD: inventory_pass
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+
   inventory-service-db:
     image: postgres:latest
     container_name: inventory-service-db
+    ports:
+      - "1234:5432"
     environment:
       POSTGRES_USER: inventory_user
       POSTGRES_DB: inventory
@@ -31,11 +102,9 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:password@postgres:5432/order_db  # postgres hostname
     
 
-volumes: 
+volumes:
   inventory-data:
-
-
-
+  payment-data:
 
 networks:
   app-network:
@@ -44,4 +113,3 @@ networks:
   
 version: '3.8'
 
-  
