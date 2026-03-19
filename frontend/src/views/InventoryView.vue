@@ -5,8 +5,9 @@ export default {
 </script>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import inventoryService from '@/services/inventory/index.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,94 +16,96 @@ const selectedLevel = ref('')
 const selectedInstitution = ref('')
 const selectedFaculty = ref('')
 
-const institutions = [
-  "NUS", "NTU", "SUTD", "SUSS", "ITE", 
-  "SINGAPORE POLYTECHNIC", "NGEE ANN POLYTECHNIC", "SMU"
-]
+// API Data
+const allPackages = ref([])
+const institutions = ref([])
+const faculties = ref([])
+const loading = ref(false)
+const error = ref(null)
 
-const faculties = [
-  "Arts", 
-  "Applied Science", 
-  "Business Administration", 
-  "Computing", 
-  "Engineering", 
-  "Laws", 
-  "Medicine and Surgery", 
-  "Science",
-  "Social Science",
-  "All Faculties"
-]
-
-const isStep2Enabled = computed(() => selectedLevel.value !== '')
-const isStep3Enabled = computed(() => selectedInstitution.value !== '')
-const showResults = computed(() => selectedLevel.value !== '' && selectedInstitution.value !== '' && selectedFaculty.value !== '')
-
-const formattedLevel = computed(() => {
-  if (selectedLevel.value === 'bachelor') return "Bachelor's"
-  if (selectedLevel.value === 'master') return "Master's"
-  if (selectedLevel.value === 'phd') return "PhD"
-  return ""
+// Fetch packages on component mount
+onMounted(async () => {
+  console.log('🔄 InventoryView mounted - starting API fetch')
+  loading.value = true
+  error.value = null
+  try {
+    const packages = await inventoryService.getAllPackages()
+    allPackages.value = packages
+    console.log('✅ Fetched packages:', packages.length, 'items')
+    console.log('📦 Sample package:', packages[0])
+    
+    // Extract unique institutions and faculties
+    const instSet = new Set()
+    const facSet = new Set()
+    
+    allPackages.value.forEach(pkg => {
+      if (pkg.institution) instSet.add(pkg.institution)
+      if (pkg.faculty) facSet.add(pkg.faculty)
+    })
+    
+    institutions.value = Array.from(instSet).sort()
+    faculties.value = Array.from(facSet).sort()
+    console.log('✅ Extracted institutions:', institutions.value.length)
+    console.log('✅ Extracted faculties:', faculties.value.length)
+  } catch (err) {
+    error.value = 'Failed to load packages from API'
+    console.error('❌ Error fetching packages:', err)
+    institutions.value = []
+    faculties.value = []
+  } finally {
+    loading.value = false
+  }
 })
 
-const getPackageFeatures = (type) => {
-  let hood = "Standard satin-lined hood"
-  let gown = "Traditional oblong sleeve gown"
-  let hat = "Reinforced classic mortarboard"
+// Extract unique education levels from packages
+const educationLevels = computed(() => {
+  const levels = new Set()
+  allPackages.value.forEach(pkg => {
+    if (pkg.educationLevel) levels.add(pkg.educationLevel)
+  })
+  const result = Array.from(levels).sort()
+  console.log('📚 Education levels computed:', result)
+  return result
+})
+
+// Filter packages based on user selections
+const filteredPackages = computed(() => {
+  const filtered = allPackages.value.filter(pkg => {
+    // Apply filters only if they're selected
+    if (selectedLevel.value && pkg.educationLevel !== selectedLevel.value) return false
+    if (selectedInstitution.value && pkg.institution !== selectedInstitution.value) return false
+    if (selectedFaculty.value && pkg.faculty !== selectedFaculty.value) return false
+    return true
+  })
   
-  // Minimal mock logic referring to gay.py
-  if (selectedInstitution.value === 'NTU') {
-    gown = "Blue Gown with Sleeves"
-    if (selectedFaculty.value === "Engineering" && selectedLevel.value === 'bachelor') gown = "Gown with Gold Front"
-    if (selectedLevel.value === 'phd') gown = "Gown with Crimson Front and Sleeves"
-    
-    hood = "Gold edged with White Hood"
-    if (selectedLevel.value === 'phd') hood = "Crimson edged with Gold Hood"
-    if (selectedFaculty.value === "Arts") hood = "Alizarin Crimson edged with White and Magenta Hood"
-    
-    hat = selectedLevel.value === 'phd' ? "Bonnet" : "Mortarboard"
-  } else if (selectedInstitution.value === 'SMU') {
-    gown = "Black Gown with Pointed Sleeves"
-    if (selectedLevel.value === 'master') gown = "Black Gown with Oblong Sleeves"
-    if (selectedLevel.value === 'phd') gown = "Black Gown with Yellow Front and Sides"
-    
-    hood = "Golden Yellow Hood"
-    if (selectedFaculty.value === 'Laws') hood = "Purple Hood"
-    if (selectedFaculty.value === 'Business Administration') hood = "Drab Hood"
-    
-    hat = selectedLevel.value === 'phd' ? "Black Bonnet with Gold Tassel" : "Black Mortarboard with Tassel"
-  }
-
-  if (type === 'elite') {
-    return [
-      "Luxury Velvet-Touch Finish",
-      `Premium ${hood}`,
-      `Custom-tailored ${gown}`,
-      `Premium ${hat}`
-    ]
-  }
-
-  return [hood, gown, hat]
-}
-
-const classicFeatures = computed(() => getPackageFeatures('classic'))
-const eliteFeatures = computed(() => getPackageFeatures('elite'))
+  console.log('Filter criteria:', {
+    level: selectedLevel.value || 'all',
+    institution: selectedInstitution.value || 'all',
+    faculty: selectedFaculty.value || 'all',
+    matchCount: filtered.length,
+    totalPackages: allPackages.value.length
+  })
+  return filtered
+})
 
 const selectedPackage = ref(null)
 
-const selectPackage = (type) => {
-  const isElite = type === 'elite'
+const selectPackage = (packageObj) => {
+  // Build display with all styles
+  const styles = packageObj.getStyles()
+  const styleNames = styles.map(s => s.itemName).join(' + ')
+  
   selectedPackage.value = {
-    type,
-    title: `${formattedLevel.value} ${isElite ? 'Elite' : 'Classic'}`,
-    subtitle: `${formattedLevel.value.toUpperCase()} STANDARD`,
-    price: isElite ? 85 : 65,
-    features: isElite ? eliteFeatures.value : classicFeatures.value,
-    shortDesc: isElite 
-      ? "Luxury velvet-touch finish with custom-lined hood and premium tailoring."
-      : `Standard ${formattedLevel.value} regalia featuring the traditional institution style.`,
-    longDesc: isElite
-      ? `The ${formattedLevel.value} Elite Collection provides the highest quality materials including velvet-touch finishes and a double-lined discipline-specific hood. The gown is constructed with reinforced shoulder fluting and a professional silhouette.`
-      : `The ${formattedLevel.value} Classic Collection provides the iconic oblong sleeves and discipline-specific hood. The gown is constructed with reinforced shoulder fluting and a professional silhouette.`
+    packageId: packageObj.packageId,
+    title: `${packageObj.institution} - ${packageObj.educationLevel}`,
+    subtitle: `${packageObj.faculty}`,
+    price: packageObj.totalPrice,
+    rentalFee: packageObj.totalRentalFee,
+    deposit: packageObj.totalDeposit,
+    features: styles.map(s => s.itemName),
+    shortDesc: 'Premium academic regalia rentals with professional cleaning',
+    longDesc: `Complete ${packageObj.educationLevel} regalia package including: ${styleNames}. All items are professionally cleaned and maintained to the highest standards.`,
+    styles: styles
   }
 }
 
@@ -110,9 +113,12 @@ const proceedToOrder = () => {
   router.push({
     path: '/order',
     query: {
+      packageId: selectedPackage.value.packageId,
       title: selectedPackage.value.title,
       price: selectedPackage.value.price,
-      level: formattedLevel.value
+      rentalFee: selectedPackage.value.rentalFee,
+      deposit: selectedPackage.value.deposit,
+      level: selectedPackage.value.subtitle
     }
   })
 }
@@ -144,7 +150,7 @@ watch(() => route.query.new, (newVal) => {
           <div class="sticky-top" style="top: 100px;">
             <div class="card border-0 rounded-4 shadow-sm bg-white d-flex flex-column align-items-center justify-content-center p-5 position-relative" style="height: 500px;">
               <span class="badge bg-warning text-white rounded-pill px-4 py-2 position-absolute top-0 start-0 m-4 fw-bold mt-4 ms-4 shadow-sm" style="letter-spacing: 1px;">
-                {{ formattedLevel.toUpperCase() }} COLLECTION
+                {{ selectedPackage.subtitle.toUpperCase() }} COLLECTION
               </span>
               <div class="icon-box-large bg-light-beige rounded-4 d-flex justify-content-center align-items-center mb-4 mt-5">
                 <i class="bi bi-mortarboard fs-1 text-warning-custom"></i>
@@ -219,6 +225,19 @@ watch(() => route.query.new, (newVal) => {
       <h1 class="fw-bold display-4 mb-3 text-dark mt-2">Start Your Gown Rental</h1>
       <p class="text-secondary fs-5 mb-5">Please follow the selection flow to find the correct regalia for your ceremony.</p>
 
+      <!-- Error Message -->
+      <div v-if="error" class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>{{ error }}</strong>
+        <p class="small mb-0 mt-2">Please ensure the backend API is running at http://localhost:8080</p>
+      </div>
+
+      <!-- Loading Message -->
+      <div v-if="loading" class="alert alert-info mb-4">
+        <i class="bi bi-hourglass-split me-2"></i>
+        Loading packages...
+      </div>
+
       <!-- Selection Steps -->
       <div class="row g-4 justify-content-center mb-5 max-w-1000 mx-auto">
         <!-- Step 1 -->
@@ -231,23 +250,21 @@ watch(() => route.query.new, (newVal) => {
             <label class="form-label text-secondary mb-2 fs-6">Education Level</label>
             <select v-model="selectedLevel" class="form-select custom-select rounded-pill border-0 shadow-none bg-light-beige w-100 px-3 py-2 text-dark">
               <option value="" disabled>Select Level</option>
-              <option value="bachelor">Bachelor's Degree</option>
-              <option value="master">Master's Degree</option>
-              <option value="phd">PhD</option>
+              <option v-for="level in educationLevels" :key="level" :value="level">{{ level }}</option>
             </select>
           </div>
         </div>
 
         <!-- Step 2 -->
         <div class="col-md-4">
-          <div class="card bg-white border-0 shadow-sm h-100 rounded-4 text-start p-4" :class="{ 'step-inactive': !isStep2Enabled }">
-            <div class="d-flex align-items-center gap-2 mb-3 fw-bold" :class="isStep2Enabled ? 'text-warning' : 'text-warning-muted'">
+          <div class="card bg-white border-0 shadow-sm h-100 rounded-4 text-start p-4">
+            <div class="d-flex align-items-center gap-2 mb-3 text-warning fw-bold">
               <i class="bi bi-building"></i>
               <span>STEP 2</span>
             </div>
-            <label class="form-label mb-2 fs-6" :class="isStep2Enabled ? 'text-secondary' : 'text-muted'">Institution</label>
-            <select v-model="selectedInstitution" :disabled="!isStep2Enabled" :class="isStep2Enabled ? 'bg-light-beige text-dark' : 'bg-light-beige-muted text-muted'" class="form-select custom-select rounded-pill border-0 shadow-none w-100 px-3 py-2">
-              <option value="" disabled>Select Institution</option>
+            <label class="form-label mb-2 fs-6 text-secondary">Institution</label>
+            <select v-model="selectedInstitution" class="form-select custom-select rounded-pill border-0 shadow-none w-100 px-3 py-2 bg-light-beige text-dark">
+              <option value="">Select Institution</option>
               <option v-for="inst in institutions" :key="inst" :value="inst">{{ inst }}</option>
             </select>
           </div>
@@ -255,81 +272,53 @@ watch(() => route.query.new, (newVal) => {
 
         <!-- Step 3 -->
         <div class="col-md-4">
-          <div class="card bg-white border-0 shadow-sm h-100 rounded-4 text-start p-4" :class="{ 'step-inactive': !isStep3Enabled }">
-            <div class="d-flex align-items-center gap-2 mb-3 fw-bold" :class="isStep3Enabled ? 'text-warning' : 'text-warning-muted'">
+          <div class="card bg-white border-0 shadow-sm h-100 rounded-4 text-start p-4">
+            <div class="d-flex align-items-center gap-2 mb-3 text-warning fw-bold">
               <i class="bi bi-briefcase"></i>
               <span>STEP 3</span>
             </div>
-            <label class="form-label mb-2 fs-6" :class="isStep3Enabled ? 'text-secondary' : 'text-muted'">Faculty</label>
-            <select v-model="selectedFaculty" :disabled="!isStep3Enabled" :class="isStep3Enabled ? 'bg-light-beige text-dark' : 'bg-light-beige-muted text-muted'" class="form-select custom-select rounded-pill border-0 shadow-none w-100 px-3 py-2">
-              <option value="" disabled>Select Faculty</option>
+            <label class="form-label mb-2 fs-6 text-secondary">Faculty</label>
+            <select v-model="selectedFaculty" class="form-select custom-select rounded-pill border-0 shadow-none w-100 px-3 py-2 bg-light-beige text-dark">
+              <option value="">Select Faculty</option>
               <option v-for="faculty in faculties" :key="faculty" :value="faculty">{{ faculty }}</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Placeholder Areas or Results -->
-      <div v-if="!showResults" class="empty-state-box d-flex flex-column align-items-center justify-content-center mx-auto rounded-5 border-dashed">
-        <i class="bi bi-mortarboard empty-icon mb-3"></i>
-        <h5 class="fw-bold text-secondary">Select your institution details to view packages</h5>
-      </div>
-
-      <div v-else class="results-section fade-in">
-        <h2 class="fw-bold text-dark mb-5 text-center">Available {{ formattedLevel }} Packages</h2>
+      <!-- Results Section -->
+      <div class="results-section fade-in">
+        <h2 class="fw-bold text-dark mb-5 text-center">Available Packages</h2>
         
-        <div class="row g-4 justify-content-center mx-auto max-w-1000">
-          
-          <!-- Classic Package Card -->
-          <div class="col-md-6 col-lg-5">
-            <div class="card package-card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-              <div class="card-header bg-light-beige border-0 position-relative d-flex justify-content-center align-items-center p-5">
-                <span class="price-tag badge bg-warning text-white rounded-pill px-3 py-2 fs-6 fw-bold position-absolute top-0 end-0 mt-3 me-3">$65</span>
-                <div class="icon-box bg-white rounded-4 shadow-sm d-flex justify-content-center align-items-center">
-                  <i class="bi bi-mortarboard fs-1 text-warning-custom"></i>
-                </div>
-              </div>
-              <div class="card-body p-4 text-start d-flex flex-column">
-                <h4 class="fw-bold mb-1 text-dark">{{ formattedLevel }} Classic</h4>
-                <p class="text-secondary small mb-3">{{ selectedInstitution }} - {{ selectedFaculty }}</p>
-                <p class="text-muted small mb-4">Standard {{ formattedLevel.toLowerCase() }} regalia featuring the traditional institution style.</p>
-                
-                <ul class="list-unstyled mb-5 d-flex flex-column gap-3">
-                  <li v-for="(feature, idx) in classicFeatures" :key="'classic-'+idx" class="d-flex align-items-start gap-2">
-                    <i class="bi bi-check-circle text-warning-custom mt-1"></i>
-                    <span class="text-secondary fs-6">{{ feature }}</span>
-                  </li>
-                </ul>
-                
-                <button @click="selectPackage('classic')" class="btn btn-warning text-white fw-bold rounded-3 py-3 mt-auto fs-6 w-100 btn-hover-custom">
-                  View Details <i class="bi bi-arrow-right ms-1"></i>
-                </button>
-              </div>
-            </div>
-          </div>
+        <div v-if="filteredPackages.length === 0" class="empty-state-box d-flex flex-column align-items-center justify-content-center mx-auto rounded-5 border-dashed">
+          <i class="bi bi-inbox empty-icon mb-3"></i>
+          <h5 class="fw-bold text-secondary">No packages match your filters</h5>
+        </div>
 
-          <!-- Elite Package Card -->
-          <div class="col-md-6 col-lg-5">
+        <div v-else class="row g-4 justify-content-center mx-auto">
+          
+          <!-- Dynamic Package Cards -->
+          <div v-for="pkg in filteredPackages" :key="pkg.packageId" class="col-md-6 col-lg-4">
             <div class="card package-card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
               <div class="card-header bg-light-beige border-0 position-relative d-flex justify-content-center align-items-center p-5">
-                <span class="price-tag badge bg-warning text-white rounded-pill px-3 py-2 fs-6 fw-bold position-absolute top-0 end-0 mt-3 me-3">$85</span>
+                <span class="price-tag badge bg-warning text-white rounded-pill px-3 py-2 fs-6 fw-bold position-absolute top-0 end-0 mt-3 me-3">${{ pkg.totalPrice }}</span>
                 <div class="icon-box bg-white rounded-4 shadow-sm d-flex justify-content-center align-items-center">
                   <i class="bi bi-mortarboard fs-1 text-warning-custom"></i>
                 </div>
               </div>
               <div class="card-body p-4 text-start d-flex flex-column">
-                <h4 class="fw-bold mb-1 text-dark">{{ formattedLevel }} Elite</h4>
-                <p class="text-secondary small mb-3">{{ selectedInstitution }} - {{ selectedFaculty }}</p>
-                <p class="text-muted small mb-4">Luxury velvet-touch finish with custom-lined hood and premium tailoring.</p>
+                <h4 class="fw-bold mb-1 text-dark">{{ pkg.institution }} - {{ pkg.educationLevel }}</h4>
+                <p class="text-secondary small mb-3">{{ pkg.faculty }}</p>
+                <p class="text-muted small mb-4">Premium academic regalia rentals with professional cleaning</p>
                 
                 <ul class="list-unstyled mb-5 d-flex flex-column gap-3">
-                  <li v-for="(feature, idx) in eliteFeatures" :key="'elite-'+idx" class="d-flex align-items-start gap-2">
+                  <li v-for="(style, idx) in pkg.getStyles()" :key="'pkg-'+pkg.packageId+'-'+idx" class="d-flex align-items-start gap-2">
                     <i class="bi bi-check-circle text-warning-custom mt-1"></i>
-                    <span class="text-secondary fs-6">{{ feature }}</span>
+                    <span class="text-secondary fs-6">{{ style.itemName }}</span>
                   </li>
                 </ul>
                 
-                <button @click="selectPackage('elite')" class="btn btn-warning text-white fw-bold rounded-3 py-3 mt-auto fs-6 w-100 btn-hover-custom">
+                <button @click="selectPackage(pkg)" class="btn btn-warning text-white fw-bold rounded-3 py-3 mt-auto fs-6 w-100 btn-hover-custom">
                   View Details <i class="bi bi-arrow-right ms-1"></i>
                 </button>
               </div>
@@ -469,5 +458,26 @@ h5 {
 
 hr {
   border-color: rgba(0,0,0,0.1);
+}
+
+/* 3-column layout for package cards */
+.col-lg-4 {
+  max-width: 33.333333%;
+  flex: 0 0 33.333333%;
+}
+
+@media (max-width: 1199px) {
+  .col-lg-4 {
+    max-width: 50%;
+    flex: 0 0 50%;
+  }
+}
+
+@media (max-width: 767px) {
+  .col-lg-4,
+  .col-md-6 {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
 }
 </style>

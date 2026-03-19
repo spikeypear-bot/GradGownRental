@@ -10,12 +10,13 @@ const fulfillment = ref('pickup')
 const selectedDate = ref(15) // mock default for March 15
 
 // Pull state from query params with fallbacks
+const packageId = computed(() => route.query.packageId || null)
 const packageTitle = computed(() => route.query.title || 'Bachelors Essential')
 const packageLevel = computed(() => route.query.level || 'Bachelors')
-const rentalFee = computed(() => Number(route.query.price || 45.00))
-const depositFee = 150.00
+const rentalFee = computed(() => Number(route.query.rentalFee || route.query.price || 45.00))
+const depositFee = computed(() => Number(route.query.deposit || 150.00))
 
-const totalCost = computed(() => rentalFee.value + depositFee)
+const totalCost = computed(() => rentalFee.value + depositFee.value)
 
 const currentStep = ref(1)
 
@@ -408,7 +409,7 @@ const goBack = () => {
                       <span class="text-danger-custom fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">SECURE PAYMENT</span>
                     </div>
                     <p class="text-secondary mb-0 lh-base fw-medium" style="font-size: 0.95rem;">
-                       Your ${{ depositFee }} security deposit will be authorized and held until the successful return of the regalia.
+                       Your ${{ depositFee.toFixed(2) }} security deposit will be authorized and held until the successful return of the regalia.
                     </p>
                   </div>
                 </div>
