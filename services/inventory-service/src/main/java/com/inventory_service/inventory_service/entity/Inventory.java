@@ -7,6 +7,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+//Entity keeping track of the total quantities per model, as well as the size of it. 
+//Two sets of clothings are considered different model, if they have different styles (Mapped by style id), and different sizes
+//Example: M Blue Gown and S Blue gown is different model, but two of the S blue gown are considered the same model id.
+//Qty is mainly used for tracking.
+
+
+
 @Entity
 @Table(name="\"inventory\"")
 public class Inventory {

@@ -90,7 +90,7 @@ returns a hold id , and its other relevant details
 
 POST 
 
-http://localhost:8080/api/inventory/reserveItems
+http://localhost:8080/api/inventory/reserveitems
 
 Body: 
 
@@ -115,7 +115,7 @@ Body:
 
 ### 8. Collect Items once customer collected Items
 
-http://localhost:8080/api/inventory/collectItems
+http://localhost:8080/api/inventory/collectitems
 
 [
     
@@ -138,7 +138,7 @@ http://localhost:8080/api/inventory/collectItems
 
 ### 9. Once Items come back, set these to washing
 
-http://localhost:8080/api/inventory/washItems
+http://localhost:8080/api/inventory/washitems
 
 [
     
@@ -175,6 +175,46 @@ Service: ^^ + PostService + GetService
 Controller: InventoryController
 
 ### More features like exceptions and response or request bodies to be added.
+
+
+
+## Entities
+### 1. InventoryStyle
+Refers to the different styles, example like Blue Gown, or Crimson Edge Hood, these two would be different style. All styles have same rental fee and deposit and is defined in this entity. 
+
+### 2. Inventory
+Entity keeping track of the total quantities per model, as well as the size of it. 
+Two sets of clothings are considered different model, if they have different styles (Mapped by style id), and different sizes
+Example: M Blue Gown and S Blue gown is different model, but two of the S blue gown are considered the same model id.
+
+### 3. InventoryQuantityTrack
+Tracks quantity of inventory on a day to day basis, whenever an item is first rented on a certain day, a new entry is created mapping the model id to the dates
+And to the quantity affected by it. 
+Quantities comes in the form of reserved, rented, wash, damaged, backup. Backup is usually kept at 10, and is activated when there happens to be insufficient amount, but order has been made.
+When a gown is reserved it would be blocked for 7 days, 3 days being rented and 4 days being sent for washing. 
+
+### 4. GraduationPackage
+The Grad package mainly defines the type of packages offered, in particular the different packages maps to different faculty, institution and education level.
+Students are only allow to buy packages. 
+
+### 5. ItemHold
+Is used for soft holding of items. Tracked by the HoldID as well as modelID and will only be available for 10mins. 
+
+## Repositories
+
+It defines function to allow the service classes to make uses of the entity, defines function to make queries on the tables of the database. 
+
+## Service
+
+Main crux of business logic. Consists of services for each entity, as well as a post service and a get service.
+
+## Controller 
+Post mapping and get mapping to connect and receive api calls
+
+## 
+
+
+
 
 
 

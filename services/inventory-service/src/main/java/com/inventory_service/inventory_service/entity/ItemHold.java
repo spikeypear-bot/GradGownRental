@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+// Is used for soft holding of items.
 
 @Entity
 @Table(name = "\"itemhold\"")

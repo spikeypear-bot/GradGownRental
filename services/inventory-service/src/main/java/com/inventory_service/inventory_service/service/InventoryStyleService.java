@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.inventory_service.inventory_service.dto.InventoryStyleDto;
 import com.inventory_service.inventory_service.entity.InventoryStyle;
+import com.inventory_service.inventory_service.exception.StyleNotFoundException;
 import com.inventory_service.inventory_service.mapper.InventoryStyleMapper;
 import com.inventory_service.inventory_service.repository.InventoryStyleRepository;
 
@@ -27,7 +28,7 @@ public class InventoryStyleService {
 
 
     }
-    public InventoryStyleDto getInventoryStyleByStyleId(int styleId) throws RuntimeException{
+    public InventoryStyleDto getInventoryStyleByStyleId(int styleId) throws StyleNotFoundException{
         Optional<InventoryStyle> res= this.inventoryStyleRepository.findById(styleId);
 
         if(res.isPresent()){
@@ -36,7 +37,8 @@ public class InventoryStyleService {
         
         }
         else{
-            throw new RuntimeException("No styles found.");
+            throw new StyleNotFoundException();
+            
         }
 
         

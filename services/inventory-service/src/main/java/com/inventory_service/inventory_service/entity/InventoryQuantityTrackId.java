@@ -3,6 +3,7 @@ package com.inventory_service.inventory_service.entity;
 import java.io.Serializable;
 import java.time.LocalDate;
 
+//Id class for the inventoryquantitytrack entity.
 
 public class InventoryQuantityTrackId implements Serializable{
     private String model;

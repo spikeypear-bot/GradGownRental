@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.inventory_service.inventory_service.dto.InventoryDto;
 import com.inventory_service.inventory_service.entity.Inventory;
+import com.inventory_service.inventory_service.exception.ModelNotFoundException;
 import com.inventory_service.inventory_service.mapper.InventoryMapper;
 import com.inventory_service.inventory_service.repository.InventoryRepository;
 
@@ -38,14 +39,14 @@ public class InventoryService {
     public List<InventoryDto> getAllInventory(){
         return inventoryMapper.inventoriesToInventoryDtos((inventoryRepository.findAll()));
     }
-    public InventoryDto getByModelId(String modelId) throws RuntimeException{
+    public InventoryDto getByModelId(String modelId) throws ModelNotFoundException {
         Optional<Inventory> res=inventoryRepository.findById(modelId);
         
         if(res.isPresent()){
             return inventoryMapper.inventoryToInventoryDto(res.get());
         }
         else{
-            throw new RuntimeException("No models found.");
+            throw new ModelNotFoundException();
 
     }}
 

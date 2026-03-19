@@ -3,7 +3,7 @@ package com.inventory_service.inventory_service.entity;
 import java.io.Serializable;
 
 
-
+// Id for softhold.
 
 
 public class ItemHoldId implements Serializable{

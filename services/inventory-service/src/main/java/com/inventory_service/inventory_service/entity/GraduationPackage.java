@@ -9,6 +9,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+//The Grad package mainly defines the type of packages offered, in particular the different packages maps to different faculty, institution and education level.
+//Students are only allow to buy packages. 
+
+
 @Entity
 @Table(name="\"package\"")
 public class GraduationPackage {

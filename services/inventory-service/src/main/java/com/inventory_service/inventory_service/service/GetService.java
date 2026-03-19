@@ -19,20 +19,23 @@ import com.inventory_service.inventory_service.dto.ModelOnlyDto;
 import com.inventory_service.inventory_service.dto.PackageWithPriceDto;
 import com.inventory_service.inventory_service.dto.PackageWithStyleAndInventoryDto;
 import com.inventory_service.inventory_service.dto.StyleWithInventoryDto;
+import com.inventory_service.inventory_service.exception.ModelNotFoundException;
+import com.inventory_service.inventory_service.exception.PackageNotFoundException;
 
 
 @Service
 public class GetService {
     private final InventoryService inventoryService;
+    private final DamageLogService damageLogService;
     
     private final InventoryQuantityTrackService inventoryQuantityTrackService;
     private final GraduationPackageService graduationPackageService;
     private final ItemHoldService itemHoldService;
     public GetService(InventoryService inventoryService,
             InventoryQuantityTrackService inventoryQuantityTrackService,
-            GraduationPackageService graduationPackageService,ItemHoldService itemHoldService) {
+            GraduationPackageService graduationPackageService,ItemHoldService itemHoldService,DamageLogService damageLogService) {
         this.inventoryService = inventoryService;
-        
+        this.damageLogService=damageLogService;
         this.inventoryQuantityTrackService = inventoryQuantityTrackService;
         this.graduationPackageService = graduationPackageService;
         this.itemHoldService=itemHoldService;
@@ -40,7 +43,7 @@ public class GetService {
 
     
     // Intermediate methods//
-
+    // Calculate total rental fees based on a graduation package.
     public BigDecimal calculateTotalRentalFee (GraduationPackageDto graduationPackageDto){
         InventoryStyleDto hatStyle = graduationPackageDto.getHatStyle();
             InventoryStyleDto gownStyle= graduationPackageDto.getGownStyle();
@@ -64,6 +67,8 @@ public class GetService {
             }
             return totalRentalFee;
     }
+    // Calculate total deposits based on a graduation package
+
     public BigDecimal calculateTotalDeposit (GraduationPackageDto graduationPackageDto){
         InventoryStyleDto hatStyle = graduationPackageDto.getHatStyle();
             InventoryStyleDto gownStyle= graduationPackageDto.getGownStyle();
@@ -88,7 +93,7 @@ public class GetService {
             return totalDeposit;
     }
     
-    
+    //Get all inventory by style, so based on one style map out all the models
 
     public StyleWithInventoryDto getAllInventoryDtoByStyle(InventoryStyleDto inventoryStyleDto){
         if(inventoryStyleDto==null){
@@ -129,6 +134,8 @@ public class GetService {
 
     }
 
+    // Get all packages based on the institution, education level and faculty selected. 
+
     public List<PackageWithPriceDto> getAllPackagesMatched(String educationLevel,String faculty,String institution){
         List<PackageWithPriceDto> res= new ArrayList<>();
         List<GraduationPackageDto> graduationPackageDtos= graduationPackageService.getGraduationPackageByEducationLevelAndInstitutionAndFaculty(educationLevel, institution, faculty);
@@ -147,7 +154,7 @@ public class GetService {
 
     //Get all packages, showing the styles and the sizes they offer//
 
-    public PackageWithStyleAndInventoryDto getPackageWithStyleAndInventory(int packageId) throws RuntimeException{
+    public PackageWithStyleAndInventoryDto getPackageWithStyleAndInventory(int packageId) throws PackageNotFoundException{
         //Making elements for the constructors
         GraduationPackageDto graduationPackageDto=graduationPackageService.getByPackageId(packageId);
         InventoryStyleDto hatStyleDto=graduationPackageDto.getHatStyle();
@@ -181,9 +188,10 @@ public class GetService {
             on_hold_qty+=itemHoldDto.getQty();
 
         }
+        int damageQty= damageLogService.getDamagedQty(modelId, date);
         
         if(inventoryQuantityTrackDto!=null){
-            int unavailableQty=inventoryQuantityTrackDto.getBackupQty()+inventoryQuantityTrackDto.getDamagedQty()+inventoryQuantityTrackDto.getRentedQty()+inventoryQuantityTrackDto.getReservedQty()+inventoryQuantityTrackDto.getWashQty()+on_hold_qty;
+            int unavailableQty=inventoryQuantityTrackDto.getBackupQty()+inventoryQuantityTrackDto.getRentedQty()+inventoryQuantityTrackDto.getReservedQty()+inventoryQuantityTrackDto.getWashQty()+on_hold_qty+damageQty;
             availableQty=availableQty-unavailableQty;
 
             
@@ -196,14 +204,14 @@ public class GetService {
 
     }
 
-    public DailyAvailabilityDto getDayAvailability(String hatModelId,String hoodModelId,String gownModelId,LocalDate date)throws RuntimeException{
+    public DailyAvailabilityDto getDayAvailability(String hatModelId,String hoodModelId,String gownModelId,LocalDate date)throws RuntimeException,ModelNotFoundException{
         List<ComponentAvailabilityDto> componentAvailabilityDtos=new ArrayList<>();
         
         if(hatModelId!=null){
             InventoryDto hatModelDto=inventoryService.getByModelId(hatModelId);
             InventoryDateAndQuantityDto hatModelAvailable=getInventoryAvailableDateAndQuantity(hatModelDto, date);
             int min=hatModelAvailable.getAvailableQty();
-            for(int j=0;j<10;j++){
+            for(int j=0;j<7;j++){
                 LocalDate prempt=date.plusDays(j);
                 hatModelAvailable=getInventoryAvailableDateAndQuantity(hatModelDto, prempt);
                 if(hatModelAvailable.getAvailableQty()<min){
@@ -217,7 +225,7 @@ public class GetService {
             InventoryDto hoodModelDto=inventoryService.getByModelId(hoodModelId);
             InventoryDateAndQuantityDto hoodModelAvailable=getInventoryAvailableDateAndQuantity(hoodModelDto,date);
             int min=hoodModelAvailable.getAvailableQty();
-            for(int j=0;j<10 ;j++){
+            for(int j=0;j<7 ;j++){
                 LocalDate prempt=date.plusDays(j);
                 hoodModelAvailable=getInventoryAvailableDateAndQuantity(hoodModelDto, prempt);
                 if(hoodModelAvailable.getAvailableQty()<min){
@@ -234,7 +242,7 @@ public class GetService {
             InventoryDto gownModelDto=inventoryService.getByModelId(gownModelId);
             InventoryDateAndQuantityDto gownModelAvailable=getInventoryAvailableDateAndQuantity(gownModelDto, date);
             int min=gownModelAvailable.getAvailableQty();
-            for(int j=0;j<10 ;j++){
+            for(int j=0;j<7 ;j++){
                 LocalDate prempt=date.plusDays(j);
                 gownModelAvailable=getInventoryAvailableDateAndQuantity(gownModelDto, prempt);
                 if(gownModelAvailable.getAvailableQty()<min){
@@ -265,17 +273,17 @@ public class GetService {
     }
 
     //Given 3 modelId and date , return all date and quantity of this set for the next 90 days;
-    public List<DailyAvailabilityDto> getAvailableQtyForSet (String hatModelId,String hoodModelId,String gownModelId) throws RuntimeException{
+    public List<DailyAvailabilityDto> getAvailableQtyForSet (String hatModelId,String hoodModelId,String gownModelId) throws RuntimeException,ModelNotFoundException{
         List<DailyAvailabilityDto> res= new ArrayList<>();
         LocalDate today=LocalDate.now();
-        for(int i=0;i<90;i++){
+        for(int i=0;i<7;i++){
             LocalDate curr=today.plusDays(i);
             List<ComponentAvailabilityDto> componentAvailabilityDtos=new ArrayList<>();
             if(hatModelId!=null){
                 InventoryDto hatModelDto=inventoryService.getByModelId(hatModelId);
                 InventoryDateAndQuantityDto hatModelAvailable=getInventoryAvailableDateAndQuantity(hatModelDto, curr);
                 int min=hatModelAvailable.getAvailableQty();
-                for(int j=0;j<10 && i+j<90;j++){
+                for(int j=0;j<7 && i+j<90;j++){
                     LocalDate prempt=curr.plusDays(j);
                     hatModelAvailable=getInventoryAvailableDateAndQuantity(hatModelDto, prempt);
                     if(hatModelAvailable.getAvailableQty()<min){
@@ -289,7 +297,7 @@ public class GetService {
                 InventoryDto hoodModelDto=inventoryService.getByModelId(hoodModelId);
                 InventoryDateAndQuantityDto hoodModelAvailable=getInventoryAvailableDateAndQuantity(hoodModelDto, curr);
                 int min=hoodModelAvailable.getAvailableQty();
-                for(int j=0;j<10 && i+j<90;j++){
+                for(int j=0;j<7 && i+j<90;j++){
                     LocalDate prempt=curr.plusDays(j);
                     hoodModelAvailable=getInventoryAvailableDateAndQuantity(hoodModelDto, prempt);
                     if(hoodModelAvailable.getAvailableQty()<min){
@@ -306,7 +314,7 @@ public class GetService {
                 InventoryDto gownModelDto=inventoryService.getByModelId(gownModelId);
                 InventoryDateAndQuantityDto gownModelAvailable=getInventoryAvailableDateAndQuantity(gownModelDto, curr);
                 int min=gownModelAvailable.getAvailableQty();
-                for(int j=0;j<10 && i+j<90;j++){
+                for(int j=0;j<7 && i+j<90;j++){
                     LocalDate prempt=curr.plusDays(j);
                     gownModelAvailable=getInventoryAvailableDateAndQuantity(gownModelDto, prempt);
                     if(gownModelAvailable.getAvailableQty()<min){

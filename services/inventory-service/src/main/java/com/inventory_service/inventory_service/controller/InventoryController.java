@@ -13,11 +13,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.inventory_service.inventory_service.dto.DailyAvailabilityDto;
+import com.inventory_service.inventory_service.dto.DamageAndQtyDto;
+import com.inventory_service.inventory_service.dto.ItemAndDamageIdDto;
 import com.inventory_service.inventory_service.dto.ModelIdAndQtyAndDateDto;
 import com.inventory_service.inventory_service.dto.PackageWithPriceDto;
 import com.inventory_service.inventory_service.dto.PackageWithStyleAndInventoryDto;
 import com.inventory_service.inventory_service.dto.ReserveDto;
 import com.inventory_service.inventory_service.dto.SoftHoldDto;
+import com.inventory_service.inventory_service.exception.DamageNotFoundException;
+import com.inventory_service.inventory_service.exception.ModelNotFoundException;
+import com.inventory_service.inventory_service.exception.PackageNotFoundException;
 import com.inventory_service.inventory_service.response.InventoryResponse;
 import com.inventory_service.inventory_service.service.GetService;
 import com.inventory_service.inventory_service.service.PostService;
@@ -39,7 +44,7 @@ public class InventoryController {
         try {
             PackageWithStyleAndInventoryDto packageWithStyleAndInventoryDto = getService.getPackageWithStyleAndInventory(packageId);
             res= new InventoryResponse<PackageWithStyleAndInventoryDto>(200, "success", packageWithStyleAndInventoryDto);
-        } catch (RuntimeException e) {
+        } catch (PackageNotFoundException e) {
             res= new InventoryResponse<PackageWithStyleAndInventoryDto>(400, e.getMessage(), null);
             // TODO: handle exception
         }
@@ -112,14 +117,16 @@ public class InventoryController {
 
     }
 
-    @PostMapping("/reserveItems")
+    @PostMapping("/reserveitems")
     public InventoryResponse<String> reserveItemsInventory(@RequestBody ReserveDto items){
         try {
             postService.reserveItems(items);
-            return new InventoryResponse<String>(200, "items reserved successfully", null);
+            return new InventoryResponse<String>(200, "Success: Items reserved successfully", null);
             
             
-        } catch (RuntimeException e) {
+        }
+        
+        catch (RuntimeException e) {
             return new InventoryResponse<String>(400, e.getMessage(), null);
 
             // TODO: handle exception
@@ -127,14 +134,14 @@ public class InventoryController {
 
     }
 
-    @PutMapping("/collectItems")
+    @PutMapping("/collectitems")
     public InventoryResponse<String> collectItemsUpdate(@RequestBody List<ModelIdAndQtyAndDateDto> items){
         try {
             postService.collectItems(items);
-            return new InventoryResponse<String>(200, "items collected by customers", null);
+            return new InventoryResponse<String>(200, "Success: Items collected by customers", null);
             
             
-        } catch (RuntimeException e) {
+        } catch (ModelNotFoundException e) {
             return new InventoryResponse<String>(400, e.getMessage(), null);
 
             // TODO: handle exception
@@ -142,18 +149,45 @@ public class InventoryController {
 
     }
 
-    @PutMapping ("/washItems")
+    @PutMapping ("/washitems")
     public InventoryResponse<String> putItemsUpdate(@RequestBody List<ModelIdAndQtyAndDateDto> items){
         try {
             postService.washItems(items);
-            return new InventoryResponse<String>(200, "items collected from customer and sent for washing", null);
+            return new InventoryResponse<String>(200, "Success: Items collected from customer and sent for washing", null);
             
             
-        } catch (RuntimeException e) {
+        } catch (ModelNotFoundException e) {
             return new InventoryResponse<String>(400, e.getMessage(), null);
 
             // TODO: handle exception
         }
+    }
+
+    @PostMapping("/damageitems")
+    public InventoryResponse<List<ItemAndDamageIdDto>> createDamageItems(@RequestBody List<ModelIdAndQtyAndDateDto> items){
+        try {
+            List<ItemAndDamageIdDto> res=postService.damageItems(items);
+            return new InventoryResponse<List<ItemAndDamageIdDto>>(200, "Success: Damage Items Logged",res );
+            
+            
+        } catch (RuntimeException e) {
+
+            return new InventoryResponse<List<ItemAndDamageIdDto>>(400, e.getMessage(), null);
+
+            // TODO: handle exception
+        }
+    }
+
+    @PostMapping("/repairitems")
+    public InventoryResponse<List<Integer>> createRepairItems(@RequestBody List<DamageAndQtyDto>repairList){
+        try {
+            postService.repairItems(repairList);
+            return new InventoryResponse<List<Integer>>(200, "Success: Damage Logs Updated", null);
+        } catch (DamageNotFoundException e) {
+            return new InventoryResponse<List<Integer>>(400, "Error: Damage Id for the following cannot be found", e.getErrors());
+            
+        }
+
     }
 
     

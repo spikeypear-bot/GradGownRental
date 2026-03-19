@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.inventory_service.inventory_service.dto.GraduationPackageDto;
 import com.inventory_service.inventory_service.entity.GraduationPackage;
+import com.inventory_service.inventory_service.exception.PackageNotFoundException;
 import com.inventory_service.inventory_service.mapper.GraduationPackageMapper;
 import com.inventory_service.inventory_service.repository.GraduationPackageRepository;
 
@@ -36,14 +37,14 @@ public class GraduationPackageService {
         return res;
         
     }
-    public GraduationPackageDto getByPackageId (int packageId) throws RuntimeException{
+    public GraduationPackageDto getByPackageId (int packageId) throws PackageNotFoundException{
         Optional<GraduationPackage> res=this.graduationPackageRepository.findById(packageId);
         
         if(res.isPresent()){
             return graduationPackageMapper.graduationPackageToGraduationPackageDto(res.get());
         }
         else{
-            throw new RuntimeException("Package not found");
+            throw new PackageNotFoundException();
 
     }}
 

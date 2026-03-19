@@ -38,7 +38,7 @@ public class ItemHoldService {
         for (ItemHold itemHold : itemHolds) {
             LocalDateTime createdTime = itemHold.getCreatedAt();
             Duration duration = Duration.between(createdTime, currentTime);
-            if (duration.toMinutes() <= 10) {
+            if (duration.toMinutes() <= 25) {
                 nonExpiredHolds.add(itemHold);
             }
 

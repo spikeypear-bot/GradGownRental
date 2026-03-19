@@ -9,15 +9,19 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.inventory_service.inventory_service.dto.DamageAndQtyDto;
 import com.inventory_service.inventory_service.dto.InventoryDateAndQuantityDto;
 import com.inventory_service.inventory_service.dto.InventoryDto;
 import com.inventory_service.inventory_service.dto.InventoryQuantityTrackDto;
+import com.inventory_service.inventory_service.dto.ItemAndDamageIdDto;
 import com.inventory_service.inventory_service.dto.ItemHoldDto;
 import com.inventory_service.inventory_service.dto.ModelIdAndQtyAndDateDto;
 import com.inventory_service.inventory_service.dto.ReserveDto;
 import com.inventory_service.inventory_service.dto.SoftHoldDto;
 import com.inventory_service.inventory_service.entity.Inventory;
 import com.inventory_service.inventory_service.entity.InventoryQuantityTrack;
+import com.inventory_service.inventory_service.exception.DamageNotFoundException;
+import com.inventory_service.inventory_service.exception.ModelNotFoundException;
 import com.inventory_service.inventory_service.mapper.InventoryMapper;
 import com.inventory_service.inventory_service.mapper.InventoryQuantityTrackMapper;
 import com.inventory_service.inventory_service.repository.InventoryQuantityTrackRepository;
@@ -27,6 +31,7 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class PostService {
+    private final DamageLogService damageLogService;
     private final InventoryService inventoryService;
     private final GetService getService;
     private final InventoryQuantityTrackService inventoryQuantityTrackService;
@@ -38,7 +43,7 @@ public class PostService {
 
     public PostService(InventoryService inventoryService, GetService getService,
             InventoryQuantityTrackService inventoryQuantityTrackService,InventoryMapper inventoryMapper,ItemHoldService itemHoldService,InventoryQuantityTrackRepository inventoryQuantityTrackRepository,InventoryQuantityTrackMapper inventoryQuantityTrackMapper,
-        ItemHoldRepository itemHoldRepository) {
+        ItemHoldRepository itemHoldRepository,DamageLogService damageLogService) {
         this.inventoryService = inventoryService;
         this.getService = getService;
         this.inventoryQuantityTrackService = inventoryQuantityTrackService;
@@ -47,6 +52,7 @@ public class PostService {
         this.inventoryQuantityTrackRepository=inventoryQuantityTrackRepository;
         this.inventoryQuantityTrackMapper=inventoryQuantityTrackMapper;
         this.itemHoldRepository=itemHoldRepository;
+        this.damageLogService=damageLogService; 
     }
 
 
@@ -54,7 +60,7 @@ public class PostService {
 
 
     @Transactional
-    public SoftHoldDto makeSoftHold (List<ModelIdAndQtyAndDateDto> items) throws RuntimeException{
+    public SoftHoldDto makeSoftHold (List<ModelIdAndQtyAndDateDto> items) throws RuntimeException,ModelNotFoundException{
         
 
 
@@ -66,6 +72,7 @@ public class PostService {
                 LocalDate curr=chosenDate.plusDays(i);
                 InventoryDateAndQuantityDto check=getService.getInventoryAvailableDateAndQuantity(itemDto, curr);
                 if(check.getAvailableQty()<item.getQty()){
+                     
                     throw new RuntimeException("Not able to soft-hold, as there is not enough qty of selected items.");
                 }
 
@@ -95,17 +102,18 @@ public class PostService {
     }
 
     @Transactional
-    public void dbMakeItemsReserve(String modelId,int qty,LocalDate date) throws RuntimeException{
+    public void dbMakeItemsReserve(String modelId,int qty,LocalDate date) throws ModelNotFoundException{
         InventoryDto itemDto=inventoryService.getByModelId(modelId);
         Inventory itemMapped=inventoryMapper.inventoryDtoToInventory(itemDto);
-        inventoryQuantityTrackRepository.save(new InventoryQuantityTrack(date,itemMapped,qty,0,0,0,10));
+        inventoryQuantityTrackRepository.save(new InventoryQuantityTrack(date,itemMapped,qty,0,0,10));
 
     }
     
     @Transactional
-    public void reserveItems(ReserveDto reserveDto) throws RuntimeException{
+    public void reserveItems(ReserveDto reserveDto) throws RuntimeException,ModelNotFoundException{
         List<ModelIdAndQtyAndDateDto> items=reserveDto.getItems();
-
+        
+        
         for(ModelIdAndQtyAndDateDto item: items){
             LocalDate chosenDate=item.getChosenDate();
 
@@ -149,7 +157,7 @@ public class PostService {
 
     }
     @Transactional
-    public void collectItems(List<ModelIdAndQtyAndDateDto> items) throws RuntimeException{
+    public void collectItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         
         for(ModelIdAndQtyAndDateDto item:items){
             LocalDate chosenDate=item.getChosenDate();
@@ -174,12 +182,12 @@ public class PostService {
     }
     
     @Transactional
-    public void washItems(List<ModelIdAndQtyAndDateDto> items) throws RuntimeException{
+    public void washItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         
         for(ModelIdAndQtyAndDateDto item:items){
             LocalDate chosenDate=item.getChosenDate();
             LocalDate today=LocalDate.now();
-            long daysDiff = ChronoUnit.DAYS.between(today, chosenDate);
+            long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
             int daysDiff2=7-(int) daysDiff;
 
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
@@ -204,17 +212,17 @@ public class PostService {
     }
 
     @Transactional
-    public void damagedItems(ReserveDto reserveDto) throws RuntimeException{
+    public List<ItemAndDamageIdDto> damageItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
+        List<ItemAndDamageIdDto> itemAndDamageIdDtos=new ArrayList<>();
         
-        List<ModelIdAndQtyAndDateDto> items=reserveDto.getItems();
         
         for(ModelIdAndQtyAndDateDto item:items){
             LocalDate chosenDate=item.getChosenDate();
             LocalDate today=LocalDate.now();
-            long daysDiff = ChronoUnit.DAYS.between(today, chosenDate);
+            long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
             int daysDiff2=7-(int) daysDiff;
-
-            
+            Integer damageId= damageLogService.createDamage(item.getModelId(),item.getQty(),null);
+            itemAndDamageIdDtos.add(new ItemAndDamageIdDto(damageId,item));
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
             for(int i=0;i<daysDiff2;i++){
 
@@ -222,15 +230,25 @@ public class PostService {
                 InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
                 int a= inventoryQuantityTrackDto.getReservedQty();
                 inventoryQuantityTrackDto.setRentedQty(a-item.getQty());
-                inventoryQuantityTrackDto.setWashQty(a+item.getQty());
+                
                 inventoryQuantityTrackRepository.save(inventoryQuantityTrackMapper.inventoryQuantityTrackDtoToInventoryQuantityTrack(inventoryQuantityTrackDto));
 
 
             
             }
+            
         }
+        return itemAndDamageIdDtos;
 
 
+
+    }
+
+    
+    @Transactional
+    public void repairItems( List<DamageAndQtyDto> repairedList) throws DamageNotFoundException{
+       
+        damageLogService.repairDamage(repairedList);
 
     }
 

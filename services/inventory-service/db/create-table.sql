@@ -40,7 +40,6 @@ CREATE TABLE InventoryQuantityTrack (
     reserved_qty INT DEFAULT 0,
     rented_qty INT DEFAULT 0,
     wash_qty INT DEFAULT 0,
-    damaged_qty INT DEFAULT 0,
     backup_qty INT DEFAULT 0,
     PRIMARY KEY (date, model_id),
     FOREIGN KEY (model_id) REFERENCES Inventory(model_id)

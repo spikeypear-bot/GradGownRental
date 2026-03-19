@@ -7,6 +7,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+//Refers to the different styles, example like Blue Gown, or Crimson Edge Hood, these two would be different style. All styles have same rental fee and deposit. 
+
+
 @Entity
 @Table(name="\"inventorystyle\"")
 public class InventoryStyle {

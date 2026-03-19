@@ -9,6 +9,8 @@ import com.inventory_service.inventory_service.entity.GraduationPackage;
 
 import java.util.List;
 
+
+
 @Repository
 public interface GraduationPackageRepository extends JpaRepository<GraduationPackage,Integer> {
 
