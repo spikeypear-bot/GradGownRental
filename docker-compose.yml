@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
 
   # =========================================================================
@@ -9,8 +11,8 @@ services:
     hostname: kafka
     container_name: kafka
     ports:
-      - "9092:9092"       # host access (e.g. testing from your machine)
-      - "29092:29092"     # internal inter-container access
+      - "9092:9092"       # host access
+      - "29092:29092"     # internal container access
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -37,7 +39,7 @@ services:
   # ATOMIC MICROSERVICES
   # =========================================================================
 
-  # ── Inventory Service (Spring Boot / Java) ────────────────────────────────
+  # ── Inventory Service ─────────────────────────────────────────────────────
   inventory-service:
     build:
       context: ./services/inventory-service
@@ -63,7 +65,7 @@ services:
       POSTGRES_DB: inventory
       POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD}
     ports:
-      - "5433:5432"   # host:container — avoids clashing with other Postgres instances
+      - "5433:5432"
     networks:
       - app-network
     volumes:
@@ -75,7 +77,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Payment Service (Flask / Python) ─────────────────────────────────────
+  # ── Payment Service ───────────────────────────────────────────────────────
   payment-service:
     build:
       context: ./services/payment-service
@@ -116,7 +118,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Notification Service (Flask / Python) ─────────────────────────────────
+  # ── Notification Service ──────────────────────────────────────────────────
   notification-service:
     build:
       context: ./services/notification-service
@@ -164,157 +166,54 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Order Service  (add build context once branch merges) ─────────────────
-  # order-service:
-  #   build:
-  #     context: ./services/order-service
-  #   container_name: order-service
-  #   depends_on:
-  #     order-service-db:
-  #       condition: service_healthy
-  #   environment:
-  #     DB_HOST: order-service-db
-  #     DB_PORT: 5432
-  #     DB_NAME: order
-  #     DB_USER: ${ORDER_DB_USER}
-  #     DB_PASSWORD: ${ORDER_DB_PASSWORD}
-  #   ports:
-  #     - "8081:8081"
-  #   networks:
-  #     - app-network
-  #   restart: on-failure
-
-  # order-service-db:
-  #   image: postgres:16
-  #   container_name: order-service-db
-  #   environment:
-  #     POSTGRES_USER: ${ORDER_DB_USER}
-  #     POSTGRES_DB: order
-  #     POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
-  #   ports:
-  #     - "5436:5432"
-  #   networks:
-  #     - app-network
-  #   volumes:
-  #     - order-data:/var/lib/postgresql/data
-  #     - ./services/order-service/db:/docker-entrypoint-initdb.d
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d order"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # =========================================================================
-  # COMPOSITE SERVICES (SAGAS)
-  # =========================================================================
-
-  # ── Place an Order Saga (Flask / Python) ──────────────────────────────────
-  place-order-saga:
+  # ── Order Service (commented until branch merges) ─────────────────────────
+  order-service:
     build:
-      context: ./sagas/place-order-saga
-    container_name: place-order-saga
+      context: ./services/order-service
+    container_name: order-service
     depends_on:
-      kafka:
+      order-service-db:
         condition: service_healthy
-      inventory-service:
-        condition: service_started
-      # Uncomment once branches merge:
-      # order-service:
-      #   condition: service_started
-      # payment-service:
-      #   condition: service_started
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ORDER_SERVICE_URL: http://order-service:8081       # stubbed until order-service merges
-      PAYMENT_SERVICE_URL: http://payment-service:3000   # stubbed until payment-service merges
-      ERROR_SERVICE_URL: http://error-service:5002
+      DB_HOST: order-service-db
+      DB_PORT: 5432
+      DB_NAME: order
+      DB_USER: ${ORDER_DB_USER}
+      DB_PASSWORD: ${ORDER_DB_PASSWORD}
     ports:
-      - "5003:5003"
+      - "8081:8081"
     networks:
       - app-network
     restart: on-failure
 
-  # =========================================================================
-  # SUPPORT SERVICES
-  # =========================================================================
-
-  # ── Auth Service ──────────────────────────────────────────────────────────
-  # auth-service:
-  #   build:
-  #     context: ./services/auth-service
-  #   container_name: auth-service
-  #   depends_on:
-  #     auth-service-db:
-  #       condition: service_healthy
-  #   ports:
-  #     - "5004:5004"
-  #   networks:
-  #     - app-network
-
-  # auth-service-db:
-  #   image: postgres:16
-  #   container_name: auth-service-db
-  #   environment:
-  #     POSTGRES_USER: ${AUTH_DB_USER}
-  #     POSTGRES_DB: auth
-  #     POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
-  #   ports:
-  #     - "5437:5432"
-  #   networks:
-  #     - app-network
-  #   volumes:
-  #     - auth-data:/var/lib/postgresql/data
-  #     - ./services/auth-service/db:/docker-entrypoint-initdb.d
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER} -d auth"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # ── Error Service ─────────────────────────────────────────────────────────
-  # error-service:
-  #   build:
-  #     context: ./services/error-service
-  #   container_name: error-service
-  #   depends_on:
-  #     error-service-db:
-  #       condition: service_healthy
-  #   ports:
-  #     - "5002:5002"
-  #   networks:
-  #     - app-network
-
-  # error-service-db:
-  #   image: postgres:16
-  #   container_name: error-service-db
-  #   environment:
-  #     POSTGRES_USER: ${ERROR_DB_USER}
-  #     POSTGRES_DB: errors
-  #     POSTGRES_PASSWORD: ${ERROR_DB_PASSWORD}
-  #   ports:
-  #     - "5438:5432"
-  #   networks:
-  #     - app-network
-  #   volumes:
-  #     - error-data:/var/lib/postgresql/data
-  #     - ./services/error-service/db:/docker-entrypoint-initdb.d
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${ERROR_DB_USER} -d errors"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  order-service-db:
+    image: postgres:16
+    container_name: order-service-db
+    environment:
+      POSTGRES_USER: ${ORDER_DB_USER}
+      POSTGRES_DB: order
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
+    ports:
+      - "5436:5432"
+    networks:
+      - app-network
+    volumes:
+      - order-data:/var/lib/postgresql/data
+      - ./services/order-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d order"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 # =============================================================================
-# VOLUMES — one named volume per database so data persists across restarts
+# VOLUMES
 # =============================================================================
 volumes:
   inventory-data:
   payment-data:
   notification-data:
-  # order-data:       # uncomment when order-service merges
-  # auth-data:        # uncomment when auth-service is wired up
-  # error-data:       # uncomment when error-service is wired up
+  # order-data:
 
 # =============================================================================
 # NETWORKS
