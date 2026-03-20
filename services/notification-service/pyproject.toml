@@ -1,7 +1,16 @@
 [project]
 name = "notification-service"
 version = "0.1.0"
-description = "Add your description here"
+description = "Kafka-driven notification microservice for GradGown Rental"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "flask>=3.1.3",
+    "flask-cors>=6.0.2",
+    "gunicorn>=25.1.0",
+    "psycopg2-binary>=2.9.9",
+    "kafka-python>=2.3.0",
+    "twilio>=9.0.0",
+    "sendgrid>=6.11.0",
+    "requests>=2.32.0",
+]
