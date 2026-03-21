@@ -166,7 +166,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Order Service (commented until branch merges) ─────────────────────────
+  # ── Order Service ────────────────────────────────────────────────────────
   order-service:
     build:
       context: ./services/order-service
@@ -209,34 +209,11 @@ services:
 # =============================================================================
 # VOLUMES
 # =============================================================================
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: order_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./services/order-service/db:/docker-entrypoint-initdb.d
-
-  order-service:
-    build: ./services/order-service
-    ports:
-      - "5002:5000"
-    depends_on:
-      - postgres
-    environment:
-      DATABASE_URL: postgresql+psycopg://postgres:password@postgres:5432/order_db  # postgres hostname
-    
-
 volumes:
   inventory-data:
   payment-data:
   notification-data:
-  # order-data:
-  postgres-data:
+  order-data:
 
 # =============================================================================
 # NETWORKS
@@ -244,7 +221,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
-    
-  
-version: '3.8'
 
