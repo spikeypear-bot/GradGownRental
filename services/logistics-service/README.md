@@ -1,3 +1,6 @@
+BASE_URL = https://personal-fssbnhif.outsystemscloud.com/Logistics/rest/Logistics
+(use this followed by the endpoint url)
+
 # Kafka wrapper in (Scenario 1)
 POST /logistics/events/order-paid
 
