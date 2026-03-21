@@ -9,21 +9,33 @@ Repository is a service structure supporting a graduation gown rental website, c
 project-root/
 ├─ docker-compose.yml
 ├─ .env.example
-├─ services/
-│ ├─ auth-service/
-│ │ ├─ Dockerfile
-│ │ ├─ src/
-│ │ └─ db/init.sql
-│ ├─ error-service/
-│ │ ├─ Dockerfile
-│ │ ├─ src/
-│ │ └─ db/init.sql
-│ ├─ inventory-service/
-│ ├─ logistics-service/
-│ ├─ notification-service/
-│ ├─ order-service/
-│ └─ payment-service/
-└─ volumes/
+├─ volumes/
+├─ services/                          ← atomic microservices (each owns a DB)
+│  ├─ auth-service/
+│  │  ├─ Dockerfile
+│  │  ├─ src/
+│  │  │  ├─ model/
+│  │  │  ├─ repository/
+│  │  │  ├─ service/
+│  │  │  └─ controller/
+│  │  └─ db/init.sql
+│  ├─ error-service/           
+│  ├─ inventory-service/       
+│  ├─ logistics-service/       
+│  ├─ notification-service/    
+│  ├─ order-service/          
+│  └─ payment-service/       
+│
+└─ sagas/                             ← composite orchestrators (no DB of their own)
+   ├─ place-order-saga/
+   │  ├─ Dockerfile
+   │  └─ src/
+   │     ├─ model/              ← PlaceOrderContext, SagaStatus
+   │     ├─ service/            ← orchestrator logic + KafkaPublisher
+   │     ├─ controller/         ← POST /orders/create, POST /submit-payment
+   │     └─ clients/            ← OrderClient, PaymentClient, InventoryClient, ErrorClient
+   ├─ fulfill-order-saga/       
+   └─ return-order-saga/       
 ```
 
 - `services/<service-name>/` – code, Dockerfile, and database scripts for each microservice  

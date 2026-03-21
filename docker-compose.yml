@@ -1,88 +1,214 @@
+version: '3.8'
+
 services:
+
+  # =========================================================================
+  # INFRASTRUCTURE
+  # =========================================================================
+
   kafka:
     image: apache/kafka:latest
     hostname: kafka
     container_name: kafka
     ports:
-      - 9092:9092
-      - 29092:29092
+      - "9092:9092"       # host access
+      - "29092:29092"     # internal container access
     environment:
       KAFKA_BROKER_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_PROCESS_ROLES: broker,controller
-
-    #   KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-    #   KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-
-    #   KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
-    #   CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-
-  payment-service:
-    build:
-      context: ./services/payment-service
-    container_name: payment-service
-    depends_on:
-      - payment-service-db
-    ports:
-      - "3000:3000"
     networks:
       - app-network
-  payment-service-db:
-    image: postgres:latest
-    container_name: payment-service-db
-    ports:
-      - "3001:3001"
-    environment:
-      POSTGRES_USER: payment_user
-      POSTGRES_DB: payment
-      POSTGRES_PASSWORD: payment_pass
-    networks:
-      - app-network
-    volumes:
-      - payment-data:/var/lib/postgresql
-      - ./services/payment-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
+  # =========================================================================
+  # ATOMIC MICROSERVICES
+  # =========================================================================
+
+  # ── Inventory Service ─────────────────────────────────────────────────────
   inventory-service:
     build:
       context: ./services/inventory-service
     container_name: inventory-service
     depends_on:
-      - inventory-service-db
+      inventory-service-db:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-service-db:5432/inventory
-      SPRING_DATASOURCE_USERNAME: inventory_user
-      SPRING_DATASOURCE_PASSWORD: inventory_pass
+      SPRING_DATASOURCE_USERNAME: ${INVENTORY_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${INVENTORY_DB_PASSWORD}
     ports:
       - "8080:8080"
     networks:
       - app-network
+    restart: on-failure
 
   inventory-service-db:
-    image: postgres:latest
+    image: postgres:16
     container_name: inventory-service-db
-    ports:
-      - "1234:5432"
     environment:
-      POSTGRES_USER: inventory_user
+      POSTGRES_USER: ${INVENTORY_DB_USER}
       POSTGRES_DB: inventory
-      POSTGRES_PASSWORD: inventory_pass
+      POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD}
+    ports:
+      - "5433:5432"
     networks:
       - app-network
     volumes:
-      - inventory-data:/var/lib/postgresql
+      - inventory-data:/var/lib/postgresql/data
       - ./services/inventory-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INVENTORY_DB_USER} -d inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── Payment Service ───────────────────────────────────────────────────────
+  payment-service:
+    build:
+      context: ./services/payment-service
+    container_name: payment-service
+    depends_on:
+      payment-service-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: payment-service-db
+      DB_PORT: 5432
+      DB_NAME: payment
+      DB_USER: ${PAYMENT_DB_USER}
+      DB_PASSWORD: ${PAYMENT_DB_PASSWORD}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    restart: on-failure
+
+  payment-service-db:
+    image: postgres:16
+    container_name: payment-service-db
+    environment:
+      POSTGRES_USER: ${PAYMENT_DB_USER}
+      POSTGRES_DB: payment
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD}
+    ports:
+      - "5434:5432"
+    networks:
+      - app-network
+    volumes:
+      - payment-data:/var/lib/postgresql/data
+      - ./services/payment-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PAYMENT_DB_USER} -d payment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Notification Service ──────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ./services/notification-service
+    container_name: notification-service
+    depends_on:
+      notification-service-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: notification-service-db
+      DB_PORT: 5432
+      DB_NAME: notification
+      DB_USER: ${NOTIFICATION_DB_USER}
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+    ports:
+      - "5001:5001"
+    networks:
+      - app-network
+    restart: on-failure
+
+  notification-service-db:
+    image: postgres:16
+    container_name: notification-service-db
+    environment:
+      POSTGRES_USER: ${NOTIFICATION_DB_USER}
+      POSTGRES_DB: notification
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+    ports:
+      - "5435:5432"
+    networks:
+      - app-network
+    volumes:
+      - notification-data:/var/lib/postgresql/data
+      - ./services/notification-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER} -d notification"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Order Service (commented until branch merges) ─────────────────────────
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: order-service
+    depends_on:
+      order-service-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: order-service-db
+      DB_PORT: 5432
+      DB_NAME: order
+      DB_USER: ${ORDER_DB_USER}
+      DB_PASSWORD: ${ORDER_DB_PASSWORD}
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+    restart: on-failure
+
+  order-service-db:
+    image: postgres:16
+    container_name: order-service-db
+    environment:
+      POSTGRES_USER: ${ORDER_DB_USER}
+      POSTGRES_DB: order
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
+    ports:
+      - "5436:5432"
+    networks:
+      - app-network
+    volumes:
+      - order-data:/var/lib/postgresql/data
+      - ./services/order-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d order"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
   postgres:
     image: postgres:16
     environment:
@@ -108,8 +234,13 @@ services:
 volumes:
   inventory-data:
   payment-data:
+  notification-data:
+  # order-data:
   postgres-data:
 
+# =============================================================================
+# NETWORKS
+# =============================================================================
 networks:
   app-network:
     driver: bridge
