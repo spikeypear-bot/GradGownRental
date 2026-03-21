@@ -166,7 +166,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Order Service (commented until branch merges) ─────────────────────────
+  # ── Order Service ────────────────────────────────────────────────────────
   order-service:
     build:
       context: ./services/order-service
@@ -213,7 +213,7 @@ volumes:
   inventory-data:
   payment-data:
   notification-data:
-  # order-data:
+  order-data:
 
 # =============================================================================
 # NETWORKS
@@ -221,3 +221,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
+
