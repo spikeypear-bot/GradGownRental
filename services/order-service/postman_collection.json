@@ -1,0 +1,238 @@
+{
+  "info": {
+    "_postman_id": "order-service-collection",
+    "name": "Order Service API",
+    "description": "API endpoints for managing orders in the Grad Gown Rental system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["health"]
+        },
+        "description": "Check if the order-service is running"
+      }
+    },
+    {
+      "name": "Create Order - COLLECTION (Pickup)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-{{$randomUUID}}\",\n  \"student_name\": \"Alice Chen\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"+65-1234-5678\",\n  \"package_id\": 5,\n  \"selected_items\": [\n    {\"modelId\": \"0000024\", \"qty\": 1},\n    {\"modelId\": \"0000002\", \"qty\": 1},\n    {\"modelId\": \"0100020\", \"qty\": 1}\n  ],\n  \"rental_start_date\": \"2026-05-15\",\n  \"rental_end_date\": \"2026-05-18\",\n  \"total_amount\": 35.00,\n  \"deposit\": 75.00,\n  \"fulfillment_method\": \"COLLECTION\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders"]
+        },
+        "description": "Create a new order with COLLECTION fulfillment (manual staff activation)"
+      }
+    },
+    {
+      "name": "Create Order - DELIVERY",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-{{$randomUUID}}\",\n  \"student_name\": \"Bob Singh\",\n  \"email\": \"bob@example.com\",\n  \"phone\": \"+65-9876-5432\",\n  \"package_id\": 5,\n  \"selected_items\": [\n    {\"modelId\": \"0000024\", \"qty\": 1},\n    {\"modelId\": \"0000002\", \"qty\": 1},\n    {\"modelId\": \"0100020\", \"qty\": 1}\n  ],\n  \"rental_start_date\": \"2026-05-15\",\n  \"rental_end_date\": \"2026-05-18\",\n  \"total_amount\": 40.00,\n  \"deposit\": 75.00,\n  \"fulfillment_method\": \"DELIVERY\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders"]
+        },
+        "description": "Create a new order with DELIVERY fulfillment (auto-activation on rental_start_date)"
+      }
+    },
+    {
+      "name": "Get Order by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/orders/{{order_id}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "{{order_id}}"]
+        },
+        "description": "Fetch details of a specific order (use order_id from Create Order response)"
+      }
+    },
+    {
+      "name": "Get Orders by Email",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/orders/by-email/alice@example.com",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "by-email", "alice@example.com"]
+        },
+        "description": "Fetch all orders for a specific student by email"
+      }
+    },
+    {
+      "name": "Activate Order (Manual - COLLECTION)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders/{{order_id}}/activate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "{{order_id}}", "activate"]
+        },
+        "description": "Activate an order manually (staff action for COLLECTION orders when student picks up). State: CONFIRMED → ACTIVE"
+      }
+    },
+    {
+      "name": "Mark Order as Returned - No Damage",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"damaged_items\": []\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders/ORD-001/return",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "ORD-001", "return"]
+        },
+        "description": "Mark order as returned with no damage. Replace 'ORD-001' in the URL with the actual order_id from a Create Order response. Pass empty damaged_items array. State: ACTIVE → RETURNED → COMPLETED"
+      }
+    },
+    {
+      "name": "Mark Order as Returned - With Damage",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"damaged_items\": [\n    {\"modelId\": \"0100020\", \"qty\": 1}\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders/ORD-001/return",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "ORD-001", "return"]
+        },
+        "description": "Mark order as returned with damaged items. Replace 'ORD-001' in the URL with the actual order_id from a Create Order response. Specify modelId and qty of each damaged item. State: ACTIVE → RETURNED → COMPLETED"
+      }
+    },
+    {
+      "name": "Create Order - DELIVERY Same-Day (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-{{$randomUUID}}\",\n  \"student_name\": \"Charlie Davis\",\n  \"email\": \"charlie@example.com\",\n  \"phone\": \"+65-5555-5555\",\n  \"package_id\": 5,\n  \"selected_items\": [\n    {\"modelId\": \"0000024\", \"qty\": 1},\n    {\"modelId\": \"0000002\", \"qty\": 1},\n    {\"modelId\": \"0100020\", \"qty\": 1}\n  ],\n  \"rental_start_date\": \"2026-03-22\",\n  \"rental_end_date\": \"2026-03-25\",\n  \"total_amount\": 40.00,\n  \"deposit\": 75.00,\n  \"fulfillment_method\": \"DELIVERY\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders"]
+        },
+        "description": "Test validation: DELIVERY orders cannot have same-day rental_start_date. Should return 400 error. Use COLLECTION fulfillment instead for same-day pickups."
+      }
+    },
+    {
+      "name": "Create Order - COLLECTION Same-Day (Success)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-{{$randomUUID}}\",\n  \"student_name\": \"Diana Evans\",\n  \"email\": \"diana@example.com\",\n  \"phone\": \"+65-6666-6666\",\n  \"package_id\": 5,\n  \"selected_items\": [\n    {\"modelId\": \"0000024\", \"qty\": 1},\n    {\"modelId\": \"0000002\", \"qty\": 1},\n    {\"modelId\": \"0100020\", \"qty\": 1}\n  ],\n  \"rental_start_date\": \"2026-03-22\",\n  \"rental_end_date\": \"2026-03-25\",\n  \"total_amount\": 35.00,\n  \"deposit\": 75.00,\n  \"fulfillment_method\": \"COLLECTION\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders"]
+        },
+        "description": "Same-day rental using COLLECTION method. Staff will manually activate when student picks up."
+      }
+    },
+    {
+      "name": "Get Orders by Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/orders/status/CONFIRMED",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["orders", "status", "CONFIRMED"]
+        },
+        "description": "Fetch all orders with a specific status (CONFIRMED, ACTIVE, RETURNED, COMPLETED)"
+      }
+    }
+  ]
+}

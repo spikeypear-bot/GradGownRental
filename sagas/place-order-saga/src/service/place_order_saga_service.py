@@ -69,6 +69,7 @@ class PlaceOrderSagaService:
                 hold_id=context.hold_id,
                 selected_packages=context.selected_packages,
                 fulfillment_method=context.fulfillment_method,
+                total_deposit=float(context.total_deposit),
             )
             context.order_id = result["order_id"]
             context.status = SagaStatus.ORDER_INITIALISED

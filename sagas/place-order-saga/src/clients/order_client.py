@@ -22,10 +22,15 @@ _TIMEOUT = 10  # seconds
 
 class OrderClient:
 
-    def create_order(self, hold_id: str, selected_packages: list, fulfillment_method: str) -> dict:
+    def create_order(self, hold_id: str, selected_packages: list, fulfillment_method: str, total_deposit: float = 0.0) -> dict:
         """
         POST /orders — initialise a new order record.
-
+        
+        :param hold_id: inventory hold ID
+        :param selected_packages: list of selected items with deposits
+        :param fulfillment_method: 'COLLECTION' or 'DELIVERY'
+        :param total_deposit: sum of deposits from all selected items
+        
         Returns: {"order_id": str, "order_status": "PENDING"}
 
         TODO: Uncomment the real implementation below once order-service is merged.
@@ -40,6 +45,7 @@ class OrderClient:
         #     "hold_id": hold_id,
         #     "selected_packages": selected_packages,
         #     "fulfillment_method": fulfillment_method,
+        #     "deposit": total_deposit,
         # }
         # try:
         #     resp = requests.post(url, json=payload, timeout=_TIMEOUT)

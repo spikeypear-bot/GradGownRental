@@ -86,6 +86,27 @@ const formattedEndDate = computed(() => {
   return formatDate(end)
 })
 
+// Check if selected date is today (same day as current date)
+const isSelectedDateToday = computed(() => {
+  if (!selectedFullDate.value) return false
+  const selectedDateNoTime = new Date(
+    selectedFullDate.value.getFullYear(),
+    selectedFullDate.value.getMonth(),
+    selectedFullDate.value.getDate()
+  )
+  return selectedDateNoTime.getTime() === todayNoTime.getTime()
+})
+
+// Disable delivery if selected date is today, auto-switch to pickup
+const isDeliveryDisabled = computed(() => {
+  const disabled = isSelectedDateToday.value
+  // Auto-switch to pickup if delivery becomes disabled
+  if (disabled && fulfillment.value === 'delivery') {
+    fulfillment.value = 'pickup'
+  }
+  return disabled
+})
+
 const canGoPrev = computed(() => {
   return viewDate.value > new Date(today.getFullYear(), today.getMonth(), 1)
 })
@@ -228,16 +249,22 @@ const goBack = () => {
                   </div>
 
                   <!-- Home Delivery -->
-                  <div class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4 cursor-pointer"
-                       :class="fulfillment === 'delivery' ? 'active' : ''"
-                       @click="fulfillment = 'delivery'">
+                  <div class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4"
+                       :class="[
+                         fulfillment === 'delivery' ? 'active' : '',
+                         isDeliveryDisabled ? 'disabled' : 'cursor-pointer'
+                       ]"
+                       @click="!isDeliveryDisabled && (fulfillment = 'delivery')">
                     <i class="bi fs-5" :class="fulfillment === 'delivery' ? 'bi-record-circle-fill text-warning-custom' : 'bi-circle text-muted'"></i>
-                    <div class="icon-box-small bg-danger-soft rounded-3 d-flex justify-content-center align-items-center">
-                      <i class="bi bi-truck text-danger-custom fs-5"></i>
+                    <div class="icon-box-small bg-danger-soft rounded-3 d-flex justify-content-center align-items-center"
+                         :class="isDeliveryDisabled ? 'opacity-50' : ''">
+                      <i class="bi bi-truck text-danger-custom fs-5" :class="isDeliveryDisabled ? 'opacity-50' : ''"></i>
                     </div>
                     <div>
-                      <h6 class="fw-bold mb-0 text-dark">Home Delivery</h6>
-                      <small class="text-secondary">$5 flat rate fee</small>
+                      <h6 class="fw-bold mb-0 text-dark" :class="isDeliveryDisabled ? 'opacity-50' : ''">Home Delivery</h6>
+                      <small class="text-secondary" :class="isDeliveryDisabled ? 'opacity-50' : ''">
+                        {{ isDeliveryDisabled ? 'Not available for same-day rental' : '$5 flat rate fee' }}
+                      </small>
                     </div>
                   </div>
                 </div>
@@ -555,6 +582,18 @@ const goBack = () => {
 .fulfillment-card.active {
   border-color: #d8a61c;
   background-color: #fdfaf5;
+}
+
+.fulfillment-card.disabled {
+  opacity: 0.6;
+  border-color: #e1d8c9;
+  background-color: transparent;
+  cursor: not-allowed !important;
+}
+
+.fulfillment-card.disabled:hover {
+  border-color: #e1d8c9;
+  background-color: transparent;
 }
 
 .icon-box-small {

@@ -10,7 +10,8 @@ dependencies = [
     "flask-cors>=6.0.2",
     "gunicorn>=25.1.0",
     "kafka-python>=2.3.0",
-    "payment-service",
+    "psycopg2-binary>=2.9.0",
+    "python-dotenv>=1.0.1",
 ]
 
 [tool.uv.sources]

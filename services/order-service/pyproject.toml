@@ -1,12 +1,19 @@
 [project]
 name = "order-service"
 version = "0.1.0"
-description = "Add your description here"
+description = "Order microservice for Grad Gown Rental"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "flask==3.0.3",
-    "flask-sqlalchemy==3.1.1",
+    "flask>=3.1.3",
+    "flask-cors>=6.0.2",
     "psycopg2-binary>=2.9.0",
-    "python-dotenv==1.0.1",
+    "python-dotenv>=1.0.1",
+    "apscheduler>=3.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
 ]
