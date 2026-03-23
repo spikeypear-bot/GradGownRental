@@ -16,7 +16,14 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-# payment-service = { workspace = true }
+auth-service = { workspace = true }
+error-service = { workspace = true }
+logistics-service = { workspace = true }
+notification-service = { workspace = true }
+order-service = { workspace = true }
+payment-service = { workspace = true }
+
+
 
 [tool.uv.workspace]
 members = [
