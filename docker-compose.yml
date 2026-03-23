@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   # =========================================================================
@@ -28,6 +26,10 @@ services:
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     networks:
       - app-network
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - kafka-secrets:/etc/kafka/secrets
+      - kafka-config:/mnt/shared/config
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 15s
@@ -58,7 +60,7 @@ services:
     restart: on-failure
 
   inventory-service-db:
-    image: postgres:16
+    image: postgres:latest
     container_name: inventory-service-db
     environment:
       POSTGRES_USER: ${INVENTORY_DB_USER}
@@ -69,7 +71,7 @@ services:
     networks:
       - app-network
     volumes:
-      - inventory-data:/var/lib/postgresql/data
+      - inventory-data:/var/lib/postgresql
       - ./services/inventory-service/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${INVENTORY_DB_USER} -d inventory"]
@@ -99,7 +101,7 @@ services:
     restart: on-failure
 
   payment-service-db:
-    image: postgres:16
+    image: postgres:latest
     container_name: payment-service-db
     environment:
       POSTGRES_USER: ${PAYMENT_DB_USER}
@@ -110,7 +112,7 @@ services:
     networks:
       - app-network
     volumes:
-      - payment-data:/var/lib/postgresql/data
+      - payment-data:/var/lib/postgresql
       - ./services/payment-service/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PAYMENT_DB_USER} -d payment"]
@@ -147,7 +149,7 @@ services:
     restart: on-failure
 
   notification-service-db:
-    image: postgres:16
+    image: postgres:latest
     container_name: notification-service-db
     environment:
       POSTGRES_USER: ${NOTIFICATION_DB_USER}
@@ -158,7 +160,7 @@ services:
     networks:
       - app-network
     volumes:
-      - notification-data:/var/lib/postgresql/data
+      - notification-data:/var/lib/postgresql
       - ./services/notification-service/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER} -d notification"]
@@ -187,7 +189,7 @@ services:
     restart: on-failure
 
   order-service-db:
-    image: postgres:16
+    image: postgres:latest
     container_name: order-service-db
     environment:
       POSTGRES_USER: ${ORDER_DB_USER}
@@ -198,7 +200,7 @@ services:
     networks:
       - app-network
     volumes:
-      - order-data:/var/lib/postgresql/data
+      - order-data:/var/lib/postgresql
       - ./services/order-service/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d order"]
@@ -214,6 +216,9 @@ volumes:
   payment-data:
   notification-data:
   order-data:
+  kafka-data:
+  kafka-secrets:
+  kafka-config:
 
 # =============================================================================
 # NETWORKS
