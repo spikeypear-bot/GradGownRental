@@ -910,6 +910,7 @@ dependencies = [
     { name = "kafka-python" },
     { name = "psycopg", extra = ["binary"] },
     { name = "stripe" },
+    { name = "werkzeug" },
 ]
 
 [package.metadata]
@@ -922,6 +923,7 @@ requires-dist = [
     { name = "kafka-python", specifier = ">=2.3.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.3" },
     { name = "stripe", specifier = ">=14.4.1" },
+    { name = "werkzeug", specifier = ">=3.1.6" },
 ]
 
 [[package]]
