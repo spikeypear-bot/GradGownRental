@@ -55,7 +55,7 @@ def handle_webhook():
 
     if event.type == "payment_intent.succeeded":
         # Payment succeeded
-        handle_payment_succeeded(intent)
+        handle_payment_success(intent)
         # logger.info(f"Succeeded:  {intent["id"]}")
 
 
@@ -67,7 +67,7 @@ def handle_webhook():
 
     return jsonify({"Received": True}), 200
 
-def handle_payment_succeeded(intent):
+def handle_payment_success(intent):
     id = intent.id
 
     logger.info(f"Payment {id} succeeded")

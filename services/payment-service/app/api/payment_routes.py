@@ -35,8 +35,6 @@ def create_payment_intent():
     Create payment intent after order created
     Order information passed from Make Order Saga
     """
-    # if request.method != "POST":
-    #     raise Exception()
 
     data = request.get_json()
     logger.info(data)
@@ -52,6 +50,8 @@ def create_payment_intent():
 
 @api.route('/test', methods=["GET"])
 def test():
+    """Test endpoint
+    """
     payments = Payment.query.all()
 
     try:
