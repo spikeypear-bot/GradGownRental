@@ -23,7 +23,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
     networks:
       - app-network
     volumes:
@@ -89,6 +89,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      stripe-cli:
+        condition: service_healthy
     environment:
       DB_HOST: payment-service-db
       DB_PORT: 5432
@@ -123,6 +125,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    container_name: stripe-cli
+    environment:
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
+    entrypoint: ["stripe", "listen", "-f", "host.docker.internal:3000/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "stripe", "version", "||", "exit", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
 
   # ── Notification Service ──────────────────────────────────────────────────
   notification-service:

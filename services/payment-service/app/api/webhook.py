@@ -1,7 +1,9 @@
 from app import db
 from app.models import Payment, PaymentStatus
-from flask import abort, Blueprint, jsonify, current_app, request
+from flask import abort, Blueprint, app, jsonify, current_app, request
 from werkzeug.exceptions import HTTPException
+
+import app.service.kafka_service as kfk
 
 import logging
 import stripe
@@ -15,7 +17,7 @@ webhook = Blueprint("webhook", __name__)
 @webhook.errorhandler(HTTPException)
 def handle_http_exceptions(e: HTTPException):
 
-    logger.debug(e)
+    # logger.debug(e)
 
     return jsonify(code=e.code, error=e.description), e.code
 
@@ -41,7 +43,7 @@ def handle_webhook():
         event = stripe.Webhook.construct_event(
         payload, sig_header, endpoint_secret
         )
-        logger.debug(event)
+        # logger.debug(event)
 
     except ValueError as e:
         # invalid payload
@@ -69,12 +71,17 @@ def handle_webhook():
 
 def handle_payment_success(intent):
     id = intent.id
-
+    # logger.debug(intent)
     logger.info(f"Payment {id} succeeded")
+
+    kfk.publish_payment_succeeded_event(current_app.kafka_client, id, intent) # publish to kafka for followup from saga
+
     return
 
 def handle_payment_failed(intent):
     id = intent.id
-
     logger.info(f"Payment {id} failed")
+
+    kfk.publish_payment_failed_event(current_app.kafka_client, id, intent) # publish to kafka for followup from saga
+
     return

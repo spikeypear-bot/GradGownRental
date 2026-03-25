@@ -92,7 +92,7 @@ class KafkaService:
         message = {
             'type': event_type,
             'correlation_id': correlation_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'payload': payload,
             'source': 'payment-service'
         }
@@ -238,26 +238,26 @@ class KafkaService:
         logger.info("Kafka service connections closed.")
 
 
-def publish_payment_authorized_event(kafka_service, correlation_id, payload):
-    """Publish a payment.authorized event."""
+def publish_payment_succeeded_event(kafka_service: KafkaService, pi_id, payload):
+    """Publish a payment.succeeded event."""
     return kafka_service.publish_event(
-        'payment.authorized',
+        'payment.succeeded',
         payload,
-        correlation_id
+        pi_id
     )
 
-def publish_payment_failed_event(kafka_service, correlation_id, error_payload):
+def publish_payment_failed_event(kafka_service: KafkaService, pi_id, error_payload):
     """Publish a payment.failed event."""
     return kafka_service.publish_event(
         'payment.failed',
         error_payload,
-        correlation_id
+        pi_id
     )
 
-def publish_payment_released_event(kafka_service, correlation_id, payload):
-    """Publish a payment.released event."""
-    return kafka_service.publish_event(
-        'payment.released',
-        payload,
-        correlation_id
-    )
+# def publish_payment_released_event(kafka_service, correlation_id, payload):
+#     """Publish a payment.released event."""
+#     return kafka_service.publish_event(
+#         'payment.released',
+#         payload,
+#         correlation_id
+#     )
