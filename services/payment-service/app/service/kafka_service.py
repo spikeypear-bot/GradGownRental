@@ -45,7 +45,7 @@ class KafkaService:
         self._connect()
         self._initialized = True
 
-        logger.info("KafkaService initialized at ", self.bootstrap_servers)
+        logger.info("KafkaService initialized at " + self.bootstrap_servers)
 
     def _connect(self):
         """Connect to Kafka brokers."""

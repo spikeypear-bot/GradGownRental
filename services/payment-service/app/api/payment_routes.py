@@ -34,6 +34,7 @@ def create_payment_intent():
     """
     Create payment intent after order created
     Order information passed from Make Order Saga
+    Returns client's payment intent to Make Order Saga
     """
 
     data = request.get_json()

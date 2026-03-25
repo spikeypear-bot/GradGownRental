@@ -87,6 +87,8 @@ services:
     depends_on:
       payment-service-db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       DB_HOST: payment-service-db
       DB_PORT: 5432
