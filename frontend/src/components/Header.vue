@@ -1,5 +1,60 @@
 <script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Logo from './icons/Logo.vue'
+
+const CART_STORAGE_KEY = 'gradgownrental_cart_session'
+
+const cartItems = ref([])
+const cartExpiresAt = ref(0)
+const nowMs = ref(Date.now())
+let timerId = null
+
+const cartCount = computed(() => cartItems.value.length)
+const hasCart = computed(() => cartCount.value > 0)
+const cartActive = computed(() => cartExpiresAt.value > nowMs.value)
+const cartTimeLeftLabel = computed(() => {
+  if (!hasCart.value || !cartActive.value) return '00:00'
+  const sec = Math.max(0, Math.floor((cartExpiresAt.value - nowMs.value) / 1000))
+  const mm = String(Math.floor(sec / 60)).padStart(2, '0')
+  const ss = String(sec % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+})
+
+function syncCart() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY)
+    if (!raw) {
+      cartItems.value = []
+      cartExpiresAt.value = 0
+      return
+    }
+    const parsed = JSON.parse(raw)
+    cartItems.value = Array.isArray(parsed?.items) ? parsed.items : []
+    cartExpiresAt.value = Number(parsed?.expiresAt || 0)
+    if (cartExpiresAt.value <= Date.now()) {
+      localStorage.removeItem(CART_STORAGE_KEY)
+      cartItems.value = []
+      cartExpiresAt.value = 0
+    }
+  } catch {
+    cartItems.value = []
+    cartExpiresAt.value = 0
+  }
+}
+
+onMounted(() => {
+  syncCart()
+  timerId = setInterval(() => {
+    nowMs.value = Date.now()
+    syncCart()
+  }, 1000)
+  window.addEventListener('storage', syncCart)
+})
+
+onBeforeUnmount(() => {
+  if (timerId) clearInterval(timerId)
+  window.removeEventListener('storage', syncCart)
+})
 </script>
 
 <template>
@@ -23,14 +78,20 @@ import Logo from './icons/Logo.vue'
             <RouterLink class="nav-link fw-bold text-dark" to="/inventory?new=true">Rent Regalia</RouterLink>
           </li>
           <li class="nav-item">
-            <a class="nav-link fw-bold text-danger-custom d-flex align-items-center gap-2" href="#">
+            <RouterLink class="nav-link fw-bold text-danger-custom d-flex align-items-center gap-2" to="/track">
               <i class="bi bi-search"></i> Track My Order
-            </a>
+            </RouterLink>
           </li>
         </ul>
 
         <!-- Action Buttons -->
         <div class="d-flex align-items-center gap-3 mt-3 mt-md-0">
+          <RouterLink to="/cart" class="btn btn-outline-dark rounded-pill px-3 fw-bold d-flex align-items-center gap-2 cart-btn">
+            <i class="bi bi-cart3"></i>
+            <span>Cart</span>
+            <span v-if="hasCart" class="badge bg-danger">{{ cartCount }}</span>
+            <small v-if="hasCart" class="text-muted">{{ cartTimeLeftLabel }}</small>
+          </RouterLink>
           <RouterLink to="/inventory?new=true" class="btn btn-warning text-white rounded-pill px-4 fw-bold">Start Booking</RouterLink>
         </div>
       </div>
@@ -62,5 +123,8 @@ import Logo from './icons/Logo.vue'
 .btn-warning:hover {
   background-color: #c49416;
   border-color: #c49416;
+}
+.cart-btn {
+  border-color: rgba(0, 0, 0, 0.15);
 }
 </style>

@@ -11,6 +11,7 @@ import inventoryService from '@/services/inventory/index.js'
 
 const router = useRouter()
 const route = useRoute()
+const inventoryApiBase = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
 
 const selectedLevel = ref('')
 const selectedInstitution = ref('')
@@ -23,8 +24,92 @@ const faculties = ref([])
 const loading = ref(false)
 const error = ref(null)
 
+// Cart/session (10-minute soft reservation window in UI)
+const CART_STORAGE_KEY = 'gradgownrental_cart_session'
+const SESSION_MS = 10 * 60 * 1000
+const cartItems = ref([])
+const cartExpiresAt = ref(0)
+const cartActive = computed(() => cartExpiresAt.value > Date.now())
+
+function loadCartSession() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    cartExpiresAt.value = Number(parsed.expiresAt || 0)
+    cartItems.value = Array.isArray(parsed.items) ? parsed.items : []
+    if (cartExpiresAt.value <= Date.now()) {
+      clearCartSession()
+    }
+  } catch {
+    clearCartSession()
+  }
+}
+
+function saveCartSession() {
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
+    expiresAt: cartExpiresAt.value,
+    items: cartItems.value
+  }))
+}
+
+function clearCartSession() {
+  cartExpiresAt.value = 0
+  cartItems.value = []
+  localStorage.removeItem(CART_STORAGE_KEY)
+}
+
+function ensureActiveSession() {
+  if (!cartActive.value) {
+    cartExpiresAt.value = Date.now() + SESSION_MS
+    cartItems.value = []
+  }
+}
+
+function addSelectedToCart() {
+  if (!selectedPackage.value) return
+  if (!selectedCartSize.value) {
+    sizeRequiredError.value = 'Please choose a size before adding to cart.'
+    return
+  }
+  sizeRequiredError.value = ''
+  ensureActiveSession()
+  const cartKey = `${selectedPackage.value.packageId}:${selectedCartSize.value}`
+  const exists = cartItems.value.some(item => item.cartKey === cartKey)
+  if (!exists) {
+    cartItems.value.push({
+      cartKey,
+      packageId: selectedPackage.value.packageId,
+      title: selectedPackage.value.title,
+      price: selectedPackage.value.price,
+      rentalFee: selectedPackage.value.rentalFee,
+      deposit: selectedPackage.value.deposit,
+      educationLevel: selectedPackage.value.educationLevel,
+      institution: selectedPackage.value.institution,
+      faculty: selectedPackage.value.faculty,
+      selectedSize: selectedCartSize.value
+    })
+  }
+  saveCartSession()
+}
+
+function goToCart() {
+  router.push('/cart')
+}
+
+function closeDetails() {
+  selectedPackage.value = null
+  selectedCartSize.value = ''
+  sizeRequiredError.value = ''
+}
+
 // Fetch packages on component mount
 onMounted(async () => {
+  loadCartSession()
+  if (cartExpiresAt.value > 0 && cartExpiresAt.value <= Date.now()) {
+    clearCartSession()
+  }
+
   console.log('🔄 InventoryView mounted - starting API fetch')
   loading.value = true
   error.value = null
@@ -48,7 +133,7 @@ onMounted(async () => {
     console.log('✅ Extracted institutions:', institutions.value.length)
     console.log('✅ Extracted faculties:', faculties.value.length)
   } catch (err) {
-    error.value = 'Failed to load packages from API'
+    error.value = err?.message || 'Failed to load packages from API'
     console.error('❌ Error fetching packages:', err)
     institutions.value = []
     faculties.value = []
@@ -89,38 +174,67 @@ const filteredPackages = computed(() => {
 })
 
 const selectedPackage = ref(null)
+const selectedCartSize = ref('')
+const sizeRequiredError = ref('')
 
-const selectPackage = (packageObj) => {
+function sortSizes(sizes) {
+  const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+  return [...new Set(sizes)].sort((a, b) => {
+    const ai = sortOrder.indexOf(a)
+    const bi = sortOrder.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+}
+
+function getCommonSizes(styleBuckets) {
+  const styleSizeSets = styleBuckets
+    .map(style => new Set((style.models || []).map(m => String(m.size || '').toUpperCase()).filter(Boolean)))
+    .filter(set => set.size > 0)
+
+  if (!styleSizeSets.length) return []
+  let intersection = styleSizeSets[0]
+  for (let i = 1; i < styleSizeSets.length; i++) {
+    intersection = new Set([...intersection].filter(size => styleSizeSets[i].has(size)))
+  }
+  return sortSizes([...intersection])
+}
+
+const selectPackage = async (packageObj) => {
   // Build display with all styles
   const styles = packageObj.getStyles()
   const styleNames = styles.map(s => s.itemName).join(' + ')
-  
+
+  let detailedStyleBuckets = []
+  try {
+    const detail = await inventoryService.getPackageById(packageObj.packageId)
+    detailedStyleBuckets = detail.getStyleBuckets()
+  } catch (err) {
+    console.warn('Falling back to summary package data for sizes:', err)
+  }
+
+  const commonSizes = getCommonSizes(detailedStyleBuckets)
+  selectedCartSize.value = commonSizes[0] || ''
+  sizeRequiredError.value = ''
+
   selectedPackage.value = {
     packageId: packageObj.packageId,
     title: `${packageObj.institution} - ${packageObj.educationLevel}`,
     subtitle: `${packageObj.faculty}`,
+    educationLevel: packageObj.educationLevel,
+    institution: packageObj.institution,
+    faculty: packageObj.faculty,
     price: packageObj.totalPrice,
     rentalFee: packageObj.totalRentalFee,
     deposit: packageObj.totalDeposit,
     features: styles.map(s => s.itemName),
     shortDesc: 'Premium academic regalia rentals with professional cleaning',
     longDesc: `Complete ${packageObj.educationLevel} regalia package including: ${styleNames}. All items are professionally cleaned and maintained to the highest standards.`,
-    styles: styles
+    styles: styles,
+    availableSizes: commonSizes
   }
-}
-
-const proceedToOrder = () => {
-  router.push({
-    path: '/order',
-    query: {
-      packageId: selectedPackage.value.packageId,
-      title: selectedPackage.value.title,
-      price: selectedPackage.value.price,
-      rentalFee: selectedPackage.value.rentalFee,
-      deposit: selectedPackage.value.deposit,
-      level: selectedPackage.value.subtitle
-    }
-  })
 }
 
 watch(() => route.query.new, (newVal) => {
@@ -129,6 +243,8 @@ watch(() => route.query.new, (newVal) => {
     selectedInstitution.value = ''
     selectedFaculty.value = ''
     selectedPackage.value = null
+    selectedCartSize.value = ''
+    sizeRequiredError.value = ''
     // Clean up url directly to prevent refresh-stickiness
     router.replace({ path: '/inventory' })
   }
@@ -140,7 +256,7 @@ watch(() => route.query.new, (newVal) => {
   <div class="inventory-page pt-5">
     <!-- Package Details Overlay Screen -->
     <div v-if="selectedPackage" class="container py-4 fade-in">
-      <button @click="selectedPackage = null" class="btn btn-link text-dark text-decoration-none p-0 mb-4 fw-medium fs-5">
+      <button @click="closeDetails" class="btn btn-link text-dark text-decoration-none p-0 mb-4 fw-medium fs-5">
         <i class="bi bi-arrow-left me-2"></i> Back to Collections
       </button>
       
@@ -207,14 +323,36 @@ watch(() => route.query.new, (newVal) => {
             </div>
           </div>
           
+          <div class="mb-4">
+            <h5 class="fw-bold text-dark mb-3">Select Size</h5>
+            <div v-if="selectedPackage.availableSizes?.length" class="d-flex gap-2 flex-wrap">
+              <button
+                v-for="size in selectedPackage.availableSizes"
+                :key="size"
+                class="btn btn-outline-dark rounded-pill fw-bold px-3 py-2"
+                :class="{ active: selectedCartSize === size }"
+                @click="selectedCartSize = size"
+              >
+                {{ size }}
+              </button>
+            </div>
+            <div v-else class="text-secondary small">
+              Unable to load available sizes for this package.
+            </div>
+          </div>
+
           <hr class="mb-4 d-none d-lg-block border-0 opacity-0">
           
-          <button @click="proceedToOrder" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
-            Select Rental Dates <i class="bi bi-calendar-event ms-2"></i>
+          <button @click="addSelectedToCart" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
+            Add To Cart <i class="bi bi-cart-plus ms-2"></i>
           </button>
+          <button @click="goToCart" class="btn btn-outline-dark fw-bold rounded-4 py-2 fs-6 w-100 mb-3">
+            View Cart <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+          <div v-if="sizeRequiredError" class="alert alert-danger py-2 mb-3 small">{{ sizeRequiredError }}</div>
           <div class="d-flex gap-2 text-secondary align-items-center justify-content-center">
             <i class="bi bi-info-circle small"></i>
-            <span class="small fw-bold" style="letter-spacing: 1px;">SECURE YOUR DATE EARLY. STANDARD 3-DAY RENTAL PERIOD APPLIES.</span>
+            <span class="small fw-bold" style="letter-spacing: 1px;">SELECT SIZE AND RENTAL DATE DURING CHECKOUT.</span>
           </div>
         </div>
       </div>
@@ -229,7 +367,7 @@ watch(() => route.query.new, (newVal) => {
       <div v-if="error" class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <strong>{{ error }}</strong>
-        <p class="small mb-0 mt-2">Please ensure the backend API is running at http://localhost:8080</p>
+        <p class="small mb-0 mt-2">Please ensure the backend API is running at {{ inventoryApiBase }}</p>
       </div>
 
       <!-- Loading Message -->

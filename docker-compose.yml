@@ -171,6 +171,17 @@ services:
       - app-network
     restart: on-failure
 
+  # ── Error Service ─────────────────────────────────────────────────────────
+  error-service:
+    build:
+      context: ./services/error-service
+    container_name: error-service
+    ports:
+      - "5002:5002"
+    networks:
+      - app-network
+    restart: on-failure
+
   notification-service-db:
     image: postgres:latest
     container_name: notification-service-db
@@ -207,6 +218,36 @@ services:
       DB_PASSWORD: ${ORDER_DB_PASSWORD}
     ports:
       - "8081:8081"
+    networks:
+      - app-network
+    restart: on-failure
+
+  # =========================================================================
+  # SAGA ORCHESTRATORS
+  # =========================================================================
+  place-order-saga:
+    build:
+      context: ./sagas/place-order-saga
+    container_name: place-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      ORDER_SERVICE_URL: http://order-service:8081
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      INVENTORY_SERVICE_URL: http://inventory-service:8080
+      ERROR_SERVICE_URL: http://error-service:5002
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "5003:5003"
     networks:
       - app-network
     restart: on-failure
@@ -249,4 +290,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-

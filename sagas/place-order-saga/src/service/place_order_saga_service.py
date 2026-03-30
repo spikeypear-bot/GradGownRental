@@ -3,14 +3,14 @@ PlaceOrderSagaService — orchestrates the full "Place an Order" saga.
 
 Scenario 1 steps (from spec):
   5.  Receive POST /orders/create from Gown Rental UI
-  6.  POST /orders        → Order Service    (initialise record)         [STUB until merged]
+  6.  POST /orders        → Order Service    (initialise record)
   7.  Receive order_id, status=PENDING
   8.  Return order_id to UI
   9.  Receive POST /submit-payment (order_id, payment_details)
-  10. POST /payments      → Payment Service  (authorise transaction)     [STUB until merged]
+  10. POST /payments      → Payment Service  (authorise transaction)
   11-12. Stripe via Payment Service adapter, returns payment_id
-  13. PUT /orders/{id}/status → Order Service  (CONFIRMED)               [STUB until merged]
-  14. PUT /inventory/stock/transition → Inventory Service (available -> reserved)
+  13. PUT /orders/{id}/status → Order Service  (CONFIRMED)
+  14. POST /api/inventory/reserveitems → Inventory Service (soft-hold -> reserved)
   15. Return order_summary to UI
   16. Publish OrderPaid + OrderConfirmed to Kafka
   E1. On any failure → POST /errors → Error Service
@@ -64,12 +64,22 @@ class PlaceOrderSagaService:
         try:
             logger.info("[%s] Phase 1 started | hold_id=%s", SAGA_NAME, context.hold_id)
 
+            total_deposit = self._compute_total_deposit(context.selected_packages)
+            context.total_deposit = f"{total_deposit:.2f}"
+
             # Step 6 — POST /orders (Order Service)
             result = self._orders.create_order(
+                student_name=context.student_name,
+                email=context.email,
+                phone=context.phone,
+                package_id=context.package_id,
+                selected_items=context.selected_packages,
+                rental_start_date=context.fulfillment_date,
+                rental_end_date=context.return_date,
+                total_amount=context.total_amount,
                 hold_id=context.hold_id,
-                selected_packages=context.selected_packages,
                 fulfillment_method=context.fulfillment_method,
-                total_deposit=float(context.total_deposit),
+                deposit=total_deposit,
             )
             context.order_id = result["order_id"]
             context.status = SagaStatus.ORDER_INITIALISED
@@ -107,7 +117,7 @@ class PlaceOrderSagaService:
             # Step 13 — PUT /orders/{id}/status → CONFIRMED (Order Service)
             self._step_confirm_order(context)
 
-            # Step 14 — PUT /inventory/stock/transition (Inventory Service)
+            # Step 14 — POST /api/inventory/reserveitems (Inventory Service)
             self._step_transition_inventory(context)
 
             # Step 16 — Publish OrderPaid + OrderConfirmed to Kafka
@@ -145,7 +155,7 @@ class PlaceOrderSagaService:
     def _step_confirm_order(self, context: PlaceOrderContext) -> None:
         step = "confirm_order"
         try:
-            self._orders.update_status(context.order_id, "CONFIRMED")
+            self._orders.update_status(context.order_id, "CONFIRMED", payment_id=context.payment_id)
             context.status = SagaStatus.ORDER_CONFIRMED
             logger.info("[%s] Order confirmed | order_id=%s", SAGA_NAME, context.order_id)
         except Exception as exc:
@@ -155,10 +165,9 @@ class PlaceOrderSagaService:
     def _step_transition_inventory(self, context: PlaceOrderContext) -> None:
         step = "transition_inventory"
         try:
-            self._inventory.transition_stock(
+            self._inventory.reserve_items(
                 hold_id=context.hold_id,
-                from_bucket="available_qty",
-                to_bucket="reserved_qty",
+                items=context.selected_packages,
             )
             context.status = SagaStatus.INVENTORY_TRANSITIONED
             logger.info("[%s] Inventory transitioned | hold_id=%s", SAGA_NAME, context.hold_id)
@@ -190,3 +199,28 @@ class PlaceOrderSagaService:
             order_id=context.order_id,
             detail=str(exc),
         )
+
+    @staticmethod
+    def _compute_total_deposit(selected_packages: list) -> float:
+        total = 0.0
+        for item in selected_packages or []:
+            if not isinstance(item, dict):
+                continue
+
+            qty = item.get("qty", 1)
+            try:
+                qty = float(qty)
+            except (TypeError, ValueError):
+                qty = 1.0
+
+            deposit_value = (
+                item.get("deposit")
+                or item.get("depositFee")
+                or item.get("totalDeposit")
+                or 0
+            )
+            try:
+                total += float(deposit_value) * qty
+            except (TypeError, ValueError):
+                continue
+        return total

@@ -3,6 +3,7 @@ OrderService — orchestrates order creation, state transitions, and business lo
 """
 
 import logging
+import uuid
 from datetime import datetime, date
 
 from ..model.order import Order, OrderStatus
@@ -21,7 +22,7 @@ class OrderService:
 
     def create_order(
         self,
-        order_id: str,
+        order_id: str | None,
         student_name: str,
         email: str,
         phone: str,
@@ -34,11 +35,12 @@ class OrderService:
         deposit: float = 0.0,
         hold_id: str = None,
         payment_id: str = None,
+        status: str = "PENDING",
     ) -> Order:
         """
-        Create a new order in CONFIRMED state.
+        Create a new order in the requested initial state (default: PENDING).
         
-        :param order_id: unique order identifier
+        :param order_id: unique order identifier (generated if omitted)
         :param student_name: student's full name
         :param email: student's email
         :param phone: student's phone number
@@ -51,9 +53,18 @@ class OrderService:
         :param deposit: total deposit from all selected items
         :param hold_id: soft-hold ID from Inventory (optional)
         :param payment_id: payment ID from Payment Service (optional)
+        :param status: initial order status string
         
         :raises ValueError: if DELIVERY is chosen with rental_start_date < 24 hours away
         """
+        if not order_id:
+            order_id = str(uuid.uuid4())
+
+        try:
+            initial_status = OrderStatus[status.upper()]
+        except KeyError as exc:
+            raise ValueError(f"Invalid status: {status}") from exc
+
         # Validate: DELIVERY orders must have rental_start_date at least 24 hours in future
         if fulfillment_method == "DELIVERY":
             start_date = datetime.fromisoformat(rental_start_date).date()
@@ -80,13 +91,29 @@ class OrderService:
             total_amount=total_amount,
             deposit=deposit,
             fulfillment_method=fulfillment_method,
-            status=OrderStatus.CONFIRMED,
+            status=initial_status,
             hold_id=hold_id,
             payment_id=payment_id,
         )
         saved = self._repo.save(order)
-        logger.info(f"Order {order_id} created in CONFIRMED state")
+        logger.info(f"Order {order_id} created in {initial_status.value} state")
         return saved
+
+    def update_order_status(self, order_id: str, status: str, payment_id: str | None = None) -> Order:
+        """Update an order's lifecycle status and optionally attach payment_id."""
+        order = self._repo.find_by_order_id(order_id)
+        if not order:
+            raise ValueError(f"Order {order_id} not found")
+
+        try:
+            new_status = OrderStatus[status.upper()]
+        except KeyError as exc:
+            raise ValueError(f"Invalid status: {status}") from exc
+        self._repo.update_status(order_id, new_status)
+        if payment_id:
+            self._repo.update_payment_id(order_id, payment_id)
+        logger.info("Order %s updated to %s", order_id, new_status.value)
+        return self._repo.find_by_order_id(order_id)
 
     def activate_order(self, order_id: str) -> Order:
         """

@@ -27,6 +27,25 @@ export class GraduationPackage {
   }
 }
 
+export class DetailedPackage {
+  constructor(data) {
+    this.packageId = data.packageId
+    this.institution = data.institution
+    this.educationLevel = data.educationLevel
+    this.faculty = data.faculty
+    this.hatStyle = data.hatStyle
+    this.hoodStyle = data.hoodStyle
+    this.gownStyle = data.gownStyle
+    this.totalDeposit = Number(data.totalDeposit || 0)
+    this.totalRentalFee = Number(data.totalRentalFee || 0)
+    this.totalPrice = Number(data.totalPrice || 0)
+  }
+
+  getStyleBuckets() {
+    return [this.hatStyle, this.hoodStyle, this.gownStyle].filter(Boolean)
+  }
+}
+
 export class Inventory {
   constructor(data) {
     this.modelId = data.modelId
@@ -52,7 +71,8 @@ export class ItemHold {
     this.holdId = data.holdId
     this.items = data.items // Array of { modelId, qty, chosenDate }
     this.createdAt = data.createdAt
-    this.expiresAt = data.expiresAt
+    // Soft-hold duration is currently 10 minutes from creation
+    this.expiresAt = data.expiresAt || null
   }
 }
 

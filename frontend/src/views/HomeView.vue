@@ -15,8 +15,14 @@
         
         <div class="track-input-wrapper position-relative">
           <i class="bi bi-search track-icon"></i>
-          <input type="text" class="form-control rounded-pill track-input" placeholder="Enter Order ID to Track...">
-          <button class="btn bg-white text-warning-custom rounded-pill fw-bold track-btn">Track</button>
+          <input
+            v-model="trackOrderId"
+            type="text"
+            class="form-control rounded-pill track-input"
+            placeholder="Enter Order ID to Track..."
+            @keyup.enter="trackOrder"
+          >
+          <button class="btn bg-white text-warning-custom rounded-pill fw-bold track-btn" @click="trackOrder">Track</button>
         </div>
       </div>
     </div>
@@ -24,6 +30,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const trackOrderId = ref('')
+
+const trackOrder = () => {
+  const id = trackOrderId.value.trim()
+  if (!id) return
+  router.push({ path: '/track', query: { orderId: id } })
+}
 </script>
 
 <style scoped>

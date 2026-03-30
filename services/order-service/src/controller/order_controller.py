@@ -18,6 +18,7 @@ Activation Logic:
 
 import logging
 from flask import Blueprint, request, jsonify, current_app
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,13 @@ def health():
 @order_bp.post("")
 def create_order():
     """Create a new order."""
-    data = request.get_json()
+    data = request.get_json() or {}
     service = current_app.extensions["order_service"]
     
     # Validate required fields
     required = [
-        "order_id", "student_name", "email", "phone",
-        "package_id", "selected_items", "rental_start_date",
+        "student_name", "email", "phone",
+        "selected_items", "rental_start_date",
         "rental_end_date", "total_amount", "fulfillment_method"
     ]
     missing = [f for f in required if f not in data]
@@ -49,11 +50,11 @@ def create_order():
     
     try:
         order = service.create_order(
-            order_id=data["order_id"],
+            order_id=data.get("order_id") or str(uuid.uuid4()),
             student_name=data["student_name"],
             email=data["email"],
             phone=data["phone"],
-            package_id=int(data["package_id"]),
+            package_id=int(data.get("package_id", 0)),
             selected_items=data["selected_items"],
             rental_start_date=data["rental_start_date"],
             rental_end_date=data["rental_end_date"],
@@ -62,6 +63,7 @@ def create_order():
             deposit=float(data.get("deposit", 0.0)),
             hold_id=data.get("hold_id"),
             payment_id=data.get("payment_id"),
+            status=data.get("status", "PENDING"),
         )
         return jsonify(order.to_dict()), 201
     except ValueError as e:
@@ -69,6 +71,33 @@ def create_order():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"Error creating order: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@order_bp.put("/<string:order_id>/status")
+def update_order_status(order_id: str):
+    """Update lifecycle status for an existing order."""
+    service = current_app.extensions["order_service"]
+    data = request.get_json() or {}
+
+    status = data.get("status")
+    if not status:
+        return jsonify({"error": "Missing required field: status"}), 400
+
+    try:
+        order = service.update_order_status(
+            order_id=order_id,
+            status=status,
+            payment_id=data.get("payment_id"),
+        )
+        return jsonify(order.to_dict()), 200
+    except ValueError as e:
+        message = str(e)
+        if message.startswith("Invalid status:"):
+            return jsonify({"error": message}), 400
+        return jsonify({"error": message}), 404
+    except Exception as e:
+        logger.error(f"Error updating order status: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
 
