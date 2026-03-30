@@ -86,7 +86,7 @@ class OrderRepository:
         if new_status == OrderStatus.ACTIVE:
             sql += ", activated_at = %s"
             params.append(datetime.utcnow())
-        elif new_status == OrderStatus.RETURNED:
+        elif new_status == OrderStatus.RETURNED or new_status == OrderStatus.RETURNED_DAMAGED:
             sql += ", returned_at = %s"
             params.append(datetime.utcnow())
         elif new_status == OrderStatus.COMPLETED:
@@ -98,6 +98,17 @@ class OrderRepository:
         
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
+            self._conn.commit()
+
+    def update_payment_id(self, order_id: str, payment_id: str) -> None:
+        """Attach payment reference to an existing order."""
+        sql = """
+            UPDATE orders
+            SET payment_id = %s, updated_at = %s
+            WHERE order_id = %s
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(sql, (payment_id, datetime.utcnow(), order_id))
             self._conn.commit()
 
     # ------------------------------------------------------------------

@@ -19,9 +19,11 @@ class OrderStatus(str, Enum):
     RETURNED: Gown returned by student to store
     COMPLETED: Return processed, refund issued
     """
+    PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
     ACTIVE = "ACTIVE"
     RETURNED = "RETURNED"
+    RETURNED_DAMAGED = "RETURNED_DAMAGED"
     COMPLETED = "COMPLETED"
 
 

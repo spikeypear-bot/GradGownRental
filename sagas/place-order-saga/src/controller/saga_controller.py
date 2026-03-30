@@ -59,6 +59,7 @@ def create_order():
         fulfillment_date=body["fulfillment_date"],
         return_date=body["return_date"],
         total_amount=body["total_amount"],
+        package_id=int(body.get("package_id", 0)),
     )
 
     saga = current_app.extensions["saga_service"]
@@ -109,6 +110,7 @@ def submit_payment():
         fulfillment_date=body["fulfillment_date"],
         return_date=body["return_date"],
         total_amount=body["total_amount"],
+        package_id=int(body.get("package_id", 0)),
     )
     # order_id already exists from Phase 1
     context.order_id = body["order_id"]

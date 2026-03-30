@@ -37,6 +37,7 @@ class PlaceOrderContext:
     return_date: str                # ISO date string
     total_amount: str               # string, e.g. "125.00" (rental + delivery, NOT including deposit)
     total_deposit: str = "0.00"     # string, sum of deposits from all selected items
+    package_id: int = 0
 
     # --- Outputs (populated during saga execution) ---
     order_id: Optional[str] = None
