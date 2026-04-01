@@ -4,7 +4,7 @@ OrderService — orchestrates order creation, state transitions, and business lo
 
 import logging
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from ..model.order import Order, OrderStatus
 from ..repository.order_repository import OrderRepository
@@ -235,6 +235,10 @@ class OrderService:
     def get_orders_by_rental_date(self, date_str: str) -> list:
         """Fetch all orders renting on a specific date."""
         return self._repo.find_by_rental_start_date(date_str)
+
+    def get_orders_by_return_date(self, date_str: str) -> list:
+        """Fetch all orders returning on a specific date."""
+        return self._repo.find_by_rental_end_date(date_str)
 
     # ------------------------------------------------------------------
     # Auto-activation (for scheduled jobs or background tasks)

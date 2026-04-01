@@ -10,6 +10,7 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "python-dotenv>=1.0.1",
     "apscheduler>=3.11.0",
+    "kafka-python>=2.3.0",
 ]
 
 [project.optional-dependencies]

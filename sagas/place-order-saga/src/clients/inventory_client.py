@@ -4,7 +4,7 @@ InventoryClient — HTTP client for the Inventory Service (Spring Boot, port 808
 This service is already merged to main, so all methods are fully implemented.
 
 Endpoints used by the saga:
-  POST /api/inventory/reserveitems → move soft-held items into reserved stock
+  PUT /api/inventory/stock/transition → move available stock into reserved stock
 """
 
 import logging
@@ -22,20 +22,21 @@ class InventoryClient:
 
     def reserve_items(self, hold_id: str, items: list) -> dict:
         """
-        POST /api/inventory/reserveitems
+        PUT /api/inventory/stock/transition
 
         Reserves items associated with hold_id after successful payment.
 
         :param hold_id: soft-hold ID returned from /softlock
         :param items: list of {modelId, qty, chosenDate}
         """
-        url = f"{INVENTORY_SERVICE_URL}/api/inventory/reserveitems"
+        url = f"{INVENTORY_SERVICE_URL}/api/inventory/stock/transition"
         payload = {
+            "transition": "AVAILABLE_TO_RESERVED",
             "holdId": hold_id,
             "items": items,
         }
         try:
-            resp = requests.post(url, json=payload, timeout=_TIMEOUT)
+            resp = requests.put(url, json=payload, timeout=_TIMEOUT)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as exc:

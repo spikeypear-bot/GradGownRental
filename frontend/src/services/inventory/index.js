@@ -40,10 +40,10 @@ class InventoryService {
    */
   async getAllPackages(filters = {}) {
     try {
-      let url = `${API_BASE_URL}/packages/all`
+      let url = `${API_BASE_URL}/catalogue`
       
       if (filters.institution) {
-        url = `${API_BASE_URL}/packages?institution=${filters.institution}`
+        url = `${API_BASE_URL}/catalogue?institution=${filters.institution}`
       }
       if (filters.educationLevel) {
         url += `${url.includes('?') ? '&' : '?'}educationLevel=${filters.educationLevel}`
@@ -144,7 +144,7 @@ class InventoryService {
    */
   async softLockItems(items) {
     try {
-      const response = await fetch(`${API_BASE_URL}/softlock`, {
+      const response = await fetch(`${API_BASE_URL}/soft-hold`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(items)

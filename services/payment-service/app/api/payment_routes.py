@@ -136,6 +136,67 @@ def authorise_payment():
         "stripe_payment_intent_id": getattr(intent, "id", None) or intent.get("id"),
     }), 201
 
+
+@api.route('/payments/refunds', methods=["POST"])
+def refund_payment():
+    """
+    Scenario 4 refund endpoint.
+
+    Expected JSON:
+    {
+      "order_id": "...",
+      "payment_id": "...",
+      "refundable_amount": "10.00"
+    }
+    """
+    data = request.get_json() or {}
+    required = ["order_id", "payment_id", "refundable_amount"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {missing}"}), 400
+
+    order_id = data["order_id"]
+    payment_id = data["payment_id"]
+    refundable_amount = Decimal(str(data["refundable_amount"]))
+    if refundable_amount < 0:
+        return jsonify({"error": "refundable_amount must be >= 0"}), 400
+
+    payment = Payment.query.filter_by(payment_id=payment_id, order_id=order_id).first()
+    if not payment:
+        return jsonify({"error": "Payment record not found for order_id/payment_id"}), 404
+
+    if refundable_amount == 0:
+        return jsonify({
+            "refund_id": None,
+            "status": "NO_REFUND",
+            "refunded_amount": "0.00",
+        }), 200
+
+    # We store client_secret. PaymentIntent id can be extracted from it:
+    # e.g. pi_123_secret_abc -> pi_123
+    if not payment.client_secret or "_secret_" not in payment.client_secret:
+        return jsonify({"error": "Stored payment record does not contain refundable Stripe reference"}), 400
+
+    payment_intent_id = payment.client_secret.split("_secret_")[0]
+    amount_cents = int(refundable_amount * 100)
+
+    try:
+        stripe_client = current_app.stripe_client
+        refund = stripe_client.v1.refunds.create({
+            "payment_intent": payment_intent_id,
+            "amount": amount_cents,
+            "metadata": {"order_id": order_id, "payment_id": payment_id},
+        })
+    except Exception as e:
+        logger.error(f"Refund failed for order {order_id}: {e}")
+        return jsonify({"error": f"Refund authorisation failed: {str(e)}"}), 402
+
+    return jsonify({
+        "refund_id": getattr(refund, "id", None) or refund.get("id"),
+        "status": getattr(refund, "status", None) or refund.get("status"),
+        "refunded_amount": f"{refundable_amount:.2f}",
+    }), 201
+
 @api.route('/test', methods=["GET"])
 def test():
     """Test endpoint

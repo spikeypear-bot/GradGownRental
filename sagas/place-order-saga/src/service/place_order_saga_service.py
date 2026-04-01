@@ -10,7 +10,7 @@ Scenario 1 steps (from spec):
   10. POST /payments      → Payment Service  (authorise transaction)
   11-12. Stripe via Payment Service adapter, returns payment_id
   13. PUT /orders/{id}/status → Order Service  (CONFIRMED)
-  14. POST /api/inventory/reserveitems → Inventory Service (soft-hold -> reserved)
+  14. PUT /api/inventory/stock/transition → Inventory Service (soft-hold -> reserved)
   15. Return order_summary to UI
   16. Publish OrderPaid + OrderConfirmed to Kafka
   E1. On any failure → POST /errors → Error Service
@@ -117,7 +117,7 @@ class PlaceOrderSagaService:
             # Step 13 — PUT /orders/{id}/status → CONFIRMED (Order Service)
             self._step_confirm_order(context)
 
-            # Step 14 — POST /api/inventory/reserveitems (Inventory Service)
+            # Step 14 — PUT /api/inventory/stock/transition (Inventory Service)
             self._step_transition_inventory(context)
 
             # Step 16 — Publish OrderPaid + OrderConfirmed to Kafka
