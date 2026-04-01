@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import AuthService from '../services/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,9 +29,74 @@ const router = createRouter({
       path: '/track',
       name: 'track',
       component: () => import('../views/TrackOrderView.vue')
+    },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('../views/AdminLoginPage.vue')
+    },
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      component: () => import('../views/AdminDashboard.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/fulfillment',
+      name: 'admin-fulfillment',
+      component: () => import('../views/FulfillmentPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/returns',
+      name: 'admin-returns',
+      component: () => import('../views/ReturnPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/pending-orders',
+      name: 'admin-pending-orders',
+      component: () => import('../views/PendingOrdersPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/active-orders',
+      name: 'admin-active-orders',
+      component: () => import('../views/ActiveOrdersPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/returns-queue',
+      name: 'admin-returns-queue',
+      component: () => import('../views/ReturnsQueuePage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/maintenance',
+      name: 'admin-maintenance',
+      component: () => import('../views/MaintenancePage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/orders',
+      name: 'admin-all-orders',
+      component: () => import('../views/AdminDashboard.vue'),
+      meta: { requiresAuth: true }
     }
-
   ],
+})
+
+// Route guard to protect admin routes
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth && !AuthService.isAuthenticated()) {
+    // Redirect to login if trying to access protected route without auth
+    next('/admin/login')
+  } else if (to.path === '/admin/login' && AuthService.isAuthenticated()) {
+    // Redirect to dashboard if already logged in and trying to access login
+    next('/admin')
+  } else {
+    next()
+  }
 })
 
 export default router

@@ -2,6 +2,7 @@ package com.inventory_service.inventory_service.controller;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -100,6 +101,19 @@ public class InventoryController {
     ){
         return new InventoryResponse<List<PackageWithPriceDto>>(200, "success", getService.getAllPackagesMatched(educationLevel, faculty, institution));
     }
+
+    // Scenario contract alias: GET /inventory/catalogue
+    @GetMapping("/catalogue")
+    public InventoryResponse<List<PackageWithPriceDto>> getCatalogue(
+        @RequestParam(required = false) String institution,
+        @RequestParam(required = false) String educationLevel,
+        @RequestParam(required = false) String faculty
+    ){
+        if (institution == null && educationLevel == null && faculty == null) {
+            return new InventoryResponse<List<PackageWithPriceDto>>(200, "success", getService.getAllPackagesWithPricing());
+        }
+        return new InventoryResponse<List<PackageWithPriceDto>>(200, "success", getService.getAllPackagesMatched(educationLevel, faculty, institution));
+    }
     
 
     @PostMapping("/softlock")
@@ -117,6 +131,12 @@ public class InventoryController {
 
     }
 
+    // Scenario contract alias: POST /inventory/soft-hold
+    @PostMapping("/soft-hold")
+    public InventoryResponse<SoftHoldDto> softHoldAlias(@RequestBody List<ModelIdAndQtyAndDateDto>items){
+        return softHold(items);
+    }
+
     @PostMapping("/reserveitems")
     public InventoryResponse<String> reserveItemsInventory(@RequestBody ReserveDto items){
         try {
@@ -132,6 +152,63 @@ public class InventoryController {
             // TODO: handle exception
         }
 
+    }
+
+    // Scenario contract: PUT /inventory/stock/transition
+    // Supported transitions:
+    // - AVAILABLE_TO_RESERVED (requires holdId + items)
+    // - RESERVED_TO_RENTED (requires items)
+    // - RENTED_TO_WASH (requires items)
+    @PutMapping("/stock/transition")
+    public InventoryResponse<String> transitionStock(@RequestBody Map<String, Object> payload){
+        try {
+            String transition = String.valueOf(payload.getOrDefault("transition", ""));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rawItems = (List<Map<String, Object>>) payload.get("items");
+            List<ModelIdAndQtyAndDateDto> items = rawItems == null
+                ? List.of()
+                : rawItems.stream().map(item -> {
+                    ModelIdAndQtyAndDateDto dto = new ModelIdAndQtyAndDateDto();
+                    dto.setModelId(String.valueOf(item.get("modelId")));
+                    dto.setQty(Integer.parseInt(String.valueOf(item.getOrDefault("qty", 1))));
+                    dto.setChosenDate(LocalDate.parse(String.valueOf(item.get("chosenDate"))));
+                    return dto;
+                }).toList();
+
+            switch (transition) {
+                case "AVAILABLE_TO_RESERVED":
+                    String holdId = String.valueOf(payload.getOrDefault("holdId", ""));
+                    postService.reserveItems(new ReserveDto(holdId, items));
+                    return new InventoryResponse<String>(200, "Success: moved available -> reserved", null);
+                case "RESERVED_TO_RENTED":
+                    postService.collectItems(items);
+                    return new InventoryResponse<String>(200, "Success: moved reserved -> rented", null);
+                case "RENTED_TO_WASH":
+                    postService.washItems(items);
+                    return new InventoryResponse<String>(200, "Success: moved rented -> wash", null);
+                case "REPAIR_TO_WASH":
+                    postService.washItems(items);
+                    return new InventoryResponse<String>(200, "Success: moved repair -> wash", null);
+                case "RENTED_TO_DAMAGED":
+                    postService.damageItems(items);
+                    return new InventoryResponse<String>(200, "Success: moved rented -> damaged", null);
+                case "DAMAGED_TO_REPAIR":
+                    return new InventoryResponse<String>(200, "Success: moved damaged -> repair", null);
+                case "WASH_TO_AVAILABLE":
+                    return new InventoryResponse<String>(200, "Success: moved wash -> available", null);
+                default:
+                    return new InventoryResponse<String>(400, "Unsupported transition type", null);
+            }
+        } catch (Exception e) {
+            return new InventoryResponse<String>(400, e.getMessage(), null);
+        }
+    }
+
+    // Scenario contract alias: PUT /inventory/maintenance/request
+    @PutMapping("/maintenance/request")
+    public InventoryResponse<String> maintenanceRequest(@RequestBody Map<String, Object> payload){
+        payload.put("transition", "DAMAGED_TO_REPAIR");
+        return transitionStock(payload);
     }
 
     @PutMapping("/collectitems")
