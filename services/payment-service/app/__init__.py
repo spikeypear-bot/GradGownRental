@@ -13,7 +13,7 @@ dotenv.load_dotenv()
 logging.basicConfig(level=logging.INFO,
                     encoding='utf-8',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("payment-service")
+logger = logging.getLogger("payment")
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -24,11 +24,13 @@ def create_app():
     CORS(app)
 
     app.config.from_mapping(
+        KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
         STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY"),
+        STRIPE_ENDPOINT_SECRET = os.getenv("STRIPE_ENDPOINT_SECRET"),
         SQLALCHEMY_DATABASE_URI = os.getenv("PAYMENT_DATABASE_URL", "postgresql+psycopg://payment_user:payment_pass@payment-service-db:5432/payment")
     )
 
-    # DB Setup
+    # DB Setup/Startup
     db.init_app(app)
     migrate.init_app(app, db)
 
@@ -47,10 +49,29 @@ def create_app():
     except AuthenticationError as e:
         logger.critical(e)
 
+    # Stripe Webhook Confirmation
+    if not app.config.get("STRIPE_ENDPOINT_SECRET"):
+        logger.critical("STRIPE_ENDPOINT_SECRET is not configured!")
+
+
+    # Kafka Startup
+    if not app.config.get("KAFKA_BOOTSTRAP_SERVERS"):
+        logger.critical("KAFKA_BOOTSTRAP_SERVERS is not configured!")
+
+    try:
+        with app.app_context():
+            from app.service.kafka_service import KafkaService
+            app.kafka_client = KafkaService(app.config.get("KAFKA_BOOTSTRAP_SERVERS"))
+
+    except Exception as e:
+        logger.critical(e)
+
     # Routing
     from app.api.payment_routes import api as payment_api_blueprint
     app.register_blueprint(payment_api_blueprint)
 
+    from app.api.webhook import webhook as webhook_blueprint
+    app.register_blueprint(webhook_blueprint)
 
     logger.info("Flask server initialised")
     return app

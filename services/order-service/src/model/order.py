@@ -4,7 +4,7 @@ Persisted to PostgreSQL via the repository layer.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -19,9 +19,11 @@ class OrderStatus(str, Enum):
     RETURNED: Gown returned by student to store
     COMPLETED: Return processed, refund issued
     """
+    PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
     ACTIVE = "ACTIVE"
     RETURNED = "RETURNED"
+    RETURNED_DAMAGED = "RETURNED_DAMAGED"
     COMPLETED = "COMPLETED"
 
 
@@ -58,14 +60,14 @@ class Order:
     status: OrderStatus = OrderStatus.CONFIRMED
     
     # --- Status timestamps ---
-    confirmed_at: datetime = field(default_factory=datetime.utcnow)
+    confirmed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     activated_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
     # --- Audit ---
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     # --- Saga context (reference only) ---
     hold_id: Optional[str] = None

@@ -1,9 +1,18 @@
 // Inventory Service API Client
 // Handles all API calls to the inventory-service backend
 
-import { GraduationPackage, Inventory, ItemHold, AvailabilityResponse, Availability90Response } from './model.js'
+import {
+  GraduationPackage,
+  DetailedPackage,
+  Inventory,
+  ItemHold,
+  AvailabilityResponse,
+  Availability90Response
+} from './model.js'
 
-const API_BASE_URL = 'http://localhost:8080/api/inventory'
+const API_BASE_URL = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
+
+const unwrapApiData = (payload) => payload?.date ?? payload?.data ?? payload
 
 class InventoryService {
   /**
@@ -15,8 +24,9 @@ class InventoryService {
     try {
       const response = await fetch(`${API_BASE_URL}/${packageId}`)
       if (!response.ok) throw new Error('Failed to fetch package')
-      const data = await response.json()
-      return new GraduationPackage(data)
+      const payload = await response.json()
+      const data = unwrapApiData(payload)
+      return new DetailedPackage(data)
     } catch (error) {
       console.error('Error fetching package:', error)
       throw error
@@ -30,10 +40,10 @@ class InventoryService {
    */
   async getAllPackages(filters = {}) {
     try {
-      let url = `${API_BASE_URL}/packages/all`
+      let url = `${API_BASE_URL}/catalogue`
       
       if (filters.institution) {
-        url = `${API_BASE_URL}/packages?institution=${filters.institution}`
+        url = `${API_BASE_URL}/catalogue?institution=${filters.institution}`
       }
       if (filters.educationLevel) {
         url += `${url.includes('?') ? '&' : '?'}educationLevel=${filters.educationLevel}`
@@ -93,7 +103,8 @@ class InventoryService {
 
       const response = await fetch(`${API_BASE_URL}/availability?${params}`)
       if (!response.ok) throw new Error('Failed to check availability')
-      const data = await response.json()
+      const payload = await response.json()
+      const data = unwrapApiData(payload)
       return new AvailabilityResponse(data)
     } catch (error) {
       console.error('Error checking availability:', error)
@@ -116,7 +127,8 @@ class InventoryService {
 
       const response = await fetch(`${API_BASE_URL}/availability90?${params}`)
       if (!response.ok) throw new Error('Failed to check 90-day availability')
-      const data = await response.json()
+      const payload = await response.json()
+      const data = unwrapApiData(payload)
       
       return Array.isArray(data) ? data.map(item => new Availability90Response(item)) : [new Availability90Response(data)]
     } catch (error) {
@@ -132,14 +144,15 @@ class InventoryService {
    */
   async softLockItems(items) {
     try {
-      const response = await fetch(`${API_BASE_URL}/softlock`, {
+      const response = await fetch(`${API_BASE_URL}/soft-hold`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(items)
       })
       
       if (!response.ok) throw new Error('Failed to soft-lock items')
-      const data = await response.json()
+      const payload = await response.json()
+      const data = unwrapApiData(payload)
       return new ItemHold(data)
     } catch (error) {
       console.error('Error soft-locking items:', error)
@@ -162,7 +175,8 @@ class InventoryService {
       })
       
       if (!response.ok) throw new Error('Failed to reserve items')
-      return await response.json()
+      const payload = await response.json()
+      return unwrapApiData(payload)
     } catch (error) {
       console.error('Error reserving items:', error)
       throw error
@@ -183,7 +197,8 @@ class InventoryService {
       })
       
       if (!response.ok) throw new Error('Failed to collect items')
-      return await response.json()
+      const payload = await response.json()
+      return unwrapApiData(payload)
     } catch (error) {
       console.error('Error collecting items:', error)
       throw error
@@ -204,7 +219,8 @@ class InventoryService {
       })
       
       if (!response.ok) throw new Error('Failed to send items to wash')
-      return await response.json()
+      const payload = await response.json()
+      return unwrapApiData(payload)
     } catch (error) {
       console.error('Error washing items:', error)
       throw error

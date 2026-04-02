@@ -3,8 +3,8 @@ InventoryClient — HTTP client for the Inventory Service (Spring Boot, port 808
 
 This service is already merged to main, so all methods are fully implemented.
 
-Endpoints used by the saga (per scenario spec):
-  PUT  /inventory/stock/transition   → move items between qty buckets
+Endpoints used by the saga:
+  PUT /api/inventory/stock/transition → move available stock into reserved stock
 """
 
 import logging
@@ -20,23 +20,20 @@ _TIMEOUT = 10  # seconds
 
 class InventoryClient:
 
-    def transition_stock(self, hold_id: str, from_bucket: str, to_bucket: str) -> dict:
+    def reserve_items(self, hold_id: str, items: list) -> dict:
         """
-        PUT /inventory/stock/transition
+        PUT /api/inventory/stock/transition
 
-        Moves items associated with hold_id from one qty bucket to another.
-        Used by the saga to move from available_qty -> reserved_qty after payment.
+        Reserves items associated with hold_id after successful payment.
 
-        :param hold_id:     The hold ID returned during soft-hold (step 4 of scenario 1)
-        :param from_bucket: Source bucket, e.g. "available_qty"
-        :param to_bucket:   Destination bucket, e.g. "reserved_qty"
-        :return:            {"success": True, "updated_items": [...]}
+        :param hold_id: soft-hold ID returned from /softlock
+        :param items: list of {modelId, qty, chosenDate}
         """
-        url = f"{INVENTORY_SERVICE_URL}/inventory/stock/transition"
+        url = f"{INVENTORY_SERVICE_URL}/api/inventory/stock/transition"
         payload = {
-            "hold_id": hold_id,
-            "from_bucket": from_bucket,
-            "to_bucket": to_bucket,
+            "transition": "AVAILABLE_TO_RESERVED",
+            "holdId": hold_id,
+            "items": items,
         }
         try:
             resp = requests.put(url, json=payload, timeout=_TIMEOUT)
@@ -44,7 +41,7 @@ class InventoryClient:
             return resp.json()
         except requests.RequestException as exc:
             logger.error(
-                "InventoryClient.transition_stock failed | hold_id=%s | %s",
+                "InventoryClient.reserve_items failed | hold_id=%s | %s",
                 hold_id,
                 exc,
             )

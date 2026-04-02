@@ -18,6 +18,7 @@ from .controller.order_controller import root_bp, order_bp
 from .repository.order_repository import OrderRepository
 from .service.order_service import OrderService
 from .scheduler.order_scheduler import get_scheduler
+from .scheduler.kafka_event_publisher import KafkaEventPublisher
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,7 +62,8 @@ def create_app() -> Flask:
     # Scheduler (for auto-activation of DELIVERY orders)
     # ------------------------------------------------------------------
     scheduler = get_scheduler()
-    scheduler.init_app(app, service)
+    publisher = KafkaEventPublisher()
+    scheduler.init_app(app, service, publisher=publisher)
     app.extensions["scheduler"] = scheduler
 
     # ------------------------------------------------------------------

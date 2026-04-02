@@ -29,8 +29,8 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 5001
 
 # gunicorn is the production WSGI server.
-# --workers 2     → 2 worker processes (fine for a mostly I/O-bound service)
+# --workers 1     → single worker to avoid duplicate Kafka consumers per container
 # --timeout 120   → workers killed if they don't respond in 120s
 # app:create_app() → calls the create_app() factory in src/app.py
 WORKDIR /app/src
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "120", "app:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "1", "--timeout", "120", "app:create_app()"]

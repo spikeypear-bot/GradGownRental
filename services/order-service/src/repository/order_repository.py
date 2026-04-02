@@ -7,7 +7,7 @@ All SQL is isolated here so the service layer stays clean.
 import psycopg2
 import json
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 
@@ -25,7 +25,7 @@ class OrderRepository:
             WHERE order_id = %s
         """
         with self._conn.cursor() as cur:
-            cur.execute(sql, (damaged, json.dumps(damaged_items or []), datetime.utcnow(), order_id))
+            cur.execute(sql, (damaged, json.dumps(damaged_items or []), datetime.now(timezone.utc), order_id))
             self._conn.commit()
 
     def __init__(self, conn):
@@ -80,24 +80,35 @@ class OrderRepository:
             UPDATE orders
             SET status = %s, updated_at = %s
         """
-        params = [new_status.value, datetime.utcnow()]
+        params = [new_status.value, datetime.now(timezone.utc)]
         
         # Also set status-specific timestamps
         if new_status == OrderStatus.ACTIVE:
             sql += ", activated_at = %s"
-            params.append(datetime.utcnow())
-        elif new_status == OrderStatus.RETURNED:
+            params.append(datetime.now(timezone.utc))
+        elif new_status == OrderStatus.RETURNED or new_status == OrderStatus.RETURNED_DAMAGED:
             sql += ", returned_at = %s"
-            params.append(datetime.utcnow())
+            params.append(datetime.now(timezone.utc))
         elif new_status == OrderStatus.COMPLETED:
             sql += ", completed_at = %s"
-            params.append(datetime.utcnow())
+            params.append(datetime.now(timezone.utc))
         
         sql += " WHERE order_id = %s"
         params.append(order_id)
         
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
+            self._conn.commit()
+
+    def update_payment_id(self, order_id: str, payment_id: str) -> None:
+        """Attach payment reference to an existing order."""
+        sql = """
+            UPDATE orders
+            SET payment_id = %s, updated_at = %s
+            WHERE order_id = %s
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(sql, (payment_id, datetime.now(timezone.utc), order_id))
             self._conn.commit()
 
     # ------------------------------------------------------------------
@@ -170,6 +181,22 @@ class OrderRepository:
             cur.execute(sql, (date,))
             return [self._row_to_order(row) for row in cur.fetchall()]
 
+    def find_by_rental_end_date(self, date: str) -> list:
+        """Fetch all orders with rental ending on a specific date."""
+        sql = """
+            SELECT id, order_id, student_name, email, phone, package_id,
+                   selected_items, rental_start_date, rental_end_date,
+                   total_amount, deposit, fulfillment_method, status,
+                   created_at, updated_at, confirmed_at, activated_at,
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
+            FROM orders
+            WHERE rental_end_date = %s
+            ORDER BY created_at DESC
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(sql, (date,))
+            return [self._row_to_order(row) for row in cur.fetchall()]
+
     # ------------------------------------------------------------------
     # Helper
     # ------------------------------------------------------------------
@@ -191,6 +218,31 @@ class OrderRepository:
         # damaged is at index 21
         damaged = row[21] if len(row) > 21 else None
         
+        # Convert naive datetimes from database to timezone-aware UTC
+        created_at = row[13]
+        if created_at and isinstance(created_at, datetime) and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        
+        updated_at = row[14]
+        if updated_at and isinstance(updated_at, datetime) and updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+        
+        confirmed_at = row[15]
+        if confirmed_at and isinstance(confirmed_at, datetime) and confirmed_at.tzinfo is None:
+            confirmed_at = confirmed_at.replace(tzinfo=timezone.utc)
+        
+        activated_at = row[16]
+        if activated_at and isinstance(activated_at, datetime) and activated_at.tzinfo is None:
+            activated_at = activated_at.replace(tzinfo=timezone.utc)
+        
+        returned_at = row[17]
+        if returned_at and isinstance(returned_at, datetime) and returned_at.tzinfo is None:
+            returned_at = returned_at.replace(tzinfo=timezone.utc)
+        
+        completed_at = row[18]
+        if completed_at and isinstance(completed_at, datetime) and completed_at.tzinfo is None:
+            completed_at = completed_at.replace(tzinfo=timezone.utc)
+        
         return Order(
             id=row[0],
             order_id=row[1],
@@ -205,12 +257,12 @@ class OrderRepository:
             deposit=row[10],
             fulfillment_method=row[11],
             status=OrderStatus(row[12]),
-            created_at=row[13],
-            updated_at=row[14],
-            confirmed_at=row[15],
-            activated_at=row[16],
-            returned_at=row[17],
-            completed_at=row[18],
+            created_at=created_at,
+            updated_at=updated_at,
+            confirmed_at=confirmed_at,
+            activated_at=activated_at,
+            returned_at=returned_at,
+            completed_at=completed_at,
             hold_id=row[19],
             payment_id=row[20],
             damaged=damaged,
