@@ -35,7 +35,6 @@ class Order:
     # --- Student contact info (for notifications) ---
     student_name: str
     email: str
-    phone: str
     
     # --- Package & selected items ---
     # package_id: which graduation package (e.g., NUS Engineering)
@@ -51,6 +50,11 @@ class Order:
     # --- Pricing ---
     total_amount: float
     fulfillment_method: str                 # 'COLLECTION' | 'DELIVERY'
+    
+    # --- Optional fields (must come after required fields) ---
+    phone: str = ""                         # Optional, no longer used since SMS removed
+    hold_id: str = None                     # Soft-hold ID from Inventory Service
+    payment_id: str = None                  # Payment ID from Payment Service
     
     # --- Fulfillment fees (with defaults) ---
     deposit: float = 0.0                        # Total deposit from all selected items

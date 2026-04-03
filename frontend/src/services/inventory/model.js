@@ -33,12 +33,32 @@ export class DetailedPackage {
     this.institution = data.institution
     this.educationLevel = data.educationLevel
     this.faculty = data.faculty
-    this.hatStyle = data.hatStyle
-    this.hoodStyle = data.hoodStyle
-    this.gownStyle = data.gownStyle
+    
+    // Handle nested inventoryStyle structure from API
+    // The API returns { hatStyle: { inventoryStyle: {...}, models: [...] } }
+    // We need to merge the inventoryStyle properties with the models array
+    this.hatStyle = this._mergeStyleWithModels(data.hatStyle)
+    this.hoodStyle = this._mergeStyleWithModels(data.hoodStyle)
+    this.gownStyle = this._mergeStyleWithModels(data.gownStyle)
+    
     this.totalDeposit = Number(data.totalDeposit || 0)
     this.totalRentalFee = Number(data.totalRentalFee || 0)
     this.totalPrice = Number(data.totalPrice || 0)
+  }
+
+  _mergeStyleWithModels(styleObj) {
+    if (!styleObj) return null
+    
+    // If it has inventoryStyle (nested structure from API)
+    if (styleObj.inventoryStyle) {
+      return {
+        ...styleObj.inventoryStyle,
+        models: styleObj.models || []
+      }
+    }
+    
+    // Fallback for flat structure
+    return styleObj
   }
 
   getStyleBuckets() {

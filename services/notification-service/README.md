@@ -27,7 +27,7 @@ Covers two notification scenarios from the spec:
 
 **Scenario 2a — Scheduled Reminders** (triggered by Order Service scheduled job)
 - `pickup_reminder` → SMS + email reminder 24 hours before collection/delivery
-- `return_reminder` → SMS + email reminder 24 hours before return due date
+- `return_reminder` → email reminder 24 hours before return due date
 
 **Scenario 2b — Post-Action Notifications** (event-driven via Kafka)
 - `OrderConfirmed` → "Order Receipt" email + "Order Confirmed" SMS
@@ -345,11 +345,10 @@ All events are JSON, published by upstream services. The notification-service co
 {
   "order_id": "ORD-001",
   "student_name": "Jia Qian",
-  "phone": "+6588756213",
   "email": "wanjiaqian613@gmail.com"
 }
 ```
-→ Sends: Return due reminder SMS + email
+→ Sends: Return due reminder email
 
 ---
 

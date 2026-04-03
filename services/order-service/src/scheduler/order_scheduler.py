@@ -91,12 +91,15 @@ class OrderScheduler:
             for order in pickup_orders:
                 if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
                     continue
+                # Only send pickup reminder for COLLECTION orders, not DELIVERY
+                if order.fulfillment_method != "COLLECTION":
+                    continue
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
                     "phone": order.phone,
                     "email": order.email,
-                    "fulfillment_date": order.rental_start_date,
+                    "fulfillment_date": str(order.rental_start_date),
                     "fulfillment_method": order.fulfillment_method,
                 }
                 self.publisher.publish_pickup_reminder(payload)
@@ -109,9 +112,8 @@ class OrderScheduler:
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
-                    "phone": order.phone,
                     "email": order.email,
-                    "return_date": order.rental_end_date,
+                    "return_date": str(order.rental_end_date),
                 }
                 self.publisher.publish_return_reminder(payload)
                 return_count += 1

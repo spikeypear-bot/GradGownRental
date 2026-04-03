@@ -41,6 +41,18 @@ _HANDLER_MAP = {
 }
 
 
+def _safe_json_deserializer(value: bytes | None) -> dict | None:
+    """Decode Kafka message JSON without crashing the consumer thread."""
+    if not value:
+        return None
+
+    try:
+        return json.loads(value.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        logger.warning("Skipping malformed Kafka message: %r", value[:200])
+        return None
+
+
 class NotificationConsumer:
     def __init__(self, notification_service: NotificationService):
         self._service = notification_service
@@ -50,7 +62,7 @@ class NotificationConsumer:
             group_id="notification-service-group",
             auto_offset_reset="earliest",       # replay missed messages on restart
             enable_auto_commit=True,
-            value_deserializer=lambda v: json.loads(v.decode("utf-8")) if v else None,
+            value_deserializer=_safe_json_deserializer,
         )
         self._thread: threading.Thread | None = None
 

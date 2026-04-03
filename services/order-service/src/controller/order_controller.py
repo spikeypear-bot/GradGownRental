@@ -40,7 +40,7 @@ def create_order():
     
     # Validate required fields
     required = [
-        "student_name", "email", "phone",
+        "student_name", "email",
         "selected_items", "rental_start_date",
         "rental_end_date", "total_amount", "fulfillment_method"
     ]
@@ -53,7 +53,7 @@ def create_order():
             order_id=data.get("order_id") or str(uuid.uuid4()),
             student_name=data["student_name"],
             email=data["email"],
-            phone=data["phone"],
+            phone=data.get("phone", ""),
             package_id=int(data.get("package_id", 0)),
             selected_items=data["selected_items"],
             rental_start_date=data["rental_start_date"],
@@ -196,3 +196,126 @@ def get_orders_by_status(status: str):
     except Exception as e:
         logger.error(f"Error fetching orders by status: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@root_bp.post("/debug/trigger-reminders")
+def trigger_reminders_debug():
+    """DEBUG ONLY: Manually trigger the reminder job."""
+    scheduler = current_app.extensions.get("scheduler")
+    if not scheduler:
+        return jsonify({"error": "Scheduler not available"}), 500
+    
+    try:
+        scheduler._publish_reminders_job()
+        return jsonify({"status": "success", "message": "Reminder job triggered manually"}), 200
+    except Exception as e:
+        logger.error(f"Error triggering reminders: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@root_bp.post("/debug/create-test-orders")
+def create_test_orders_debug():
+    """
+    DEBUG ONLY: Create two test orders for testing reminders TODAY:
+    - Order 1: COLLECTION, pickup TODAY (for PICKUP_REMINDER)
+    - Order 2: COLLECTION, return TODAY (for RETURN_REMINDER - activated yesterday)
+    """
+    import json
+    import urllib.request
+    from datetime import datetime, timedelta
+    
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    yesterday = today - timedelta(days=1)
+    
+    try:
+        # First, try to create soft holds via inventory API
+        hold_id_1 = "manual-hold-1"
+        hold_id_2 = "manual-hold-2"
+        
+        try:
+            hold_payload = [
+                {"modelId": "0000024", "qty": 1, "chosenDate": today.isoformat()},
+            ]
+            
+            req = urllib.request.Request(
+                "http://inventory-service:8080/api/inventory/soft-hold",
+                data=json.dumps(hold_payload).encode('utf-8'),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                hold_data = json.loads(response.read().decode('utf-8')).get("data", {})
+                hold_id_1 = hold_data.get("holdId", "manual-hold-1")
+                hold_id_2 = hold_data.get("holdId", "manual-hold-2")
+        except Exception as e:
+            logger.warning(f"Could not create soft hold via API: {e}, using manual IDs")
+        
+        service = current_app.extensions.get("order_service")
+        if not service:
+            return jsonify({"error": "Order service not available"}), 500
+        
+        # Create Order 1: Pickup reminder (COLLECTION, pickup TODAY)
+        order1 = service.create_order(
+            order_id=None,  # auto-generate
+            student_name="Ei Chaw Zin",
+            email="eichawzin123@gmail.com",
+            phone="",
+            package_id=1,
+            selected_items=[{"modelId": "0000024", "qty": 1}],
+            rental_start_date=today.isoformat(),
+            rental_end_date=tomorrow.isoformat(),
+            total_amount=50.00,
+            fulfillment_method="COLLECTION",
+            hold_id=hold_id_1,
+            status="CONFIRMED"  # confirmed, waiting to be picked up today
+        )
+        
+        # Create Order 2: Return reminder (COLLECTION, return TODAY)
+        # Create as CONFIRMED, then activate to set activated_at to yesterday
+        order2 = service.create_order(
+            order_id=None,  # auto-generate
+            student_name="Ei Chaw Zin",
+            email="eichawzin123@gmail.com",
+            phone="",
+            package_id=1,
+            selected_items=[{"modelId": "0000024", "qty": 1}],
+            rental_start_date=yesterday.isoformat(),
+            rental_end_date=today.isoformat(),
+            total_amount=55.00,
+            fulfillment_method="COLLECTION",
+            hold_id=hold_id_2,
+            status="CONFIRMED"  # Create as CONFIRMED so it can be activated
+        )
+        
+        # Auto-activate order 2 so it becomes ACTIVE (pretend it was activated yesterday)
+        service.activate_order(order2.order_id)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Test orders created successfully - reminders should send immediately",
+            "next_step": "Run POST /debug/trigger-reminders NOW to send reminder emails immediately to eichawzin123@gmail.com",
+            "orders": [
+                {
+                    "order_id": order1.order_id,
+                    "type": "PICKUP_REMINDER",
+                    "student_email": order1.email,
+                    "rental_start_date": str(order1.rental_start_date),
+                    "status": order1.status,
+                    "notes": "Pickup is TODAY - reminder ready to send"
+                },
+                {
+                    "order_id": order2.order_id,
+                    "type": "RETURN_REMINDER",
+                    "student_email": order2.email,
+                    "rental_end_date": str(order2.rental_end_date),
+                    "status": "ACTIVE",
+                    "notes": "Return is TODAY - reminder ready to send"
+                }
+            ]
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error creating test orders: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500

@@ -31,11 +31,13 @@ class PlaceOrderContext:
 
     # Student contact info — needed by Notification Service via Kafka
     student_name: str
-    phone: str
     email: str
     fulfillment_date: str           # ISO date string
     return_date: str                # ISO date string
     total_amount: str               # string, e.g. "125.00" (rental + delivery, NOT including deposit)
+    
+    # --- Optional fields (must come after required fields) ---
+    phone: str = ""                 # Optional, no longer used since SMS removed
     total_deposit: str = "0.00"     # string, sum of deposits from all selected items
     package_id: int = 0
 

@@ -56,8 +56,9 @@ def create_app() -> Flask:
     repo = NotificationRepository(conn)
     service = NotificationService(twilio=twilio, sendgrid=sendgrid, repo=repo)
 
-    # Expose repo via app.extensions so controllers can access it
+    # Expose repo and service via app.extensions so controllers can access it
     app.extensions["notification_repo"] = repo
+    app.extensions["notification_service"] = service
 
     # ------------------------------------------------------------------
     # Kafka consumer (background thread)

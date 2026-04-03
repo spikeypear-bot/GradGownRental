@@ -37,8 +37,7 @@ const cartPackageDetails = ref([])
 const contact = ref({
   firstName: '',
   lastName: '',
-  email: '',
-  phone: ''
+  email: ''
 })
 
 const isCartCheckout = computed(() => String(route.query.cartCheckout || '') === 'true')
@@ -222,8 +221,7 @@ const canProceedStep1 = computed(() => {
 const isContactValid = computed(() => {
   return contact.value.firstName.trim() !== '' &&
          contact.value.lastName.trim() !== '' &&
-         /^\S+@\S+\.\S+$/.test(contact.value.email) &&
-         /^[+\d][\d\s-]{6,}$/.test(contact.value.phone.trim())
+         /^\S+@\S+\.\S+$/.test(contact.value.email)
 })
 
 const isSelectedDateToday = computed(() => {
@@ -374,7 +372,6 @@ const goToReview = async () => {
       selected_packages: selectedItemsForBooking.value,
       fulfillment_method: fulfillment.value === 'delivery' ? 'DELIVERY' : 'COLLECTION',
       student_name: studentName,
-      phone: contact.value.phone.trim(),
       email: contact.value.email.trim(),
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
@@ -420,8 +417,7 @@ const confirmPayment = async () => {
         card: cardElement,
         billing_details: {
           name: billingName,
-          email: contact.value.email.trim(),
-          phone: contact.value.phone.trim()
+          email: contact.value.email.trim()
         }
       }
     })
@@ -447,7 +443,6 @@ const confirmPayment = async () => {
         client_secret: paymentIntent.client_secret
       },
       student_name: studentName,
-      phone: contact.value.phone.trim(),
       email: contact.value.email.trim(),
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
@@ -735,10 +730,6 @@ function formatDate(date) {
                 <div class="col-12">
                   <label class="form-label fw-bold text-dark mb-2">Email Address</label>
                   <input type="email" class="form-control form-control-lg bg-light border-0 py-3" placeholder="john.doe@example.com" v-model="contact.email">
-                </div>
-                <div class="col-12">
-                  <label class="form-label fw-bold text-dark mb-2">Phone Number</label>
-                  <input type="text" class="form-control form-control-lg bg-light border-0 py-3" placeholder="+65 9123 4567" v-model="contact.phone">
                 </div>
               </div>
 

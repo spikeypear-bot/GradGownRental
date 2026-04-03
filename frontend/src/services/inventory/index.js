@@ -10,7 +10,7 @@ import {
   Availability90Response
 } from './model.js'
 
-const API_BASE_URL = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
+const API_BASE_URL = import.meta.env.VITE_INVENTORY_API_BASE_URL || '/api/inventory'
 
 const unwrapApiData = (payload) => payload?.date ?? payload?.data ?? payload
 

@@ -24,21 +24,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Message templates
 # ---------------------------------------------------------------------------
-# Each event maps to: (sms_body, email_subject, email_html)
+# Email templates for notifications
 # Placeholders are filled in by the service before dispatch.
-
-_SMS_TEMPLATES: dict[NotificationEvent, str] = {
-    NotificationEvent.ORDER_CONFIRMED:  "Hi {name}, your GradGown order #{order_id} is confirmed! "
-                                        "Collection/delivery is on {date}.",
-    NotificationEvent.ORDER_ACTIVATED:  "Hi {name}, your gown for order #{order_id} has been "
-                                        "collected/delivered. Enjoy your graduation!",
-    NotificationEvent.RETURN_PROCESSED: "Hi {name}, your return for order #{order_id} is complete. "
-                                        "Refund of ${refund_amount} will appear within 5-7 business days.",
-    NotificationEvent.PICKUP_REMINDER:  "Reminder: Your GradGown collection/delivery for order "
-                                        "#{order_id} is tomorrow. Please be available.",
-    NotificationEvent.RETURN_REMINDER:  "Reminder: Your GradGown return for order #{order_id} is "
-                                        "due tomorrow. Please prepare the gown.",
-}
 
 _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
     # (subject, html_body)
@@ -51,16 +38,6 @@ _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
         "<p>Total charged: <strong>${amount}</strong></p>"
         "<p>Thank you for choosing GradGown Rental!</p>",
     ),
-    NotificationEvent.ORDER_ACTIVATED: (
-        "Your Gown is on its way! Order #{order_id}",
-        "<h2>Collection Complete</h2><p>Hi {name},</p>"
-        "<p>Your gown for order <strong>#{order_id}</strong> has been "
-        "collected/delivered successfully.</p>"
-        "<h3>Gown Care Instructions</h3>"
-        "<ul><li>Store in a cool, dry place.</li>"
-        "<li>Do not machine wash — dry clean only.</li>"
-        "<li>Return on or before <strong>{return_date}</strong>.</li></ul>",
-    ),
     NotificationEvent.RETURN_PROCESSED: (
         "Return Complete — Refund Issued for Order #{order_id}",
         "<h2>Return Processed</h2><p>Hi {name},</p>"
@@ -69,12 +46,6 @@ _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
         "Expected arrival: 5–7 business days.</p>"
         "<p>Thank you for using GradGown Rental!</p>",
     ),
-    NotificationEvent.PICKUP_REMINDER: (
-        "Reminder: GradGown Pickup/Delivery Tomorrow — Order #{order_id}",
-        "<h2>Pickup Reminder</h2><p>Hi {name},</p>"
-        "<p>This is a reminder that your gown collection/delivery for order "
-        "<strong>#{order_id}</strong> is scheduled for <strong>tomorrow</strong>.</p>",
-    ),
     NotificationEvent.RETURN_REMINDER: (
         "Reminder: GradGown Return Due Tomorrow — Order #{order_id}",
         "<h2>Return Reminder</h2><p>Hi {name},</p>"
@@ -82,6 +53,20 @@ _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
         "<strong>#{order_id}</strong> is due <strong>tomorrow</strong>. "
         "Please ensure the gown is clean and packed.</p>",
     ),
+    NotificationEvent.PICKUP_REMINDER: (
+        "Reminder: GradGown Pickup Tomorrow — Order #{order_id}",
+        "<h2>Pickup Reminder</h2><p>Hi {name},</p>"
+        "<p>This is a reminder that your gown collection for order "
+        "<strong>#{order_id}</strong> is scheduled for <strong>tomorrow</strong>. "
+        "Please be available to pick up your gown.</p>",
+    ),
+}
+
+_EVENT_CHANNELS: dict[NotificationEvent, set[NotificationChannel]] = {
+    NotificationEvent.ORDER_CONFIRMED: {NotificationChannel.EMAIL},
+    NotificationEvent.RETURN_PROCESSED: {NotificationChannel.EMAIL},
+    NotificationEvent.RETURN_REMINDER: {NotificationChannel.EMAIL},
+    NotificationEvent.PICKUP_REMINDER: {NotificationChannel.EMAIL},
 }
 
 
@@ -187,39 +172,10 @@ class NotificationService:
         phone: str | None,
         email: str | None,
     ) -> None:
-        """Send SMS (Twilio) and email (SendGrid) for a given event."""
-        if phone:
-            self._send_sms(event, order_id, phone, ctx)
-        if email:
+        """Send the configured notification channels for a given event."""
+        channels = _EVENT_CHANNELS[event]
+        if email and NotificationChannel.EMAIL in channels:
             self._send_email(event, order_id, email, ctx)
-
-    def _send_sms(
-        self,
-        event: NotificationEvent,
-        order_id: str,
-        phone: str,
-        ctx: dict,
-    ) -> None:
-        body = _SMS_TEMPLATES[event].format(**ctx)
-        log = NotificationLog(
-            order_id=order_id,
-            event_type=event,
-            channel=NotificationChannel.SMS,
-            recipient=phone,
-            message_body=body,
-            created_at=datetime.utcnow(),
-        )
-        log = self._repo.save(log)
-
-        result = self._twilio.send_sms(to=phone, body=body)
-        status = NotificationStatus.SENT if result["success"] else NotificationStatus.FAILED
-        self._repo.update_status(
-            log.id,
-            status=status,
-            external_id=result.get("external_id"),
-            error_message=result.get("error"),
-        )
-        logger.info("SMS %s | event=%s | order=%s", status.value, event.value, order_id)
 
     def _send_email(
         self,

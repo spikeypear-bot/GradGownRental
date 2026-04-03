@@ -25,13 +25,13 @@ class OrderService:
         order_id: str | None,
         student_name: str,
         email: str,
-        phone: str,
-        package_id: int,
-        selected_items: list,
-        rental_start_date: str,
-        rental_end_date: str,
-        total_amount: float,
-        fulfillment_method: str,
+        phone: str = "",
+        package_id: int = 0,
+        selected_items: list = None,
+        rental_start_date: str = None,
+        rental_end_date: str = None,
+        total_amount: float = 0.0,
+        fulfillment_method: str = "COLLECTION",
         deposit: float = 0.0,
         hold_id: str = None,
         payment_id: str = None,
@@ -43,7 +43,7 @@ class OrderService:
         :param order_id: unique order identifier (generated if omitted)
         :param student_name: student's full name
         :param email: student's email
-        :param phone: student's phone number
+        :param phone: student's phone number (optional, no longer used)
         :param package_id: which graduation package was selected
         :param selected_items: list of {modelId, qty} dicts
         :param rental_start_date: ISO date string

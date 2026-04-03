@@ -11,8 +11,6 @@ import inventoryService from '@/services/inventory/index.js'
 
 const router = useRouter()
 const route = useRoute()
-const inventoryApiBase = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
-
 const selectedLevel = ref('')
 const selectedInstitution = ref('')
 const selectedFaculty = ref('')
