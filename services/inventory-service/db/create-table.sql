@@ -52,6 +52,7 @@ CREATE TABLE ItemHold (
     hold_id VARCHAR(50) NOT NULL,
     model_id VARCHAR(50) NOT NULL,
     qty INT,
+    chosen_date DATE,
     created_at TIMESTAMP NOT NULL,
     PRIMARY KEY (hold_id, model_id),
     FOREIGN KEY (model_id) REFERENCES Inventory(model_id)
@@ -68,6 +69,9 @@ ADD COLUMN IF NOT EXISTS damaged_qty INT DEFAULT 0;
 
 ALTER TABLE InventoryQuantityTrack
 ADD COLUMN IF NOT EXISTS repair_qty INT DEFAULT 0;
+
+ALTER TABLE ItemHold
+ADD COLUMN IF NOT EXISTS chosen_date DATE;
 
 -- InventoryStyle
 

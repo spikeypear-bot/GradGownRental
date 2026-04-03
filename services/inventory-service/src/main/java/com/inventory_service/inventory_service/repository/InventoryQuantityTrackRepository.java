@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import com.inventory_service.inventory_service.entity.InventoryQuantityTrack;
 import com.inventory_service.inventory_service.entity.InventoryQuantityTrackId;
@@ -23,6 +24,8 @@ public interface InventoryQuantityTrackRepository  extends JpaRepository<Invento
     "SELECT MAX(t.date) FROM InventoryQuantityTrack t WHERE t.model.modelId = u.model.modelId AND t.date <= :date" +
     ")")
     List<InventoryQuantityTrack> getLatestInventoryQuantityTrackForDate(@Param("date") LocalDate date);
+
+    Optional<InventoryQuantityTrack> findFirstByModel_ModelIdAndDateLessThanEqualOrderByDateDesc(String modelId, LocalDate date);
 
     
 } 

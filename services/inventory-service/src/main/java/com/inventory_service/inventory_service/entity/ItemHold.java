@@ -1,6 +1,7 @@
 package com.inventory_service.inventory_service.entity;
 
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -26,14 +27,17 @@ public class ItemHold {
     private Inventory model;
     @Column(name="qty")
     private int qty;
+    @Column(name = "chosen_date")
+    private LocalDate chosenDate;
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     public ItemHold() {
     }
-    public ItemHold(String holdId, Inventory model, int qty, LocalDateTime createdAt) {
+    public ItemHold(String holdId, Inventory model, int qty, LocalDate chosenDate, LocalDateTime createdAt) {
         this.holdId = holdId;
         this.model = model;
         this.qty = qty;
+        this.chosenDate = chosenDate;
         this.createdAt = createdAt;
     }
     public String getHoldId() {
@@ -53,6 +57,12 @@ public class ItemHold {
     }
     public void setQty(int qty) {
         this.qty = qty;
+    }
+    public LocalDate getChosenDate() {
+        return chosenDate;
+    }
+    public void setChosenDate(LocalDate chosenDate) {
+        this.chosenDate = chosenDate;
     }
     public LocalDateTime getCreatedAt() {
         return createdAt;

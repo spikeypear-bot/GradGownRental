@@ -1,4 +1,23 @@
 services:
+  # =========================================================================
+  # Frontend
+  # =========================================================================
+  vue-app:
+    build: ./frontend
+    environment:
+      VITE_INVENTORY_API_BASE_URL: ${VITE_INVENTORY_API_BASE_URL}
+      VITE_SAGA_API_BASE_URL: ${VITE_SAGA_API_BASE_URL}
+      VITE_ORDER_API_BASE_URL: ${VITE_ORDER_API_BASE_URL}
+      VITE_PAYMENT_API_BASE_URL: ${VITE_PAYMENT_API_BASE_URL}
+      VITE_FULFILLMENT_API_BASE_URL: ${VITE_FULFILLMENT_API_BASE_URL}
+      VITE_RETURN_API_BASE_URL: ${VITE_RETURN_API_BASE_URL}
+      VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
+    ports:
+      - 5173:5173
+      
+
+
+
 
   # =========================================================================
   # INFRASTRUCTURE

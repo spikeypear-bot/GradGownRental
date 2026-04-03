@@ -42,7 +42,7 @@ class ReturnOrderSagaService:
             })
 
             # Step 9
-            self._inventory.request_maintenance({"order_id": context.order_id})
+            self._inventory.transition("DAMAGED_TO_REPAIR", context.selected_packages)
             context.status = SagaStatus.MAINTENANCE_REQUESTED
             context.metadata["damage_report"] = context.damage_report
             context.metadata["damage_images_count"] = len(context.damage_images)

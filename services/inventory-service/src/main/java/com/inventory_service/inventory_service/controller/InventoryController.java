@@ -198,14 +198,16 @@ public class InventoryController {
                     postService.washItems(items);
                     return new InventoryResponse<String>(200, "Success: moved rented -> wash", null);
                 case "REPAIR_TO_WASH":
-                    postService.washItems(items);
+                    postService.moveRepairToWash(items);
                     return new InventoryResponse<String>(200, "Success: moved repair -> wash", null);
                 case "RENTED_TO_DAMAGED":
                     postService.damageItems(items);
                     return new InventoryResponse<String>(200, "Success: moved rented -> damaged", null);
                 case "DAMAGED_TO_REPAIR":
+                    postService.moveDamagedToRepair(items);
                     return new InventoryResponse<String>(200, "Success: moved damaged -> repair", null);
                 case "WASH_TO_AVAILABLE":
+                    postService.moveWashToAvailable(items);
                     return new InventoryResponse<String>(200, "Success: moved wash -> available", null);
                 default:
                     return new InventoryResponse<String>(400, "Unsupported transition type", null);

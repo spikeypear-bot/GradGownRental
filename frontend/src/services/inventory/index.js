@@ -12,7 +12,16 @@ import {
  
 const API_BASE_URL = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
  
-const unwrapApiData = (payload) => payload?.data ?? payload?.date ?? payload
+const unwrapApiData = (payload) => {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    ('status' in payload || 'msg' in payload || 'data' in payload)
+  ) {
+    return payload?.data ?? payload?.date ?? null
+  }
+  return payload
+}
  
 class InventoryService {
   /**
@@ -107,7 +116,13 @@ class InventoryService {
       const response = await fetch(`${API_BASE_URL}/availability?${params}`)
       if (!response.ok) throw new Error('Failed to check availability')
       const payload = await response.json()
+      if (payload?.status && payload.status !== 200) {
+        throw new Error(payload?.msg || 'Failed to check availability')
+      }
       const data = unwrapApiData(payload)
+      if (!data) {
+        throw new Error(payload?.msg || 'Availability data is missing')
+      }
       return new AvailabilityResponse(data)
     } catch (error) {
       console.error('Error checking availability:', error)
@@ -130,11 +145,17 @@ class InventoryService {
         hoodModelId: modelIds.hoodModelId,
         gownModelId: modelIds.gownModelId
       })
- 
+
       const response = await fetch(`${API_BASE_URL}/availability90?${params}`)
       if (!response.ok) throw new Error('Failed to check 90-day availability')
       const payload = await response.json()
+      if (payload?.status && payload.status !== 200) {
+        throw new Error(payload?.msg || 'Failed to check 90-day availability')
+      }
       const data = unwrapApiData(payload)
+      if (!data) {
+        throw new Error(payload?.msg || '90-day availability data is missing')
+      }
       
       return Array.isArray(data) ? data.map(item => new Availability90Response(item)) : [new Availability90Response(data)]
     } catch (error) {

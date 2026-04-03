@@ -187,7 +187,7 @@ public class GetService {
         InventoryQuantityTrackDto inventoryQuantityTrackDto = inventoryQuantityTrackService.getInventoryQuantityTrackByDate(modelId, date);
         int total=inventoryDto.getTotalQty();
         int availableQty=total;
-        List<ItemHoldDto> itemHoldDtos= itemHoldService.getAllNonExpiredItemHold(modelId);
+        List<ItemHoldDto> itemHoldDtos= itemHoldService.getActiveItemHoldForDate(modelId, date);
         int on_hold_qty=0;
         for(ItemHoldDto itemHoldDto : itemHoldDtos){
             on_hold_qty+=itemHoldDto.getQty();
