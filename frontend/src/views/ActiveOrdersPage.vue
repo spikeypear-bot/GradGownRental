@@ -6,15 +6,15 @@
         <p class="text-muted">Gowns currently rented out by customers</p>
       </div>
 
-      <!-- Filters and Actions -->
+      <!-- Filters -->
       <div class="row g-3 mb-4">
         <div class="col-md-6">
           <div class="search-box">
             <i class="bi bi-search"></i>
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              class="form-control" 
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-control"
               placeholder="Search by customer name or order ID"
             />
           </div>
@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <!-- Loading State -->
+      <!-- Loading -->
       <div v-if="isLoading" class="text-center py-5">
         <div class="spinner-border" role="status">
           <span class="visually-hidden">Loading...</span>
@@ -34,7 +34,7 @@
         <p class="mt-3 text-muted">Loading active rentals...</p>
       </div>
 
-      <!-- Orders Table -->
+      <!-- Table -->
       <div v-else class="orders-card">
         <div v-if="filteredOrders.length === 0" class="text-center py-5">
           <i class="bi bi-bag-check" style="font-size: 3rem; color: #d8a61c;"></i>
@@ -46,7 +46,7 @@
               <tr>
                 <th>Order ID</th>
                 <th>Customer</th>
-                <th>Gown</th>
+                <th>Fulfillment</th>
                 <th>Rental Start</th>
                 <th>Expected Return</th>
                 <th>Days Remaining</th>
@@ -55,18 +55,21 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in filteredOrders" :key="order.orderID">
+              <tr v-for="order in filteredOrders" :key="order.order_id">
                 <td>
-                  <span class="badge bg-light text-dark">{{ order.orderID }}</span>
+                  <span class="badge bg-light text-dark">{{ order.order_id.slice(0, 8) }}...</span>
                 </td>
                 <td>
                   <div class="customer-info">
-                    <p class="mb-0 fw-500">{{ order.CustomerName }}</p>
-                    <small class="text-muted">{{ order.CustomerEmail }}</small>
+                    <p class="mb-0 fw-500">{{ order.student_name }}</p>
+                    <small class="text-muted">{{ order.email }}</small>
                   </div>
                 </td>
                 <td>
-                  <span class="gown-name">{{ order.GownName }}</span>
+                  <span :class="['method-badge', order.fulfillment_method === 'DELIVERY' ? 'method-delivery' : 'method-collection']">
+                    <i :class="order.fulfillment_method === 'DELIVERY' ? 'bi bi-truck' : 'bi bi-bag-check'"></i>
+                    {{ order.fulfillment_method }}
+                  </span>
                 </td>
                 <td>{{ formatDate(order.rental_start_date) }}</td>
                 <td>{{ formatDate(order.rental_end_date) }}</td>
@@ -75,14 +78,14 @@
                     {{ getDaysRemaining(order.rental_end_date) }} days
                   </span>
                 </td>
-                <td class="fw-bold">SGD ${{ order.TotalAmount }}</td>
+                <td class="fw-bold">SGD ${{ order.total_amount }}</td>
                 <td>
-                  <button 
-                    @click="markForReturn(order.orderID)"
+                  <button
+                    @click="markForReturn(order.order_id)"
                     class="btn btn-sm btn-warning"
-                    :disabled="processingId === order.orderID"
+                    :disabled="processingId === order.order_id"
                   >
-                    <span v-if="processingId !== order.orderID">
+                    <span v-if="processingId !== order.order_id">
                       <i class="bi bi-arrow-clockwise"></i> Return
                     </span>
                     <span v-else>
@@ -97,12 +100,12 @@
         </div>
       </div>
 
-      <!-- Confirmation Modal -->
+      <!-- Modal -->
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
           <h4 class="mb-3">Mark for Return</h4>
           <p class="text-muted">
-            Mark order <strong>{{ selectedOrderId }}</strong> for return processing? 
+            Mark order <strong>{{ selectedOrderId }}</strong> for return processing?
             The customer will be notified to return the gown.
           </p>
           <div class="d-flex gap-2 justify-content-end mt-4">
@@ -135,19 +138,18 @@ const processingId = ref(null)
 const isProcessing = ref(false)
 
 const filteredOrders = computed(() => {
-  return orders.value.filter(order => {
-    const query = searchQuery.value.toLowerCase()
-    return (
-      order.orderID.toLowerCase().includes(query) ||
-      order.CustomerName.toLowerCase().includes(query) ||
-      order.CustomerEmail.toLowerCase().includes(query)
-    )
-  })
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return orders.value
+  return orders.value.filter(order =>
+    order.order_id?.toLowerCase().includes(query) ||
+    order.student_name?.toLowerCase().includes(query) ||
+    order.email?.toLowerCase().includes(query)
+  )
 })
 
 const formatDate = (dateString) => {
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Singapore',
       year: 'numeric',
       month: 'short',
@@ -155,26 +157,22 @@ const formatDate = (dateString) => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    })
-    return formatter.format(new Date(dateString))
+    }).format(new Date(dateString))
   } catch {
     return dateString
   }
 }
 
 const getDaysRemaining = (endDate) => {
-  const end = new Date(endDate)
-  const now = new Date()
-  const diffTime = end - now
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const diffDays = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24))
   return Math.max(0, diffDays)
 }
 
 const getDaysRemainingClass = (endDate) => {
-  const daysRemaining = getDaysRemaining(endDate)
-  if (daysRemaining <= 0) return 'bg-danger'
-  if (daysRemaining <= 3) return 'bg-warning'
-  return 'bg-info'
+  const days = getDaysRemaining(endDate)
+  if (days <= 0) return 'bg-danger text-white'
+  if (days <= 3) return 'bg-warning text-dark'
+  return 'bg-info text-white'
 }
 
 const loadActiveOrders = async () => {
@@ -189,9 +187,7 @@ const loadActiveOrders = async () => {
   }
 }
 
-const refreshOrders = () => {
-  loadActiveOrders()
-}
+const refreshOrders = () => loadActiveOrders()
 
 const markForReturn = (orderId) => {
   selectedOrderId.value = orderId
@@ -208,7 +204,7 @@ const submitReturn = async () => {
   processingId.value = selectedOrderId.value
   try {
     await AdminService.markForReturn(selectedOrderId.value)
-    orders.value = orders.value.filter(order => order.orderID !== selectedOrderId.value)
+    orders.value = orders.value.filter(order => order.order_id !== selectedOrderId.value)
     closeModal()
   } catch (error) {
     console.error('Error marking order for return:', error)
@@ -219,9 +215,7 @@ const submitReturn = async () => {
   }
 }
 
-onMounted(() => {
-  loadActiveOrders()
-})
+onMounted(() => loadActiveOrders())
 </script>
 
 <style scoped>
@@ -234,7 +228,6 @@ onMounted(() => {
 .search-box {
   position: relative;
 }
-
 .search-box i {
   position: absolute;
   left: 1rem;
@@ -242,14 +235,12 @@ onMounted(() => {
   transform: translateY(-50%);
   color: #d8a61c;
 }
-
 .search-box .form-control {
   padding-left: 2.5rem;
   border: 1px solid #e0ddd3;
   border-radius: 12px;
   background-color: white;
 }
-
 .search-box .form-control:focus {
   border-color: #d8a61c;
   box-shadow: 0 0 0 3px rgba(216, 166, 28, 0.1);
@@ -261,7 +252,6 @@ onMounted(() => {
   border-radius: 12px;
   font-weight: 600;
 }
-
 .btn-outline-secondary:hover {
   background-color: #d8a61c;
   border-color: #d8a61c;
@@ -276,11 +266,7 @@ onMounted(() => {
   overflow-x: auto;
 }
 
-.table {
-  margin: 0;
-  border-collapse: collapse;
-}
-
+.table { margin: 0; border-collapse: collapse; }
 .table thead th {
   background-color: #f9f7f2;
   border: none;
@@ -291,20 +277,13 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
-.table tbody tr:hover {
-  background-color: #faf9f7;
-}
-
+.table tbody tr:hover { background-color: #faf9f7; }
 .table tbody td {
   padding: 1rem;
   border-bottom: 1px solid #e0ddd3;
   vertical-align: middle;
 }
-
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
+.table tbody tr:last-child td { border-bottom: none; }
 
 .badge {
   padding: 0.5rem 0.75rem;
@@ -312,17 +291,27 @@ onMounted(() => {
   font-weight: 600;
   font-size: 0.85rem;
   display: inline-block;
-  margin: 0;
 }
 
-.customer-info p {
-  font-size: 0.95rem;
-}
-
-.gown-name {
-  color: #d8a61c;
+.method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
   font-weight: 600;
 }
+.method-collection {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.method-delivery {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.customer-info p { font-size: 0.95rem; }
 
 .btn-warning {
   background-color: #ffc107;
@@ -331,46 +320,31 @@ onMounted(() => {
   border-radius: 8px;
   font-weight: 600;
 }
-
 .btn-warning:hover:not(:disabled) {
   background-color: #e0a800;
   border-color: #e0a800;
 }
-
-.btn-warning:disabled {
-  opacity: 0.6;
-}
+.btn-warning:disabled { opacity: 0.6; }
 
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
 }
-
 .modal-content {
   background: white;
   border-radius: 20px;
   padding: 2rem;
   max-width: 400px;
+  width: 90%;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
-
-.modal-content h4 {
-  color: #2b3035;
-  font-weight: 700;
-}
-
-.modal-content p {
-  color: #555;
-  margin-bottom: 1rem;
-}
+.modal-content h4 { color: #2b3035; font-weight: 700; }
+.modal-content p { color: #555; margin-bottom: 1rem; }
 
 .btn-secondary {
   background-color: #6c757d;
@@ -378,23 +352,14 @@ onMounted(() => {
   border-radius: 12px;
   font-weight: 600;
 }
-
 .btn-secondary:hover {
   background-color: #5a6268;
   border-color: #5a6268;
 }
 
 @media (max-width: 768px) {
-  .table {
-    font-size: 0.85rem;
-  }
-
-  .table td, .table th {
-    padding: 0.75rem;
-  }
-
-  .customer-info small {
-    display: none;
-  }
+  .table { font-size: 0.85rem; }
+  .table td, .table th { padding: 0.75rem; }
+  .customer-info small { display: none; }
 }
 </style>

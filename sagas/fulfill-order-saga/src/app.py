@@ -18,10 +18,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app)
+
+    CORS(
+        app,
+        resources={r"/*": {"origins": "http://localhost:5173"}},
+        supports_credentials=False,
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
 
     order_client = OrderClient()
     inventory_client = InventoryClient()
@@ -43,7 +49,6 @@ def create_app() -> Flask:
     app.register_blueprint(saga_bp)
     logger.info("fulfill-order-saga ready")
     return app
-
 
 app = create_app()
 
