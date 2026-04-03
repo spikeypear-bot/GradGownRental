@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger("payment").getChild("api")
 # logger.setLevel("DEBUG")
 
-api = Blueprint("api", __name__)
+api = Blueprint("api", __name__, url_prefix="/api/payment")
 
 
 @api.route('/health', methods=["GET"])
