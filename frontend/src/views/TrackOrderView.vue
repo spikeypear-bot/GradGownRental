@@ -203,14 +203,6 @@ function formatDate(value) {
         </ul>
       </div>
 
-      <div v-if="order && canActivate" class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-        <h6 class="fw-bold">Scenario 3: Activate Collection Order</h6>
-        <p class="text-secondary mb-3">When the student picks up in-store, set the order to ACTIVE.</p>
-        <button class="btn btn-warning text-white fw-bold" :disabled="actionLoading" @click="activateOrder">
-          {{ actionLoading ? 'Processing...' : 'Mark as Collected (Activate)' }}
-        </button>
-      </div>
-
       <div v-if="order && canReturn" class="card border-0 shadow-sm rounded-4 p-4">
         <h6 class="fw-bold">Scenario 4: Process Return</h6>
         <p class="text-secondary mb-3">Add damaged items if any, then process return.</p>

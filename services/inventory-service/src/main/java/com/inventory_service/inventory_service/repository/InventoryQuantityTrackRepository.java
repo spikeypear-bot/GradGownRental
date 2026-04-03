@@ -17,7 +17,12 @@ public interface InventoryQuantityTrackRepository  extends JpaRepository<Invento
     @Query(
     "SELECT u FROM InventoryQuantityTrack u WHERE (u.model.modelId = :modelId) AND (:date>=u.date)")
     List<InventoryQuantityTrack> getInventoryQuantityTrackByIdAfterDate(@Param("modelId") String modelId,@Param("date") LocalDate date );
-    
+ 
+    @Query(
+    "SELECT u FROM InventoryQuantityTrack u WHERE u.date = (" +
+    "SELECT MAX(t.date) FROM InventoryQuantityTrack t WHERE t.model.modelId = u.model.modelId AND t.date <= :date" +
+    ")")
+    List<InventoryQuantityTrack> getLatestInventoryQuantityTrackForDate(@Param("date") LocalDate date);
 
     
 } 

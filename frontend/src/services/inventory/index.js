@@ -29,6 +29,9 @@ class InventoryService {
       return new DetailedPackage(data)
     } catch (error) {
       console.error('Error fetching package:', error)
+      if (error instanceof TypeError) {
+        throw new Error('Unable to load package details right now. Please try again shortly.')
+      }
       throw error
     }
   }
@@ -81,6 +84,9 @@ class InventoryService {
       return packages
     } catch (error) {
       console.error('Error fetching packages:', error)
+      if (error instanceof TypeError) {
+        throw new Error('Unable to load inventory packages right now. Please try again shortly.')
+      }
       throw error
     }
   }
@@ -105,6 +111,9 @@ class InventoryService {
       return new AvailabilityResponse(data)
     } catch (error) {
       console.error('Error checking availability:', error)
+      if (error instanceof TypeError) {
+        throw new Error('Unable to load inventory availability right now. Please try again shortly.')
+      }
       throw error
     }
   }
@@ -220,6 +229,49 @@ class InventoryService {
       return unwrapApiData(payload)
     } catch (error) {
       console.error('Error washing items:', error)
+      throw error
+    }
+  }
+
+  async getStockOverview(date = new Date()) {
+    try {
+      const dateParam = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date(date))
+
+      const response = await fetch(`${API_BASE_URL}/stock-overview?date=${dateParam}`)
+      if (!response.ok) throw new Error('Failed to fetch stock overview')
+      const payload = await response.json()
+      const data = unwrapApiData(payload) || []
+
+      if (!Array.isArray(data)) {
+        throw new Error('Inventory stock overview returned an invalid response.')
+      }
+
+      return data
+        .map(row => ({
+          modelId: row.modelId,
+          itemName: row.itemName,
+          itemType: row.itemType,
+          size: row.size,
+          totalQty: Number(row.totalQty || 0),
+          availableQty: Number(row.availableQty || 0),
+          reservedQty: Number(row.reservedQty || 0),
+          rentedQty: Number(row.rentedQty || 0),
+          damagedQty: Number(row.damagedQty || 0),
+          repairQty: Number(row.repairQty || 0),
+          washQty: Number(row.washQty || 0),
+          backupQty: Number(row.backupQty || 0)
+        }))
+        .sort((a, b) => a.modelId.localeCompare(b.modelId))
+    } catch (error) {
+      console.error('Error loading stock overview:', error)
+      if (error instanceof TypeError) {
+        throw new Error('Unable to load live stock counts right now. Please try again shortly.')
+      }
       throw error
     }
   }

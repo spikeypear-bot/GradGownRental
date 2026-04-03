@@ -1,10 +1,29 @@
 // Admin Service API Client
 // Handles all admin operations: fulfillment and returns
 
-const FULFILLMENT_API_BASE_URL = import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:8084/fulfillment'
-const RETURN_API_BASE_URL = import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:8085/returns'
+const withPathSuffix = (baseUrl, suffix) => {
+  const normalizedBase = String(baseUrl || '').replace(/\/+$/, '')
+  return normalizedBase.endsWith(suffix) ? normalizedBase : `${normalizedBase}${suffix}`
+}
+
+const FULFILLMENT_API_BASE_URL = withPathSuffix(
+  import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:5004',
+  '/fulfillment'
+)
+
+const RETURN_API_BASE_URL = withPathSuffix(
+  import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:5005',
+  '/returns'
+)
 
 class AdminService {
+  formatFetchError(error, fallbackMessage) {
+    if (error instanceof TypeError) {
+      return new Error(`${fallbackMessage} The service may be unavailable right now.`)
+    }
+    return error instanceof Error ? error : new Error(fallbackMessage)
+  }
+
   async parseError(response, fallbackMessage) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${fallbackMessage}`)
@@ -32,7 +51,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error activating fulfillment:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to activate fulfillment.')
     }
   }
 
@@ -58,7 +77,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error processing return:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to process return.')
     }
   }
 
@@ -84,7 +103,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error transitioning to wash:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to move the order to wash.')
     }
   }
 
@@ -110,7 +129,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error completing maintenance:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to complete maintenance.')
     }
   }
   
@@ -139,7 +158,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error confirming order:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to confirm the order.')
     }
   }
 
@@ -170,7 +189,7 @@ class AdminService {
       return await response.json()
     } catch (error) {
       console.error('Error marking order for return:', error)
-      throw error
+      throw this.formatFetchError(error, 'Unable to mark the order for return.')
     }
   }
 

@@ -9,9 +9,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 
-//Tracks quantity of inventory on a day to day basis, whenever an item is first rented on a certain day, a new entry is created mapping the model id to the dates
-//And to the quantity affected by it. 
-//Quantities comes in the form of reserved, rented, wash, damaged, backup. Backup is usually kept at 10, and is activated when there happens to be insufficient amount, but order has been made.
+// Tracks inventory movement day by day for each model.
+// This now mirrors the operational scenario states:
+// available -> reserved -> rented -> damaged/repair -> wash -> available.
+// Backup is retained as the overflow buffer used by the current service logic.
 //When a gown is reserved it would be blocked for 7 days, 3 days being rented and 4 days being sent for washing. 
 
 
@@ -26,10 +27,16 @@ public class InventoryQuantityTrack {
     @ManyToOne
     @JoinColumn(name="model_id")
     private Inventory model;
+    @Column(name = "available_qty")
+    private int availableQty;
     @Column(name = "reserved_qty")
     private int reservedQty;
     @Column(name = "rented_qty")
     private int rentedQty;
+    @Column(name = "damaged_qty")
+    private int damagedQty;
+    @Column(name = "repair_qty")
+    private int repairQty;
     @Column(name="wash_qty")
     private int washQty;
     @Column(name="backup_qty")
@@ -41,10 +48,18 @@ public class InventoryQuantityTrack {
 
     public InventoryQuantityTrack(LocalDate date, Inventory model, int reservedQty, int rentedQty, int washQty,
             int backupQty) {
+        this(date, model, 0, reservedQty, rentedQty, 0, 0, washQty, backupQty);
+    }
+
+    public InventoryQuantityTrack(LocalDate date, Inventory model, int availableQty, int reservedQty, int rentedQty,
+            int damagedQty, int repairQty, int washQty, int backupQty) {
         this.date = date;
         this.model = model;
+        this.availableQty = availableQty;
         this.reservedQty = reservedQty;
         this.rentedQty = rentedQty;
+        this.damagedQty = damagedQty;
+        this.repairQty = repairQty;
         this.washQty = washQty;
         this.backupQty = backupQty;
     }
@@ -66,6 +81,14 @@ public class InventoryQuantityTrack {
         this.model = model;
     }
 
+    public int getAvailableQty() {
+        return availableQty;
+    }
+
+    public void setAvailableQty(int availableQty) {
+        this.availableQty = availableQty;
+    }
+
     public int getReservedQty() {
         return reservedQty;
     }
@@ -80,6 +103,22 @@ public class InventoryQuantityTrack {
 
     public void setRentedQty(int rentedQty) {
         this.rentedQty = rentedQty;
+    }
+
+    public int getDamagedQty() {
+        return damagedQty;
+    }
+
+    public void setDamagedQty(int damagedQty) {
+        this.damagedQty = damagedQty;
+    }
+
+    public int getRepairQty() {
+        return repairQty;
+    }
+
+    public void setRepairQty(int repairQty) {
+        this.repairQty = repairQty;
     }
 
     public int getWashQty() {

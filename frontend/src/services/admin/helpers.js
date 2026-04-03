@@ -24,11 +24,22 @@ export function normalizeOrder(raw = {}) {
   }
 }
 
-export async function fetchOrdersByStatus(orderApiUrl, status) {
-  const response = await fetch(`${orderApiUrl}/orders/status/${encodeURIComponent(status)}`)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${status} orders`)
+function formatFetchError(error, fallbackMessage) {
+  if (error instanceof TypeError) {
+    return new Error(`${fallbackMessage} The service may be unavailable right now.`)
   }
-  const data = await response.json()
-  return Array.isArray(data) ? data.map(normalizeOrder) : []
+  return error instanceof Error ? error : new Error(fallbackMessage)
+}
+
+export async function fetchOrdersByStatus(orderApiUrl, status) {
+  try {
+    const response = await fetch(`${orderApiUrl}/orders/status/${encodeURIComponent(status)}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${status} orders`)
+    }
+    const data = await response.json()
+    return Array.isArray(data) ? data.map(normalizeOrder) : []
+  } catch (error) {
+    throw formatFetchError(error, `Unable to load ${status.toLowerCase()} orders.`)
+  }
 }

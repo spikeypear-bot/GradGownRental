@@ -2,31 +2,38 @@
   <div class="admin-sidebar">
     <div class="sidebar-header">
       <h5>Admin Panel</h5>
-      <button @click="toggleSidebar" class="btn-toggle d-lg-none">
-        <i class="bi bi-x"></i>
-      </button>
     </div>
 
     <nav class="sidebar-nav">
-      <RouterLink
-        to="/admin"
-        class="nav-item"
-        :class="{ active: isActive('/admin') }"
-      >
-        <i class="bi bi-graph-up"></i>
-        <span>Overview</span>
-      </RouterLink>
+      <div class="nav-section">
+        <h6>Overview</h6>
+        <RouterLink
+          to="/admin"
+          class="nav-item"
+          :class="{ active: isActive('/admin', true) }"
+        >
+          <i class="bi bi-graph-up"></i>
+          <span>View Orders</span>
+        </RouterLink>
+        <RouterLink
+          to="/admin/stock-overview"
+          class="nav-item"
+          :class="{ active: isActive('/admin/stock-overview') }"
+        >
+          <i class="bi bi-box-seam"></i>
+          <span>Stock Overview</span>
+        </RouterLink>
+      </div>
 
       <div class="nav-section">
         <h6>Fulfillment</h6>
         <RouterLink
-          to="/admin/pending-orders"
+          to="/admin/fulfillment"
           class="nav-item"
-          :class="{ active: isActive('/admin/pending-orders') }"
+          :class="{ active: isActive('/admin/fulfillment') }"
         >
           <i class="bi bi-truck"></i>
           <span>Process Fulfillment</span>
-          <span v-if="confirmedCount > 0" class="badge">{{ confirmedCount }}</span>
         </RouterLink>
       </div>
 
@@ -69,18 +76,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AuthService from '../services/auth'
 
 const router = useRouter()
 const route = useRoute()
 
-const pendingCount = ref(0)
-const confirmedCount = ref(0)
-
-const isActive = (path) => {
-  return route.path === path || route.path.startsWith(path + '/')
+const isActive = (path, exact = false) => {
+  return exact
+    ? route.path === path
+    : route.path === path || route.path.startsWith(path + '/')
 }
 
 const logout = () => {
@@ -88,29 +93,6 @@ const logout = () => {
   router.push('/admin/login')
 }
 
-// In a real app, fetch these counts from the API
-const loadCounts = async () => {
-  try {
-    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    const pendingRes = await fetch(`${orderApiUrl}/orders/status/PENDING`)
-    const confirmedRes = await fetch(`${orderApiUrl}/orders/status/CONFIRMED`)
-
-    if (pendingRes.ok) {
-      const data = await pendingRes.json()
-      pendingCount.value = Array.isArray(data) ? data.length : 0
-    }
-    if (confirmedRes.ok) {
-      const data = await confirmedRes.json()
-      confirmedCount.value = Array.isArray(data) ? data.length : 0 // Confirmed orders ready for return processing later
-    }
-  } catch (error) {
-    console.error('Error loading order counts:', error)
-  }
-}
-
-loadCounts()
-// Refresh counts every 30 seconds
-setInterval(loadCounts, 30000)
 </script>
 
 <style scoped>
@@ -126,7 +108,7 @@ setInterval(loadCounts, 30000)
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding-top: 80px;
+  padding-top: 0;
 }
 
 .sidebar-header {
@@ -198,16 +180,6 @@ setInterval(loadCounts, 30000)
 .nav-item i {
   width: 20px;
   text-align: center;
-}
-
-.badge {
-  margin-left: auto;
-  background-color: #d8a61c;
-  color: white;
-  font-size: 0.7rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 10px;
-  font-weight: 700;
 }
 
 .sidebar-footer {

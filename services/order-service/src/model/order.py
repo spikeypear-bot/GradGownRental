@@ -12,12 +12,14 @@ from typing import Optional
 class OrderStatus(str, Enum):
     """
     Order lifecycle:
-    CONFIRMED → ACTIVE → RETURNED → COMPLETED
-    
+    PENDING → CONFIRMED → ACTIVE → RETURNED_DAMAGED → COMPLETED
+
+    PENDING: Checkout initialized, awaiting successful payment completion
     CONFIRMED: Payment processed, order ready for pickup/delivery
-    ACTIVE: Rental period started (rental_start_date == TODAY)
-    RETURNED: Gown returned by student to store
-    COMPLETED: Return processed, refund issued
+    ACTIVE: Rental handover completed and item is now rented out
+    RETURNED: Legacy clean-return state retained for backward compatibility
+    RETURNED_DAMAGED: Return processed with damage workflow still in progress
+    COMPLETED: Return workflow finished and stock moved back to available
     """
     PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
@@ -57,10 +59,10 @@ class Order:
     # Note: delivery_fee ($5 for DELIVERY) is calculated by frontend and included in total_amount
     
     # --- Order state ---
-    status: OrderStatus = OrderStatus.CONFIRMED
-    
+    status: OrderStatus = OrderStatus.PENDING
+
     # --- Status timestamps ---
-    confirmed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    confirmed_at: Optional[datetime] = None
     activated_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
