@@ -35,6 +35,7 @@
         >
           <i class="bi bi-truck"></i>
           <span>Process Fulfillment</span>
+          <span v-if="confirmedCount > 0" class="badge">{{ confirmedCount }}</span>
         </RouterLink>
       </div>
 
@@ -96,7 +97,7 @@ const route = useRoute()
 
 const pendingCount = ref(0)
 const activeCount = ref(0)
-const returnsCount = ref(0)
+const confirmedCount = ref(0)
 
 const isActive = (path) => {
   return route.path === path || route.path.startsWith(path + '/')
@@ -122,7 +123,7 @@ const loadCounts = async () => {
     }
     if (confirmedRes.ok) {
       const data = await confirmedRes.json()
-      returnsCount.value = Array.isArray(data) ? data.length : 0 // Confirmed orders ready for return processing later
+      confirmedCount.value = Array.isArray(data) ? data.length : 0 // Confirmed orders ready for return processing later
     }
     if (activeRes.ok) {
       const data = await activeRes.json()
