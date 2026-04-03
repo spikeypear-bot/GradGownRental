@@ -8,7 +8,7 @@ import svgLoader from 'vite-svg-loader'
 
 // https://vite.dev/config/
 export default defineConfig({
-  envDir: '..',
+  envDir: '../frontend',
   plugins: [
     vue(),
     vueDevTools(),
