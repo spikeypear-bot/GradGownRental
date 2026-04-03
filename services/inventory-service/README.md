@@ -33,7 +33,7 @@ http://localhost:8080/api/inventory/{packageId}
 this will return package and its different model id (shows all the size)
 
 
-### 1. Getting availability of Hood,Gown,Hat on any given date
+### 2. Getting availability of Hood,Gown,Hat on any given date
 
 In Postman, using get
 
@@ -51,12 +51,12 @@ this will return available qty of the whole set, the available qty of each compo
 
 ### 4. Get all packages and its pricing, including style , faculty etc.
 
-http://localhost:8080/api/inventory/packages/all
+http://localhost:8080/api/inventory/catalogue
 
 ### 5. Get package and its pricing, including style,  faculty , filtering based on the institution, educationLevel and faculty
 
 
-http://localhost:8080/api/inventory/packages?institution=NUS
+http://localhost:8080/api/inventory/catalogue?institution=NUS
 
 this will return all with NUS as institution
 
@@ -115,6 +115,8 @@ Body:
 
 ### 8. Collect Items once customer collected Items
 
+PUT
+
 http://localhost:8080/api/inventory/collectitems
 
 [
@@ -137,6 +139,8 @@ http://localhost:8080/api/inventory/collectitems
 ]
 
 ### 9. Once Items come back, set these to washing
+
+PUT
 
 http://localhost:8080/api/inventory/washitems
 

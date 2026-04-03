@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import orderService from '@/services/order'
+import inventoryService from '@/services/inventory'
 
 const route = useRoute()
 const orderId = ref((route.query.orderId || '').toString())
@@ -10,6 +11,7 @@ const actionLoading = ref(false)
 const error = ref('')
 const success = ref('')
 const order = ref(null)
+const packageDetail = ref(null)
 
 const damagedItems = ref([{ modelId: '', qty: 1 }])
 
@@ -24,6 +26,39 @@ const canReturn = computed(() => {
 const selectedItems = computed(() => {
   if (!Array.isArray(order.value?.selected_items)) return []
   return order.value.selected_items
+})
+
+const packageTitle = computed(() => {
+  if (!packageDetail.value) return ''
+  return `${packageDetail.value.institution} - ${packageDetail.value.educationLevel}`
+})
+
+const packageSubtitle = computed(() => {
+  if (!packageDetail.value?.educationLevel) return ''
+  return `${packageDetail.value.educationLevel} Collection`
+})
+
+const selectedItemDetails = computed(() => {
+  const styleBuckets = [
+    packageDetail.value?.hatStyle,
+    packageDetail.value?.hoodStyle,
+    packageDetail.value?.gownStyle,
+  ].filter(Boolean)
+
+  return selectedItems.value.map((item) => {
+    const bucket = styleBuckets.find(style =>
+      (style.models || []).some(model => model.modelId === item.modelId)
+    )
+    const model = bucket?.models?.find(entry => entry.modelId === item.modelId)
+    const style = bucket?.inventoryStyle
+
+    return {
+      ...item,
+      itemName: style?.itemName || `Model ${item.modelId}`,
+      itemType: style?.itemType || '',
+      size: model?.size || item.size || '',
+    }
+  })
 })
 
 const parsedDamagedItems = computed(() => {
@@ -45,8 +80,12 @@ const trackOrder = async () => {
   error.value = ''
   success.value = ''
   order.value = null
+  packageDetail.value = null
   try {
     order.value = await orderService.getOrder(orderId.value.trim())
+    if (order.value?.package_id) {
+      packageDetail.value = await inventoryService.getPackageById(order.value.package_id)
+    }
   } catch (err) {
     error.value = err.message || 'Unable to fetch order.'
   } finally {
@@ -100,6 +139,18 @@ const removeDamagedRow = (idx) => {
 if (orderId.value.trim()) {
   trackOrder()
 }
+
+function formatDate(value) {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString('en-US', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
 </script>
 
 <template>
@@ -132,17 +183,22 @@ if (orderId.value.trim()) {
           <div class="col-md-6"><strong>Fulfillment:</strong> {{ order.fulfillment_method }}</div>
           <div class="col-md-6"><strong>Name:</strong> {{ order.student_name }}</div>
           <div class="col-md-6"><strong>Email:</strong> {{ order.email }}</div>
-          <div class="col-md-6"><strong>Rental Date:</strong> {{ order.rental_start_date }}</div>
-          <div class="col-md-6"><strong>Return Date:</strong> {{ order.rental_end_date }}</div>
+          <div class="col-md-6"><strong>Rental Date:</strong> {{ formatDate(order.rental_start_date) }}</div>
+          <div class="col-md-6"><strong>Return Date:</strong> {{ formatDate(order.rental_end_date) }}</div>
           <div class="col-12"><strong>Total:</strong> ${{ Number(order.total_amount || 0).toFixed(2) }}</div>
         </div>
 
         <hr />
+        <h6 class="fw-bold mb-1">Selected Package</h6>
+        <div v-if="packageTitle" class="mb-3">
+          <div class="fw-bold">{{ packageTitle }}</div>
+          <div class="text-secondary small">{{ packageSubtitle }}</div>
+        </div>
         <h6 class="fw-bold mb-2">Selected Items</h6>
-        <div v-if="selectedItems.length === 0" class="text-secondary small">No selected items found.</div>
+        <div v-if="selectedItemDetails.length === 0" class="text-secondary small">No selected items found.</div>
         <ul v-else class="mb-0">
-          <li v-for="(item, idx) in selectedItems" :key="`${item.modelId}-${idx}`">
-            Model <code>{{ item.modelId }}</code> x {{ item.qty }}
+          <li v-for="(item, idx) in selectedItemDetails" :key="`${item.modelId}-${idx}`">
+            {{ item.itemName }}<span v-if="item.size"> ({{ item.size }})</span> x {{ item.qty }}
           </li>
         </ul>
       </div>

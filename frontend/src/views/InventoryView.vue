@@ -24,122 +24,60 @@ const faculties = ref([])
 const loading = ref(false)
 const error = ref(null)
 
-// Cart/session (10-minute soft reservation window in UI)
-const CART_STORAGE_KEY = 'gradgownrental_cart_session'
-const SESSION_MS = 10 * 60 * 1000
-const cartItems = ref([])
-const cartExpiresAt = ref(0)
-const cartActive = computed(() => cartExpiresAt.value > Date.now())
-
-function loadCartSession() {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    cartExpiresAt.value = Number(parsed.expiresAt || 0)
-    cartItems.value = Array.isArray(parsed.items) ? parsed.items : []
-    if (cartExpiresAt.value <= Date.now()) {
-      clearCartSession()
-    }
-  } catch {
-    clearCartSession()
-  }
-}
-
-function saveCartSession() {
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
-    expiresAt: cartExpiresAt.value,
-    items: cartItems.value
-  }))
-}
-
-function clearCartSession() {
-  cartExpiresAt.value = 0
-  cartItems.value = []
-  localStorage.removeItem(CART_STORAGE_KEY)
-}
-
-function ensureActiveSession() {
-  if (!cartActive.value) {
-    cartExpiresAt.value = Date.now() + SESSION_MS
-    cartItems.value = []
-  }
-}
-
-function readCartSession() {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY)
-    if (!raw) return { expiresAt: 0, items: [] }
-    const parsed = JSON.parse(raw)
-    return {
-      expiresAt: Number(parsed.expiresAt || 0),
-      items: Array.isArray(parsed.items) ? parsed.items : []
-    }
-  } catch {
-    return { expiresAt: 0, items: [] }
-  }
-}
-
-function addSelectedToCart() {
+function proceedToCheckout() {
   if (!selectedPackage.value) return
-  if (!selectedCartSize.value) {
-    sizeRequiredError.value = 'Please choose a size before adding to cart.'
+
+  // Must pick a date first
+  if (!selectedDate.value) {
+    sizeRequiredError.value = 'Please select a ceremony date first.'
+    return
+  }
+
+  // Validate all items have a size selected
+  const missing = sizeOptions.value.filter(item => !selectedSizes.value[item.itemType])
+  if (missing.length) {
+    sizeRequiredError.value = `Please choose a size for: ${missing.map(i => i.itemName).join(', ')}`
     return
   }
   sizeRequiredError.value = ''
 
-  // Always read FRESH cart from localStorage first
-  const current = readCartSession()
-  const cartKey = `${selectedPackage.value.packageId}:${selectedCartSize.value}`
-  const exists = current.items.some(item => item.cartKey === cartKey)
-
-  if (!exists) {
-    const newItem = {
-      cartKey,
-      packageId: selectedPackage.value.packageId,
-      title: selectedPackage.value.title,
-      price: selectedPackage.value.price,
-      rentalFee: selectedPackage.value.rentalFee,
-      deposit: selectedPackage.value.deposit,
-      educationLevel: selectedPackage.value.educationLevel,
-      institution: selectedPackage.value.institution,
-      faculty: selectedPackage.value.faculty,
-      selectedSize: selectedCartSize.value
+  const selectedModels = sizeOptions.value.map(item => {
+    const modelId = selectedSizes.value[item.itemType]
+    const model = item.models.find(m => m.modelId === modelId)
+    return {
+      itemType: item.itemType,
+      itemName: item.itemName,
+      modelId,
+      size: model?.size || ''
     }
+  })
 
-    const nextItems = [...current.items, newItem]
-    const nextExpiresAt = current.expiresAt && current.expiresAt > Date.now()
-      ? current.expiresAt
-      : Date.now() + 10 * 60 * 1000
-
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
-      expiresAt: nextExpiresAt,
-      items: nextItems
-    }))
-
-    // Update local state to match
-    cartItems.value = nextItems
-    cartExpiresAt.value = nextExpiresAt
-  }
-}
-
-function goToCart() {
-  router.push('/cart')
+  router.push({
+    path: '/order',
+    query: {
+      packageId: String(selectedPackage.value.packageId),
+      date: toISODate(selectedDate.value),
+      models: JSON.stringify(selectedModels),
+      title: selectedPackage.value.title,
+      level: selectedPackage.value.educationLevel,
+      rentalFee: String(selectedPackage.value.rentalFee ?? ''),
+      deposit: String(selectedPackage.value.deposit ?? '')
+    }
+  })
 }
 
 function closeDetails() {
   selectedPackage.value = null
-  selectedCartSize.value = ''
+  selectedSizes.value = {}
+  sizeOptions.value = []
   sizeRequiredError.value = ''
+  selectedDate.value = null
+  availableModelIds.value = null
+  availabilityError.value = ''
 }
 
 // Fetch packages on component mount
 onMounted(async () => {
-  loadCartSession()
-  if (cartExpiresAt.value > 0 && cartExpiresAt.value <= Date.now()) {
-    clearCartSession()
-  }
-
   // console.log('🔄 InventoryView mounted - starting API fetch')
   loading.value = true
   error.value = null
@@ -204,8 +142,121 @@ const filteredPackages = computed(() => {
 })
 
 const selectedPackage = ref(null)
-const selectedCartSize = ref('')
+const selectedSizes = ref({})   // { [itemType]: modelId }
+const sizeOptions = ref([])     // [{ itemType, itemName, models: [{ modelId, size }] }]
 const sizeRequiredError = ref('')
+
+// --- Date picker state (shown before sizes) ---
+const today = new Date()
+const todayNoTime = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+const maxDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
+maxDate.setHours(0, 0, 0, 0)
+const calViewDate = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+const selectedDate = ref(null)          // Date object
+const availabilityLoading = ref(false)
+const availabilityError = ref('')
+const availableModelIds = ref(null)     // Set<modelId> with qty>0, null = not yet checked
+
+const calCanGoPrev = computed(() =>
+  calViewDate.value > new Date(today.getFullYear(), today.getMonth(), 1)
+)
+const calCanGoNext = computed(() => {
+  const y = calViewDate.value.getFullYear(), m = calViewDate.value.getMonth()
+  return y < maxDate.getFullYear() || (y === maxDate.getFullYear() && m < maxDate.getMonth())
+})
+const calMonthYear = computed(() =>
+  calViewDate.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+)
+const calDays = computed(() => {
+  const year = calViewDate.value.getFullYear()
+  const month = calViewDate.value.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDay = new Date(year, month, 1).getDay()
+  const days = []
+  for (let i = 0; i < firstDay; i++) days.push({ empty: true })
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(year, month, i)
+    days.push({ date: i, fullDate: d, disabled: d < todayNoTime || d > maxDate })
+  }
+  return days
+})
+
+function toISODate(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+async function onDateSelected(fullDate) {
+  selectedDate.value = fullDate
+  selectedSizes.value = {}
+  availableModelIds.value = null
+  availabilityError.value = ''
+
+  console.log('[onDateSelected] date:', toISODate(fullDate))
+  console.log('[onDateSelected] sizeOptions:', JSON.stringify(sizeOptions.value))
+
+  if (!sizeOptions.value.length) {
+    console.warn('[onDateSelected] sizeOptions is empty — sizes will not show')
+    return
+  }
+
+  // Show all sizes with default selections immediately, before availability check
+  const defaults = {}
+  sizeOptions.value.forEach(item => {
+    const sorted = sortSizes(item.models.map(m => m.size))
+    const firstModel = item.models.find(m => m.size === sorted[0])
+    if (firstModel) defaults[item.itemType] = firstModel.modelId
+  })
+  selectedSizes.value = defaults
+
+  availabilityLoading.value = true
+  try {
+    const isoDate = toISODate(fullDate)
+    const availabilityChecks = sizeOptions.value.flatMap(item =>
+      item.models.map(model => inventoryService.checkAvailability({
+        hatModelId: item.itemType === 'hat' ? model.modelId : '',
+        hoodModelId: item.itemType === 'hood' ? model.modelId : '',
+        gownModelId: item.itemType === 'gown' ? model.modelId : '',
+      }, isoDate))
+    )
+    const results = await Promise.all(availabilityChecks)
+    console.log('[onDateSelected] availability results:', JSON.stringify(results))
+    availableModelIds.value = new Set(
+      results
+        .flatMap(result => result.components || [])
+        .filter(component => component.availableQty > 0)
+        .map(component => component.modelId)
+    )
+    // Re-default to first *available* size for each item
+    const availableDefaults = {}
+    sizeOptions.value.forEach(item => {
+      const sorted = sortSizes(item.models.map(m => m.size))
+      for (const size of sorted) {
+        const model = item.models.find(m => m.size === size)
+        if (model && availableModelIds.value.has(model.modelId)) {
+          availableDefaults[item.itemType] = model.modelId
+          break
+        }
+      }
+      // If nothing available, keep current selection
+      if (!availableDefaults[item.itemType]) availableDefaults[item.itemType] = selectedSizes.value[item.itemType]
+    })
+    selectedSizes.value = availableDefaults
+  } catch (err) {
+    console.error('[onDateSelected] availability check failed:', err)
+    availabilityError.value = 'Could not check live availability — all sizes shown.'
+    availableModelIds.value = null
+  } finally {
+    availabilityLoading.value = false
+  }
+}
+
+function isModelAvailable(modelId) {
+  if (availableModelIds.value === null) return true  // not checked yet or fallback
+  return availableModelIds.value.has(modelId)
+}
 
 function sortSizes(sizes) {
   const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -219,34 +270,49 @@ function sortSizes(sizes) {
   })
 }
 
-function getCommonSizes(styleBuckets) {
-  const styleSizeSets = styleBuckets
-    .map(style => new Set((style.models || []).map(m => String(m.size || '').toUpperCase()).filter(Boolean)))
-    .filter(set => set.size > 0)
-
-  if (!styleSizeSets.length) return []
-  let intersection = styleSizeSets[0]
-  for (let i = 1; i < styleSizeSets.length; i++) {
-    intersection = new Set([...intersection].filter(size => styleSizeSets[i].has(size)))
-  }
-  return sortSizes([...intersection])
+function sortModelsBySize(models) {
+  const orderedSizes = sortSizes(models.map(model => model.size))
+  return models.slice().sort((a, b) => orderedSizes.indexOf(a.size) - orderedSizes.indexOf(b.size))
 }
 
+
 const selectPackage = async (packageObj) => {
-  // Build display with all styles
   const styles = packageObj.getStyles()
   const styleNames = styles.map(s => s.itemName).join(' + ')
 
-  let detailedStyleBuckets = []
+  let itemSizeOptions = []
   try {
     const detail = await inventoryService.getPackageById(packageObj.packageId)
-    detailedStyleBuckets = detail.getStyleBuckets()
+    console.log('[selectPackage] raw detail:', JSON.stringify(detail))
+    if (typeof detail.getItemSizeOptions === 'function') {
+      itemSizeOptions = detail.getItemSizeOptions()
+    } else {
+      // Fallback: parse style buckets directly from the raw detail object
+      itemSizeOptions = [detail.hatStyle, detail.hoodStyle, detail.gownStyle]
+        .filter(Boolean)
+        .map(bucket => ({
+          itemType: bucket.inventoryStyle?.itemType,
+          itemName: bucket.inventoryStyle?.itemName,
+          models: (bucket.models || []).map(m => ({
+            modelId: m.modelId,
+            size: String(m.size || '').toUpperCase(),
+            totalQty: m.totalQty
+          }))
+        }))
+        .filter(item => item.itemType && item.models.length)
+    }
+    console.log('[selectPackage] itemSizeOptions:', JSON.stringify(itemSizeOptions))
   } catch (err) {
-    console.warn('Falling back to summary package data for sizes:', err)
+    console.error('[selectPackage] Failed to load package detail for sizes:', err)
   }
 
-  const commonSizes = getCommonSizes(detailedStyleBuckets)
-  selectedCartSize.value = commonSizes[0] || ''
+  sizeOptions.value = itemSizeOptions
+
+  // Reset date and availability
+  selectedDate.value = null
+  availableModelIds.value = null
+  availabilityError.value = ''
+  selectedSizes.value = {}
   sizeRequiredError.value = ''
 
   selectedPackage.value = {
@@ -263,7 +329,6 @@ const selectPackage = async (packageObj) => {
     shortDesc: 'Premium academic regalia rentals with professional cleaning',
     longDesc: `Complete ${packageObj.educationLevel} regalia package including: ${styleNames}. All items are professionally cleaned and maintained to the highest standards.`,
     styles: styles,
-    availableSizes: commonSizes
   }
 }
 
@@ -273,8 +338,12 @@ watch(() => route.query.new, (newVal) => {
     selectedInstitution.value = ''
     selectedFaculty.value = ''
     selectedPackage.value = null
-    selectedCartSize.value = ''
+    selectedSizes.value = {}
+    sizeOptions.value = []
     sizeRequiredError.value = ''
+    selectedDate.value = null
+    availableModelIds.value = null
+    availabilityError.value = ''
     // Clean up url directly to prevent refresh-stickiness
     router.replace({ path: '/inventory' })
   }
@@ -353,36 +422,92 @@ watch(() => route.query.new, (newVal) => {
             </div>
           </div>
 
-          <div class="mb-4">
-            <h5 class="fw-bold text-dark mb-3">Select Size</h5>
-            <div v-if="selectedPackage.availableSizes?.length" class="d-flex gap-2 flex-wrap">
-              <button
-                v-for="size in selectedPackage.availableSizes"
-                :key="size"
-                class="btn btn-outline-dark rounded-pill fw-bold px-3 py-2"
-                :class="{ active: selectedCartSize === size }"
-                @click="selectedCartSize = size"
-              >
-                {{ size }}
-              </button>
+          <!-- Step 1: Pick a date -->
+          <div class="mb-5">
+            <h5 class="fw-bold text-dark mb-1">Select Ceremony Date</h5>
+            <p class="text-secondary small mb-3">Availability is checked live for your chosen date.</p>
+
+            <div class="calendar-wrapper border rounded-4 p-4 bg-white d-inline-flex flex-column align-items-center" style="min-width: 300px;">
+              <div class="d-flex justify-content-between align-items-center w-100 mb-3 px-1">
+                <button @click="calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth()-1, 1)" v-if="calCanGoPrev" class="btn btn-sm btn-link text-muted shadow-none p-0">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <div v-else style="width:16px"></div>
+                <span class="fw-bold text-dark small">{{ calMonthYear }}</span>
+                <button @click="calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth()+1, 1)" v-if="calCanGoNext" class="btn btn-sm btn-link text-dark shadow-none p-0">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+                <div v-else style="width:16px"></div>
+              </div>
+              <div class="cal-grid w-100">
+                <div v-for="h in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="h" class="cal-cell text-center small text-secondary fw-bold">{{ h }}</div>
+                <div
+                  v-for="(day, idx) in calDays" :key="idx"
+                  class="cal-cell cal-day text-center small fw-medium"
+                  :class="{
+                    'cursor-pointer': !day.empty && !day.disabled,
+                    'cal-active': selectedDate && day.fullDate && selectedDate.getTime() === day.fullDate.getTime(),
+                    'text-muted-light': day.empty || day.disabled,
+                    'text-dark': !day.empty && !day.disabled
+                  }"
+                  @click="!day.empty && !day.disabled && onDateSelected(day.fullDate)"
+                >{{ day.date || '' }}</div>
+              </div>
             </div>
-            <div v-else class="text-secondary small">
-              Unable to load available sizes for this package.
+
+            <div v-if="selectedDate" class="mt-2 small text-secondary fw-bold">
+              Selected: {{ selectedDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }) }}
+            </div>
+          </div>
+
+          <!-- Step 2: Pick sizes (unlocked after date chosen) -->
+          <div class="mb-4">
+            <h5 class="fw-bold text-dark mb-1">Select Sizes</h5>
+            <p v-if="!selectedDate" class="text-secondary small mb-0">Choose a date above to see available sizes.</p>
+
+            <div v-else>
+              <div v-if="availabilityLoading" class="text-secondary small mt-2 mb-3">
+                <span class="spinner-border spinner-border-sm me-2"></span>Checking live availability...
+              </div>
+              <div v-if="availabilityError" class="alert alert-warning py-2 small mb-3">{{ availabilityError }}</div>
+
+              <div v-if="sizeOptions.length" class="d-flex flex-column gap-4 mt-3">
+                <div v-for="item in sizeOptions" :key="item.itemType">
+                  <p class="text-secondary small fw-bold mb-2 text-uppercase" style="letter-spacing: 1px;">
+                    {{ item.itemName }}
+                  </p>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button
+                      v-for="model in sortModelsBySize(item.models)"
+                      :key="model.modelId"
+                      class="btn rounded-pill fw-bold px-3 py-2"
+                      :class="{
+                        'btn-outline-dark': isModelAvailable(model.modelId) && selectedSizes[item.itemType] !== model.modelId,
+                        'btn-warning text-white': selectedSizes[item.itemType] === model.modelId,
+                        'btn-outline-secondary text-muted opacity-50': !isModelAvailable(model.modelId)
+                      }"
+                      :disabled="!isModelAvailable(model.modelId)"
+                      @click="isModelAvailable(model.modelId) && (selectedSizes[item.itemType] = model.modelId)"
+                    >
+                      {{ model.size }}
+                      <span v-if="!isModelAvailable(model.modelId)" class="ms-1" style="font-size:0.65rem">✕</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-secondary small mt-2">Unable to load sizes for this package.</div>
             </div>
           </div>
 
           <hr class="mb-4 d-none d-lg-block border-0 opacity-0">
 
-          <button @click="addSelectedToCart" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
-            Add To Cart <i class="bi bi-cart-plus ms-2"></i>
-          </button>
-          <button @click="goToCart" class="btn btn-outline-dark fw-bold rounded-4 py-2 fs-6 w-100 mb-3">
-            View Cart <i class="bi bi-arrow-right ms-1"></i>
+          <button @click="proceedToCheckout" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
+            Checkout <i class="bi bi-arrow-right ms-2"></i>
           </button>
           <div v-if="sizeRequiredError" class="alert alert-danger py-2 mb-3 small">{{ sizeRequiredError }}</div>
           <div class="d-flex gap-2 text-secondary align-items-center justify-content-center">
             <i class="bi bi-info-circle small"></i>
-            <span class="small fw-bold" style="letter-spacing: 1px;">SELECT SIZE AND RENTAL DATE DURING CHECKOUT.</span>
+            <span class="small fw-bold" style="letter-spacing: 1px;">YOUR DATE AND SIZES CARRY FORWARD TO CHECKOUT.</span>
           </div>
         </div>
       </div>
@@ -624,9 +749,35 @@ h5 {
   min-width: 8px;
 }
 
-hr {
-  border-color: rgba(0,0,0,0.1);
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px 4px;
 }
+
+.cal-cell {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-day {
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.cal-day:hover:not(.cal-active):not(.text-muted-light) {
+  background-color: #f6efe1;
+}
+
+.cal-active {
+  background-color: #d8a61c !important;
+  color: white !important;
+  border-radius: 6px;
+}
+
+
 
 /* 3-column layout for package cards */
 .col-lg-4 {

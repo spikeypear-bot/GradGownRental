@@ -1,6 +1,6 @@
 // Inventory Service API Client
 // Handles all API calls to the inventory-service backend
-
+ 
 import {
   GraduationPackage,
   DetailedPackage,
@@ -9,11 +9,11 @@ import {
   AvailabilityResponse,
   Availability90Response
 } from './model.js'
-
+ 
 const API_BASE_URL = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080/api/inventory'
-
-const unwrapApiData = (payload) => payload?.date ?? payload?.data ?? payload
-
+ 
+const unwrapApiData = (payload) => payload?.data ?? payload?.date ?? payload
+ 
 class InventoryService {
   /**
    * Get a specific package by its ID
@@ -32,7 +32,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Get all packages with optional filters
    * @param {Object} filters - Optional filters { institution, educationLevel, faculty }
@@ -51,7 +51,7 @@ class InventoryService {
       if (filters.faculty) {
         url += `${url.includes('?') ? '&' : '?'}faculty=${filters.faculty}`
       }
-
+ 
       console.log('Fetching from:', url)
       const response = await fetch(url)
       if (!response.ok) throw new Error(`API returned ${response.status}: ${response.statusText}`)
@@ -59,8 +59,7 @@ class InventoryService {
       
       console.log('API Response:', apiResponse)
       
-      // Extract packages from the nested response structure { status, msg, date: [...] }
-      const packagesData = apiResponse.date || apiResponse.data || []
+      const packagesData = unwrapApiData(apiResponse) || []
       
       if (!Array.isArray(packagesData)) {
         throw new Error('API response does not contain a valid package array')
@@ -85,7 +84,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Get availability for specific models on a given date
    * @param {Object} modelIds - { hatModelId, hoodModelId, gownModelId }
@@ -94,12 +93,10 @@ class InventoryService {
    */
   async checkAvailability(modelIds, date) {
     try {
-      const params = new URLSearchParams({
-        hatModelId: modelIds.hatModelId,
-        hoodModelId: modelIds.hoodModelId,
-        gownModelId: modelIds.gownModelId,
-        date: date
-      })
+      const params = new URLSearchParams({ date })
+      if (modelIds.hatModelId) params.set('hatModelId', modelIds.hatModelId)
+      if (modelIds.hoodModelId) params.set('hoodModelId', modelIds.hoodModelId)
+      if (modelIds.gownModelId) params.set('gownModelId', modelIds.gownModelId)
 
       const response = await fetch(`${API_BASE_URL}/availability?${params}`)
       if (!response.ok) throw new Error('Failed to check availability')
@@ -111,7 +108,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Get 90-day availability for specific models
    * @param {Object} modelIds - { hatModelId, hoodModelId, gownModelId }
@@ -124,7 +121,7 @@ class InventoryService {
         hoodModelId: modelIds.hoodModelId,
         gownModelId: modelIds.gownModelId
       })
-
+ 
       const response = await fetch(`${API_BASE_URL}/availability90?${params}`)
       if (!response.ok) throw new Error('Failed to check 90-day availability')
       const payload = await response.json()
@@ -136,7 +133,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Soft-lock items (reserves for 10 minutes)
    * @param {Array} items - Array of { modelId, qty, chosenDate }
@@ -159,7 +156,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Reserve items after purchase
    * @param {string} holdId - The hold ID from soft-lock
@@ -182,7 +179,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Mark items as collected by customer
    * @param {Array} items - Array of { modelId, qty, chosenDate }
@@ -204,7 +201,7 @@ class InventoryService {
       throw error
     }
   }
-
+ 
   /**
    * Mark items for washing after return
    * @param {Array} items - Array of { modelId, qty, chosenDate }
@@ -227,6 +224,6 @@ class InventoryService {
     }
   }
 }
-
+ 
 // Export singleton instance
 export default new InventoryService()

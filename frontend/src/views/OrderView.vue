@@ -8,7 +8,24 @@ const router = useRouter()
 const route = useRoute()
 const CART_STORAGE_KEY = 'gradgownrental_cart_session'
 
-const selectedSize = ref('')
+function parseSelectedModels(rawValue) {
+  if (!rawValue) return []
+  try {
+    const parsed = JSON.parse(String(rawValue))
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function parseISODate(rawValue) {
+  if (!rawValue) return null
+  const [year, month, day] = String(rawValue).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+const selectedSizes = ref({})   // { [itemType]: modelId } — for direct (non-cart) checkout
 const fulfillment = ref('pickup')
 const currentStep = ref(1)
 const isPaymentConfirmed = ref(false)
@@ -41,7 +58,12 @@ const contact = ref({
   phone: '',
 })
 
+const preselectedModels = ref(parseSelectedModels(route.query.models))
+
 const isCartCheckout = computed(() => String(route.query.cartCheckout || '') === 'true')
+const hasPreselectedCheckout = computed(() =>
+  !isCartCheckout.value && Boolean(route.query.date) && preselectedModels.value.length > 0,
+)
 const packageId = computed(() => Number(route.query.packageId || 0))
 const primaryPackageId = computed(() => {
   if (isCartCheckout.value) {
@@ -86,56 +108,53 @@ const deliveryFee = computed(() => (fulfillment.value === 'delivery' ? 5 : 0))
 const totalCharge = computed(() => rentalFee.value + depositFee.value + deliveryFee.value)
 const totalCost = computed(() => totalCharge.value)
 
-const stylesInPackage = computed(() => {
+
+// Per-item size options for direct (non-cart) checkout
+const sizeOptions = computed(() => {
   if (!packageDetail.value) return []
-  return [
-    packageDetail.value.hatStyle,
-    packageDetail.value.hoodStyle,
-    packageDetail.value.gownStyle,
-  ].filter(Boolean)
+  return [packageDetail.value.hatStyle, packageDetail.value.hoodStyle, packageDetail.value.gownStyle]
+    .filter(Boolean)
+    .map(bucket => ({
+      itemType: bucket.inventoryStyle?.itemType,
+      itemName: bucket.inventoryStyle?.itemName,
+      models: (bucket.models || []).map(m => ({
+        modelId: m.modelId,
+        size: String(m.size || '').toUpperCase(),
+        totalQty: m.totalQty
+      }))
+    }))
 })
 
-const availableSizes = computed(() => {
-  const styleSizeSets = stylesInPackage.value
-    .map(
-      (style) =>
-        new Set(
-          (style.models || []).map((m) => String(m.size || '').toUpperCase()).filter(Boolean),
-        ),
-    )
-    .filter((set) => set.size > 0)
-
-  if (styleSizeSets.length === 0) return []
-
-  let intersection = styleSizeSets[0]
-  for (let i = 1; i < styleSizeSets.length; i++) {
-    intersection = new Set([...intersection].filter((size) => styleSizeSets[i].has(size)))
-  }
-
-  const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-  return [...intersection].sort((a, b) => {
-    const ai = sortOrder.indexOf(a)
-    const bi = sortOrder.indexOf(b)
-    if (ai === -1 && bi === -1) return a.localeCompare(b)
-    if (ai === -1) return 1
-    if (bi === -1) return -1
-    return ai - bi
+function applyPreselectedSelections() {
+  if (!preselectedModels.value.length) return
+  const nextSelections = { ...selectedSizes.value }
+  preselectedModels.value.forEach((model) => {
+    if (model?.itemType && model?.modelId) {
+      nextSelections[model.itemType] = model.modelId
+    }
   })
-})
+  selectedSizes.value = nextSelections
+}
 
-watch(
-  availableSizes,
-  (sizes) => {
-    if (!sizes.length) {
-      selectedSize.value = ''
-      return
+// When packageDetail loads, default selectedSizes to first size of each item
+watch(sizeOptions, (options) => {
+  if (!options.length) { selectedSizes.value = {}; return }
+  const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+  const defaults = {}
+  options.forEach(item => {
+    const sorted = [...item.models].sort((a, b) => {
+      const ai = sortOrder.indexOf(a.size), bi = sortOrder.indexOf(b.size)
+      if (ai === -1 && bi === -1) return a.size.localeCompare(b.size)
+      if (ai === -1) return 1; if (bi === -1) return -1
+      return ai - bi
+    })
+    if (sorted[0] && !selectedSizes.value[item.itemType]) {
+      defaults[item.itemType] = sorted[0].modelId
     }
-    if (!sizes.includes(selectedSize.value)) {
-      selectedSize.value = sizes[0]
-    }
-  },
-  { immediate: true },
-)
+  })
+  selectedSizes.value = { ...defaults, ...selectedSizes.value }
+  applyPreselectedSelections()
+}, { immediate: true })
 
 watch(currentStep, async (step) => {
   if (step === 4) {
@@ -171,26 +190,25 @@ const selectedItemsForBooking = computed(() => {
   if (isCartCheckout.value) {
     const aggregated = []
     for (const entry of cartPackageDetails.value) {
-      const targetSize = String(entry.selectedSize || '').toUpperCase()
-      if (!targetSize) continue
+      // New format: entry.selectedModels = [{ itemType, itemName, modelId, size }]
+      const selectedModels = entry.selectedModels || []
       const styleBuckets = [
-        entry.detail.hatStyle,
-        entry.detail.hoodStyle,
-        entry.detail.gownStyle,
+        entry.detail?.hatStyle,
+        entry.detail?.hoodStyle,
+        entry.detail?.gownStyle,
       ].filter(Boolean)
-      for (const styleBucket of styleBuckets) {
-        const model = (styleBucket.models || []).find(
-          (m) => String(m.size || '').toUpperCase() === targetSize,
-        )
-        if (!model) continue
-        const style = styleBucket.inventoryStyle || {}
+
+      for (const sel of selectedModels) {
+        // Find the matching bucket to get rentalFee/deposit
+        const bucket = styleBuckets.find(b => b.inventoryStyle?.itemType === sel.itemType)
+        const style = bucket?.inventoryStyle || {}
         aggregated.push({
-          modelId: model.modelId,
+          modelId: sel.modelId,
           qty: 1,
           chosenDate,
-          size: targetSize,
-          itemType: style.itemType,
-          itemName: style.itemName,
+          size: sel.size,
+          itemType: sel.itemType,
+          itemName: sel.itemName,
           styleId: style.styleId,
           rentalFee: Number(style.rentalFee || 0),
           deposit: Number(style.deposit || 0),
@@ -200,23 +218,22 @@ const selectedItemsForBooking = computed(() => {
     return aggregated
   }
 
-  if (!selectedSize.value) return []
-  const targetSize = selectedSize.value.toUpperCase()
-  return stylesInPackage.value
-    .map((styleBucket) => {
-      const model = (styleBucket.models || []).find(
-        (m) => String(m.size || '').toUpperCase() === targetSize,
-      )
-      if (!model) return null
-
-      const style = styleBucket.inventoryStyle || {}
+  // Direct checkout — use selectedSizes map
+  return sizeOptions.value
+    .map(item => {
+      const modelId = selectedSizes.value[item.itemType]
+      if (!modelId) return null
+      const model = item.models.find(m => m.modelId === modelId)
+      const bucket = [packageDetail.value?.hatStyle, packageDetail.value?.hoodStyle, packageDetail.value?.gownStyle]
+        .filter(Boolean).find(b => b.inventoryStyle?.itemType === item.itemType)
+      const style = bucket?.inventoryStyle || {}
       return {
-        modelId: model.modelId,
+        modelId,
         qty: 1,
         chosenDate,
-        size: targetSize,
-        itemType: style.itemType,
-        itemName: style.itemName,
+        size: model?.size || '',
+        itemType: item.itemType,
+        itemName: item.itemName,
         styleId: style.styleId,
         rentalFee: Number(style.rentalFee || 0),
         deposit: Number(style.deposit || 0),
@@ -224,6 +241,15 @@ const selectedItemsForBooking = computed(() => {
     })
     .filter(Boolean)
 })
+
+const selectedItemSummary = computed(() =>
+  selectedItemsForBooking.value.map((item) => ({
+    key: `${item.itemType}-${item.modelId}`,
+    itemName: item.itemName || item.itemType,
+    size: item.size || '',
+    qty: item.qty,
+  })),
+)
 
 const canProceedStep1 = computed(() => {
   if (isCartCheckout.value) {
@@ -233,11 +259,13 @@ const canProceedStep1 = computed(() => {
       selectedItemsForBooking.value.length > 0,
     )
   }
+  const allSizesChosen = sizeOptions.value.length > 0 &&
+    sizeOptions.value.every(item => Boolean(selectedSizes.value[item.itemType]))
   return Boolean(
     packageDetail.value &&
     selectedFullDate.value &&
-    selectedSize.value &&
-    selectedItemsForBooking.value.length === stylesInPackage.value.length,
+    allSizesChosen &&
+    selectedItemsForBooking.value.length === sizeOptions.value.length,
   )
 })
 
@@ -319,10 +347,26 @@ const formattedEndDate = computed(() => {
   end.setDate(end.getDate() + 2)
   return formatDate(end)
 })
+const backButtonLabel = computed(() => {
+  const firstAvailableStep = hasPreselectedCheckout.value ? 2 : 1
+  return currentStep.value === firstAvailableStep ? 'Back to Details' : 'Back to Configuration'
+})
 
 onMounted(async () => {
   packageLoading.value = true
   try {
+    if (hasPreselectedCheckout.value) {
+      selectedFullDate.value = parseISODate(route.query.date)
+      if (selectedFullDate.value) {
+        viewDate.value = new Date(
+          selectedFullDate.value.getFullYear(),
+          selectedFullDate.value.getMonth(),
+          1,
+        )
+      }
+      currentStep.value = 2
+    }
+
     if (isCartCheckout.value) {
       const raw = localStorage.getItem(CART_STORAGE_KEY)
       const parsed = raw ? JSON.parse(raw) : null
@@ -354,6 +398,7 @@ onMounted(async () => {
         throw new Error('Missing package ID. Please select a package again.')
       }
       packageDetail.value = await inventoryService.getPackageById(packageId.value)
+      applyPreselectedSelections()
     }
   } catch (err) {
     packageError.value = err.message || 'Failed to load package details.'
@@ -381,7 +426,8 @@ const nextMonth = () => {
 }
 
 const goBack = () => {
-  if (currentStep.value > 1) {
+  const firstAvailableStep = hasPreselectedCheckout.value ? 2 : 1
+  if (currentStep.value > firstAvailableStep) {
     currentStep.value--
   } else {
     router.back()
@@ -465,6 +511,13 @@ const confirmPayment = async () => {
     if (!paymentIntent || paymentIntent.status !== 'succeeded') {
       throw new Error(`Payment did not succeed (status=${paymentIntent?.status || 'unknown'}).`)
     }
+
+    const reservationItems = selectedItemsForBooking.value.map((item) => ({
+      modelId: item.modelId,
+      qty: item.qty,
+      chosenDate: item.chosenDate,
+    }))
+    await inventoryService.reserveItems(holdId.value, reservationItems)
 
     const studentName = `${contact.value.firstName} ${contact.value.lastName}`.trim()
     const summary = await orderService.submitPayment({
@@ -638,7 +691,7 @@ function formatDate(date) {
           class="btn btn-link text-dark text-decoration-none p-0 fw-medium fs-6 d-flex align-items-center gap-2"
         >
           <i class="bi bi-arrow-left"></i>
-          {{ currentStep === 1 ? 'Back to Details' : 'Back to Configuration' }}
+          {{ backButtonLabel }}
         </button>
         <div class="d-flex align-items-center gap-2">
           <div class="step-dots d-flex gap-2">
@@ -676,25 +729,34 @@ function formatDate(date) {
                   <h5 class="fw-bold text-dark mb-4">
                     {{ isCartCheckout ? 'Selected Sizes' : 'Select Size' }}
                   </h5>
-                  <div v-if="!isCartCheckout" class="d-flex gap-3 flex-wrap">
-                    <button
-                      v-for="size in availableSizes"
-                      :key="size"
-                      class="btn size-btn fw-bold"
-                      :class="selectedSize === size ? 'active' : ''"
-                      @click="selectedSize = size"
-                    >
-                      {{ size }}
-                    </button>
+                  <div v-if="!isCartCheckout" class="d-flex flex-column gap-4">
+                    <div v-for="item in sizeOptions" :key="item.itemType">
+                      <p class="text-secondary small fw-bold mb-2 text-uppercase" style="letter-spacing: 1px;">
+                        {{ item.itemName }}
+                      </p>
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button
+                          v-for="model in item.models"
+                          :key="model.modelId"
+                          class="btn size-btn fw-bold"
+                          :class="selectedSizes[item.itemType] === model.modelId ? 'active' : ''"
+                          @click="selectedSizes[item.itemType] = model.modelId"
+                        >
+                          {{ model.size }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div v-else class="d-flex flex-column gap-2">
                     <div
                       v-for="item in cartCheckoutItems"
-                      :key="item.cartKey || `${item.packageId}-${item.selectedSize}`"
-                      class="bg-light rounded-3 px-3 py-2 d-flex justify-content-between"
+                      :key="item.cartKey || item.packageId"
+                      class="bg-light rounded-3 px-3 py-2"
                     >
-                      <span class="text-dark fw-medium">{{ item.title }}</span>
-                      <span class="fw-bold">Size {{ item.selectedSize || 'N/A' }}</span>
+                      <span class="text-dark fw-medium d-block">{{ item.title }}</span>
+                      <span v-for="m in (item.selectedModels || [])" :key="m.modelId" class="fw-bold small me-2">
+                        {{ m.itemType }}: {{ m.size }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -985,13 +1047,25 @@ function formatDate(date) {
                       <span
                         class="bg-white px-3 py-1 rounded-pill border fw-bold text-dark small shadow-sm"
                       >
-                        <template v-if="isCartCheckout">Mixed (Per Item)</template>
-                        <template v-else>Standard {{ selectedSize }}</template>
+                      <template v-if="isCartCheckout">Mixed (Per Item)</template>
+                      <template v-else>
+                        <span v-for="item in sizeOptions" :key="item.itemType" class="me-1">
+                          {{ item.itemType }}: {{ sizeOptions.find(i=>i.itemType===item.itemType)?.models.find(m=>m.modelId===selectedSizes[item.itemType])?.size || '—' }}
+                        </span>
+                      </template>
                       </span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <span class="text-secondary fw-bold fs-6">Fulfillment</span>
                       <span class="fw-bold text-dark fs-6">{{ fulfillment.toUpperCase() }}</span>
+                    </div>
+                    <div v-if="!isCartCheckout" class="mt-4">
+                      <span class="text-secondary fw-bold fs-6 d-block mb-2">Included Items</span>
+                      <div class="small text-secondary">
+                        <div v-for="item in selectedItemSummary" :key="item.key">
+                          {{ item.itemName }}<span v-if="item.size"> ({{ item.size }})</span> x {{ item.qty }}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1118,12 +1192,18 @@ function formatDate(date) {
               <p class="text-secondary fw-bold small mb-0" v-if="!isCartCheckout">
                 {{ packageLevel }} Collection
               </p>
+              <div v-if="!isCartCheckout" class="small text-secondary mt-2">
+                <div v-for="item in selectedItemSummary" :key="item.key">
+                  {{ item.itemName }}<span v-if="item.size"> ({{ item.size }})</span> x {{ item.qty }}
+                </div>
+              </div>
               <div v-else class="small text-secondary">
                 <div
                   v-for="item in cartCheckoutItems"
-                  :key="item.cartKey || `${item.packageId}-${item.selectedSize}`"
+                  :key="item.cartKey || item.packageId"
                 >
-                  • {{ item.title }} ({{ item.selectedSize }})
+                  • {{ item.title }}
+                  <span v-for="m in (item.selectedModels || [])" :key="m.modelId" class="ms-1">({{ m.itemType }}: {{ m.size }})</span>
                 </div>
               </div>
             </div>

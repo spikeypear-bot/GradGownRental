@@ -6,7 +6,7 @@ WORKDIR /app
 ARG REBUILD=0
 
 # Install necessary tools
-# RUN apt-get update && apt-get install -y dos2unix curl wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y dos2unix curl wget && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY pyproject.toml /app/
@@ -20,7 +20,8 @@ RUN uv sync
 COPY . .
 
 # Convert line endings and ensure script is executable
-# RUN dos2unix /app/entrypoint.sh
+
+RUN dos2unix /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables
