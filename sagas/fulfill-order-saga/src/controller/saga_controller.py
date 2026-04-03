@@ -4,23 +4,15 @@ from model.fulfill_order_context import FulfillOrderContext
 
 saga_bp = Blueprint("fulfill_saga", __name__)
 
-
 @saga_bp.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "fulfill-order-saga"}), 200
 
-
-@saga_bp.post("/fulfillment/activate")
+@saga_bp.route("/fulfillment/activate", methods=["POST", "OPTIONS"])
 def activate_fulfillment():
-    """
-    Scenario 3 entrypoint.
-    Expected fields:
-    - order_id
-    Optional:
-    - shipment_id
-    - tracking_status (COLLECTED|DELIVERED)
-    - selected_packages: [{modelId, qty, chosenDate}]
-    """
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+
     body = request.get_json(force=True) or {}
     if "order_id" not in body:
         return jsonify({"error": "Missing required fields: ['order_id']"}), 400

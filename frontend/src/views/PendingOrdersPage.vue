@@ -54,34 +54,34 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in filteredOrders" :key="order.orderID">
+              <tr v-for="order in filteredOrders" :key="order.order_id">
                 <td>
-                  <span class="badge bg-light text-dark">{{ order.orderID }}</span>
+                  <span class="badge bg-light text-dark">{{ order.order_id }}</span>
                 </td>
                 <td>
                   <div class="customer-info">
-                    <p class="mb-0 fw-500">{{ order.CustomerName }}</p>
-                    <small class="text-muted">{{ order.CustomerEmail }}</small>
+                    <p class="mb-0 fw-500">{{ order.student_name }}</p>
+                    <small class="text-muted">{{ order.email }}</small>
                   </div>
                 </td>
                 <td>
-                  <span class="gown-name">{{ order.GownName }}</span>
+                  <span class="gown-name">Package #{{ order.package_id }}</span>
                 </td>
                 <td>{{ formatDate(order.rental_start_date) }}</td>
                 <td>{{ formatDate(order.rental_end_date) }}</td>
-                <td class="fw-bold">SGD ${{ order.TotalAmount }}</td>
+                <td class="fw-bold">SGD ${{ order.total_amount }}</td>
                 <td>
-                  <button 
-                    @click="confirmOrder(order.orderID)"
-                    class="btn btn-sm btn-success"
-                    :disabled="processingId === order.orderID"
+                  <button
+                    @click="removeOrder(order.order_id)"
+                    class="btn btn-sm btn-danger"
+                    :disabled="processingId === order.order_id"
                   >
-                    <span v-if="processingId !== order.orderID">
-                      <i class="bi bi-check-circle"></i> Confirm
+                    <span v-if="processingId !== order.order_id">
+                      <i class="bi bi-trash"></i> Remove
                     </span>
                     <span v-else>
                       <span class="spinner-border spinner-border-sm me-1"></span>
-                      Processing...
+                      Removing...
                     </span>
                   </button>
                 </td>
@@ -94,21 +94,17 @@
       <!-- Confirmation Modal -->
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
-          <h4 class="mb-3">Confirm Order</h4>
-          <p class="text-muted">
-            Are you sure you want to confirm order <strong>{{ selectedOrderId }}</strong>? 
-            This will move it to fulfillment processing.
-          </p>
-          <div class="d-flex gap-2 justify-content-end mt-4">
-            <button @click="closeModal" class="btn btn-secondary">Cancel</button>
-            <button @click="submitConfirmation" class="btn btn-success">
-              <span v-if="!isProcessing">Confirm</span>
+          <h4 class="mb-3">Remove Order</h4>
+            <p class="text-muted">
+              Are you sure you want to remove order <strong>{{ selectedOrderId }}</strong>?
+            </p>
+            <button @click="submitRemoval" class="btn btn-danger">
+              <span v-if="!isProcessing">Remove</span>
               <span v-else>
                 <span class="spinner-border spinner-border-sm me-1"></span>
-                Processing...
+                Removing...
               </span>
             </button>
-          </div>
         </div>
       </div>
     </div>
@@ -129,12 +125,14 @@ const processingId = ref(null)
 const isProcessing = ref(false)
 
 const filteredOrders = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return orders.value
+
   return orders.value.filter(order => {
-    const query = searchQuery.value.toLowerCase()
     return (
-      order.orderID.toLowerCase().includes(query) ||
-      order.CustomerName.toLowerCase().includes(query) ||
-      order.CustomerEmail.toLowerCase().includes(query)
+      order.order_id?.toLowerCase().includes(query) ||
+      order.student_name?.toLowerCase().includes(query) ||
+      order.email?.toLowerCase().includes(query)
     )
   })
 })
@@ -172,7 +170,7 @@ const refreshOrders = () => {
   loadPendingOrders()
 }
 
-const confirmOrder = (orderId) => {
+const removeOrder = (orderId) => {
   selectedOrderId.value = orderId
   showModal.value = true
 }
@@ -182,16 +180,16 @@ const closeModal = () => {
   selectedOrderId.value = null
 }
 
-const submitConfirmation = async () => {
+const submitRemoval = async () => {
   isProcessing.value = true
   processingId.value = selectedOrderId.value
   try {
-    await AdminService.confirmOrder(selectedOrderId.value)
-    orders.value = orders.value.filter(order => order.orderID !== selectedOrderId.value)
+    await AdminService.removeOrder(selectedOrderId.value)
+    orders.value = orders.value.filter(order => order.order_id !== selectedOrderId.value)
     closeModal()
   } catch (error) {
-    console.error('Error confirming order:', error)
-    alert('Failed to confirm order: ' + error.message)
+    console.error('Error removing order:', error)
+    alert('Failed to remove order: ' + error.message)
   } finally {
     isProcessing.value = false
     processingId.value = null
