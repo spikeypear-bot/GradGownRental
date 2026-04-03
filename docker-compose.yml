@@ -73,8 +73,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-service-db:5432/inventory
       SPRING_DATASOURCE_USERNAME: ${INVENTORY_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${INVENTORY_DB_PASSWORD}
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080"
     networks:
       - app-network
     restart: on-failure
