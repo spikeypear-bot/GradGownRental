@@ -44,7 +44,7 @@
             <div class="metric-content">
               <p class="metric-label">Returns Queue</p>
               <p class="metric-value">{{ returnsCount }}</p>
-              <RouterLink to="/admin/returns-queue" class="metric-link">View →</RouterLink>
+              <RouterLink to="/admin/returns" class="metric-link">View →</RouterLink>
             </div>
           </div>
         </div>
@@ -103,12 +103,12 @@
           </div>
         </div>
 
-        <!-- Returns & Maintenance Workflow -->
+        <!-- Returns Workflow -->
         <div class="col-lg-6">
           <div class="workflow-card">
             <div class="workflow-header">
               <h4>
-                <i class="bi bi-arrow-clockwise"></i> Returns & Maintenance
+                <i class="bi bi-arrow-clockwise"></i> Returns Workflow
               </h4>
               <span class="badge bg-danger">Scenario 4</span>
             </div>
@@ -130,13 +130,13 @@
               <div class="step">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                  <p class="step-title">Maintenance Workflow</p>
-                  <p class="step-desc">Repair → Wash → Complete</p>
+                  <p class="step-title">Route Follow-Up Work</p>
+                  <p class="step-desc">Send damaged items to repair or laundry</p>
                 </div>
               </div>
             </div>
-            <RouterLink to="/admin/returns-queue" class="btn btn-danger w-100 mt-3">
-              <i class="bi bi-arrow-right"></i> View Returns Queue
+            <RouterLink to="/admin/returns" class="btn btn-danger w-100 mt-3">
+              <i class="bi bi-arrow-right"></i> Process Returns
             </RouterLink>
           </div>
         </div>
@@ -156,13 +156,17 @@
                 <i class="bi bi-truck"></i>
                 <span>Activate Fulfillment</span>
               </RouterLink>
-              <RouterLink to="/admin/returns-queue" class="action-card">
+              <RouterLink to="/admin/returns" class="action-card">
                 <i class="bi bi-inbox"></i>
                 <span>Process Returns</span>
               </RouterLink>
-              <RouterLink to="/admin/maintenance" class="action-card">
-                <i class="bi bi-wrench"></i>
-                <span>Check Maintenance</span>
+              <RouterLink to="/admin/repair" class="action-card">
+                <i class="bi bi-tools"></i>
+                <span>Repair Team</span>
+              </RouterLink>
+              <RouterLink to="/admin/laundry" class="action-card">
+                <i class="bi bi-droplet-half"></i>
+                <span>Laundry Team</span>
               </RouterLink>
             </div>
           </div>
@@ -222,7 +226,7 @@ onMounted(() => {
 }
 
 .container-fluid {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding-left: 1rem;
   padding-right: 1rem;

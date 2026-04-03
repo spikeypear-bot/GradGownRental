@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request
 
-from model.return_order_context import ReturnOrderContext
+from model.return_order_context import COMPONENT_DAMAGE_RATES, ReturnOrderContext
 
 saga_bp = Blueprint("return_saga", __name__)
 
@@ -23,6 +23,20 @@ def _default_items(order: dict, body: dict) -> list:
     ]
 
 
+def _normalize_components(raw_components: list) -> list:
+    valid_components = []
+    for component in raw_components or []:
+        normalized = str(component).strip().lower()
+        if normalized in COMPONENT_DAMAGE_RATES and normalized not in valid_components:
+            valid_components.append(normalized)
+    return valid_components
+
+
+def _calculate_damage_fee(original_deposit: float, damaged_components: list) -> float:
+    deduction_rate = sum(COMPONENT_DAMAGE_RATES[component] for component in damaged_components)
+    return round(original_deposit * deduction_rate, 2)
+
+
 @saga_bp.post("/returns/process")
 def process_return():
     body = request.get_json(force=True) or {}
@@ -37,7 +51,13 @@ def process_return():
     try:
         order = order_client.get_order(body["order_id"])
         items = _default_items(order, body)
-        damage_fee = float(body.get("damage_fee", 0.0))
+        original_deposit = float(order.get("deposit") or 0.0)
+        damaged_components = _normalize_components(body.get("damaged_components", []))
+        damage_fee = body.get("damage_fee")
+        if damage_fee is None:
+            damage_fee = _calculate_damage_fee(original_deposit, damaged_components)
+        else:
+            damage_fee = float(damage_fee)
         payment_id = body.get("payment_id") or order.get("payment_id")
         if not payment_id:
             return jsonify({"error": "payment_id missing and not found on order"}), 400
@@ -50,8 +70,11 @@ def process_return():
             student_name=order.get("student_name", "Student"),
             phone=order.get("phone", ""),
             email=order.get("email", ""),
-            original_deposit=float(order.get("deposit") or 0.0),
+            original_deposit=original_deposit,
             damage_fee=damage_fee,
+            damaged_components=damaged_components,
+            damage_report=body.get("damage_report", ""),
+            damage_images=body.get("damage_images", []),
         )
         result = saga.process_return(ctx)
         return jsonify(result), 200

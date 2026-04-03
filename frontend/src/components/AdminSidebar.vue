@@ -24,15 +24,6 @@
           class="nav-item"
           :class="{ active: isActive('/admin/pending-orders') }"
         >
-          <i class="bi bi-hourglass-split"></i>
-          <span>Pending Orders</span>
-          <span v-if="pendingCount > 0" class="badge">{{ pendingCount }}</span>
-        </RouterLink>
-        <RouterLink
-          to="/admin/fulfillment"
-          class="nav-item"
-          :class="{ active: isActive('/admin/fulfillment') }"
-        >
           <i class="bi bi-truck"></i>
           <span>Process Fulfillment</span>
           <span v-if="confirmedCount > 0" class="badge">{{ confirmedCount }}</span>
@@ -40,25 +31,7 @@
       </div>
 
       <div class="nav-section">
-        <h6>Returns & Maintenance</h6>
-        <RouterLink
-          to="/admin/active-orders"
-          class="nav-item"
-          :class="{ active: isActive('/admin/active-orders') }"
-        >
-          <i class="bi bi-bag-check"></i>
-          <span>Active Rentals</span>
-          <span v-if="activeCount > 0" class="badge">{{ activeCount }}</span>
-        </RouterLink>
-        <RouterLink
-          to="/admin/returns-queue"
-          class="nav-item"
-          :class="{ active: isActive('/admin/returns-queue') }"
-        >
-          <i class="bi bi-inbox"></i>
-          <span>Returns Queue</span>
-          <span v-if="returnsCount > 0" class="badge">{{ returnsCount }}</span>
-        </RouterLink>
+        <h6>Returns</h6>
         <RouterLink
           to="/admin/returns"
           class="nav-item"
@@ -68,12 +41,20 @@
           <span>Process Return</span>
         </RouterLink>
         <RouterLink
-          to="/admin/maintenance"
+          to="/admin/repair"
           class="nav-item"
-          :class="{ active: isActive('/admin/maintenance') }"
+          :class="{ active: isActive('/admin/repair') }"
         >
-          <i class="bi bi-wrench"></i>
-          <span>Maintenance</span>
+          <i class="bi bi-tools"></i>
+          <span>Repair</span>
+        </RouterLink>
+        <RouterLink
+          to="/admin/laundry"
+          class="nav-item"
+          :class="{ active: isActive('/admin/laundry') }"
+        >
+          <i class="bi bi-droplet-half"></i>
+          <span>Laundry</span>
         </RouterLink>
       </div>
     </nav>
@@ -88,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AuthService from '../services/auth'
 
@@ -96,7 +77,6 @@ const router = useRouter()
 const route = useRoute()
 
 const pendingCount = ref(0)
-const activeCount = ref(0)
 const confirmedCount = ref(0)
 
 const isActive = (path) => {
@@ -114,8 +94,6 @@ const loadCounts = async () => {
     const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
     const pendingRes = await fetch(`${orderApiUrl}/orders/status/PENDING`)
     const confirmedRes = await fetch(`${orderApiUrl}/orders/status/CONFIRMED`)
-    const activeRes = await fetch(`${orderApiUrl}/orders/status/ACTIVE`)
-    const returnedRes = await fetch(`${orderApiUrl}/orders/status/RETURNED_DAMAGED`)
 
     if (pendingRes.ok) {
       const data = await pendingRes.json()
@@ -124,10 +102,6 @@ const loadCounts = async () => {
     if (confirmedRes.ok) {
       const data = await confirmedRes.json()
       confirmedCount.value = Array.isArray(data) ? data.length : 0 // Confirmed orders ready for return processing later
-    }
-    if (activeRes.ok) {
-      const data = await activeRes.json()
-      activeCount.value = Array.isArray(data) ? data.length : 0
     }
   } catch (error) {
     console.error('Error loading order counts:', error)

@@ -280,7 +280,13 @@ onMounted(() => loadConfirmedOrders())
 .fulfillment-container {
   min-height: 100vh;
   background-color: #fbf7ef;
+  padding-top: 100px;
   padding-bottom: 3rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .search-box {
