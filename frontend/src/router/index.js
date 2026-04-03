@@ -49,27 +49,15 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/admin/pending-orders',
-      name: 'admin-pending-orders',
-      component: () => import('../views/PendingOrdersPage.vue'),
+      path: '/admin/repair',
+      name: 'admin-repair',
+      component: () => import('../views/RepairPage.vue'),
       meta: { requiresAuth: true }
     },
     {
-      path: '/admin/active-orders',
-      name: 'admin-active-orders',
-      component: () => import('../views/ActiveOrdersPage.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/admin/returns-queue',
-      name: 'admin-returns-queue',
-      component: () => import('../views/ReturnsQueuePage.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/admin/maintenance',
-      name: 'admin-maintenance',
-      component: () => import('../views/MaintenancePage.vue'),
+      path: '/admin/laundry',
+      name: 'admin-laundry',
+      component: () => import('../views/LaundryPage.vue'),
       meta: { requiresAuth: true }
     },
     {

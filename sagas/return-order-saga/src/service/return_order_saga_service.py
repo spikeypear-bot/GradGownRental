@@ -44,6 +44,8 @@ class ReturnOrderSagaService:
             # Step 9
             self._inventory.request_maintenance({"order_id": context.order_id})
             context.status = SagaStatus.MAINTENANCE_REQUESTED
+            context.metadata["damage_report"] = context.damage_report
+            context.metadata["damage_images_count"] = len(context.damage_images)
 
             return context.to_return_summary()
         except Exception as exc:

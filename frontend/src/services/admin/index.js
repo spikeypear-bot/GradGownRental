@@ -5,6 +5,11 @@ const FULFILLMENT_API_BASE_URL = import.meta.env.VITE_FULFILLMENT_API_BASE_URL |
 const RETURN_API_BASE_URL = import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:8085/returns'
 
 class AdminService {
+  async parseError(response, fallbackMessage) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${fallbackMessage}`)
+  }
+
   /**
    * Activate fulfillment (collection/delivery)
    * @param {string} orderId - The order ID
@@ -21,8 +26,7 @@ class AdminService {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to activate fulfillment`)
+        await this.parseError(response, 'Failed to activate fulfillment')
       }
 
       return await response.json()
@@ -48,8 +52,7 @@ class AdminService {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to process return`)
+        await this.parseError(response, 'Failed to process return')
       }
 
       return await response.json()
@@ -75,8 +78,7 @@ class AdminService {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to transition to wash`)
+        await this.parseError(response, 'Failed to transition to wash')
       }
 
       return await response.json()
@@ -102,8 +104,7 @@ class AdminService {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to complete maintenance`)
+        await this.parseError(response, 'Failed to complete maintenance')
       }
 
       return await response.json()
@@ -132,8 +133,7 @@ class AdminService {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: Failed to confirm order`)
+        await this.parseError(response, 'Failed to confirm order')
       }
 
       return await response.json()
@@ -182,15 +182,7 @@ class AdminService {
    * - maintenanceComplete()
    * So this method routes to what already exists.
    */
-  async processReturnRepair(orderId, action, notes = '') {
-    if (action === 'repair') {
-      return this.processReturn({
-        order_id: orderId,
-        damage_report: notes,
-        damage_fee: 0,
-      })
-    }
-
+  async processReturnRepair(orderId, action) {
     if (action === 'wash') {
       return this.transitionToWash(orderId)
     }

@@ -2,6 +2,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+COMPONENT_DAMAGE_RATES = {
+    "gown": 0.60,
+    "hood": 0.25,
+    "mortarboard": 0.15,
+}
+
 
 class SagaStatus(str, Enum):
     STARTED = "STARTED"
@@ -26,6 +32,9 @@ class ReturnOrderContext:
     original_deposit: float = 0.0
     damage_fee: float = 0.0
     refundable_amount: float = 0.0
+    damaged_components: list = field(default_factory=list)
+    damage_report: str = ""
+    damage_images: list = field(default_factory=list)
 
     refund_id: Optional[str] = None
     status: SagaStatus = SagaStatus.STARTED
@@ -36,6 +45,9 @@ class ReturnOrderContext:
         return {
             "order_id": self.order_id,
             "refund_id": self.refund_id,
+            "damage_fee": f"{self.damage_fee:.2f}",
+            "original_deposit": f"{self.original_deposit:.2f}",
             "refundable_amount": f"{self.refundable_amount:.2f}",
+            "damaged_components": self.damaged_components,
             "status": self.status.value,
         }
