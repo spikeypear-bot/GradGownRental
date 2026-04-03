@@ -175,6 +175,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { fetchOrdersByStatus } from '../services/admin/helpers'
 
 const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
 
@@ -185,38 +186,21 @@ const completedCount = ref(0)
 
 const loadCounts = async () => {
   try {
-    const [pendingRes, confirmedRes, activeRes, returnedRes, completedRes] = await Promise.all([
-      fetch(`${orderApiUrl}/orders/status/PENDING`),
-      fetch(`${orderApiUrl}/orders/status/CONFIRMED`),
-      fetch(`${orderApiUrl}/orders/status/ACTIVE`),
-      fetch(`${orderApiUrl}/orders/status/RETURNED_DAMAGED`),
-      fetch(`${orderApiUrl}/orders/status/COMPLETED`)
+    const [pending, confirmed, active, returnedDamaged, completed] = await Promise.allSettled([
+      fetchOrdersByStatus(orderApiUrl, 'PENDING'),
+      fetchOrdersByStatus(orderApiUrl, 'CONFIRMED'),
+      fetchOrdersByStatus(orderApiUrl, 'ACTIVE'),
+      fetchOrdersByStatus(orderApiUrl, 'RETURNED_DAMAGED'),
+      fetchOrdersByStatus(orderApiUrl, 'COMPLETED')
     ])
 
-    if (pendingRes.ok) {
-      const data = await pendingRes.json()
-      pendingCount.value = Array.isArray(data) ? data.length : 0
-    }
+    pendingCount.value = pending.status === 'fulfilled' ? pending.value.length : 0
+    activeCount.value = active.status === 'fulfilled' ? active.value.length : 0
+    returnsCount.value = returnedDamaged.status === 'fulfilled' ? returnedDamaged.value.length : 0
+    completedCount.value = completed.status === 'fulfilled' ? completed.value.length : 0
 
-    if (confirmedRes.ok) {
-      const data = await confirmedRes.json()
-      // Confirmed + Pending = waiting for fulfillment
-    }
-
-    if (activeRes.ok) {
-      const data = await activeRes.json()
-      activeCount.value = Array.isArray(data) ? data.length : 0
-    }
-
-    if (returnedRes.ok) {
-      const data = await returnedRes.json()
-      returnsCount.value = Array.isArray(data) ? data.length : 0
-    }
-
-    if (completedRes.ok) {
-      const data = await completedRes.json()
-      completedCount.value = Array.isArray(data) ? data.length : 0
-    }
+    // confirmed is intentionally fetched in case you later want to show "awaiting fulfillment"
+    void confirmed
   } catch (error) {
     console.error('Error loading counts:', error)
   }

@@ -66,6 +66,20 @@ function ensureActiveSession() {
   }
 }
 
+function readCartSession() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY)
+    if (!raw) return { expiresAt: 0, items: [] }
+    const parsed = JSON.parse(raw)
+    return {
+      expiresAt: Number(parsed.expiresAt || 0),
+      items: Array.isArray(parsed.items) ? parsed.items : []
+    }
+  } catch {
+    return { expiresAt: 0, items: [] }
+  }
+}
+
 function addSelectedToCart() {
   if (!selectedPackage.value) return
   if (!selectedCartSize.value) {
@@ -73,11 +87,14 @@ function addSelectedToCart() {
     return
   }
   sizeRequiredError.value = ''
-  ensureActiveSession()
+
+  // Always read FRESH cart from localStorage first
+  const current = readCartSession()
   const cartKey = `${selectedPackage.value.packageId}:${selectedCartSize.value}`
-  const exists = cartItems.value.some(item => item.cartKey === cartKey)
+  const exists = current.items.some(item => item.cartKey === cartKey)
+
   if (!exists) {
-    cartItems.value.push({
+    const newItem = {
       cartKey,
       packageId: selectedPackage.value.packageId,
       title: selectedPackage.value.title,
@@ -88,9 +105,22 @@ function addSelectedToCart() {
       institution: selectedPackage.value.institution,
       faculty: selectedPackage.value.faculty,
       selectedSize: selectedCartSize.value
-    })
+    }
+
+    const nextItems = [...current.items, newItem]
+    const nextExpiresAt = current.expiresAt && current.expiresAt > Date.now() 
+      ? current.expiresAt 
+      : Date.now() + 10 * 60 * 1000
+
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
+      expiresAt: nextExpiresAt,
+      items: nextItems
+    }))
+
+    // Update local state to match
+    cartItems.value = nextItems
+    cartExpiresAt.value = nextExpiresAt
   }
-  saveCartSession()
 }
 
 function goToCart() {

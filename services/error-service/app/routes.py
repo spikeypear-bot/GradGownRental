@@ -8,19 +8,25 @@ bp = Blueprint('error', __name__, url_prefix='/errors')
 
 @bp.route('', methods=['POST'])
 def log_error():
-    data = request.json
+    data = request.json or {}
+
+    saga_name = data.get('saga_name') or data.get('saga')
+    step = data.get('step')
+    error_message = data.get('error_message') or data.get('detail')
+    order_id = data.get('order_id')
+    status_code = data.get('status_code')
 
     # Validate required fields
-    if not data.get('saga_name') or not data.get('error_message') or not data.get('step'):
-        return jsonify({'error': 'saga_name, step and error_message are required'}), 400
+    if not saga_name or not error_message or not step:
+        return jsonify({'error': 'saga_name/saga, step and error_message/detail are required'}), 400
 
     # Save to DB
     error = ErrorLog(
-        saga_name     = data['saga_name'],
-        step          = data['step'],
-        order_id      = data.get('order_id'),
-        error_message = data['error_message'],
-        status_code   = data.get('status_code')
+        saga_name=saga_name,
+        step=step,
+        order_id=order_id,
+        error_message=error_message,
+        status_code=status_code
     )
     db.session.add(error)
     db.session.commit()
@@ -30,9 +36,9 @@ def log_error():
         requests.post(
             f"{Config.NOTIFICATION_SERVICE_URL}/notifications/error",
             json={
-                'order_id': data.get('order_id'),
-                'saga_name': data['saga_name'],
-                'error_message': data['error_message']
+                'order_id': order_id,
+                'saga_name': saga_name,
+                'error_message': error_message
             },
             timeout=3
         )

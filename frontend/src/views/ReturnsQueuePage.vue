@@ -128,7 +128,7 @@
             <button 
               @click="submitRepair" 
               class="btn btn-primary"
-              :disabled="!repairAction || !isProcessing"
+              :disabled="!repairAction || isProcessing"
             >
               <span v-if="!isProcessing">Process</span>
               <span v-else>
@@ -146,6 +146,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AdminService from '../services/admin'
+import { fetchOrdersByStatus } from '../services/admin/helpers'
 
 const orders = ref([])
 const searchQuery = ref('')
@@ -215,10 +216,16 @@ const loadReturnsQueue = async () => {
   isLoading.value = true
   try {
     const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    const response = await fetch(`${orderApiUrl}/orders/status/RETURNED_DAMAGED`)
-    if (response.ok) {
-      orders.value = await response.json()
-    }
+
+    const [damagedOrders, pendingInspectionOrders] = await Promise.allSettled([
+      fetchOrdersByStatus(orderApiUrl, 'RETURNED_DAMAGED'),
+      fetchOrdersByStatus(orderApiUrl, 'RETURNED_PENDING_INSPECTION'),
+    ])
+
+    const damaged = damagedOrders.status === 'fulfilled' ? damagedOrders.value : []
+    const pendingInspection = pendingInspectionOrders.status === 'fulfilled' ? pendingInspectionOrders.value : []
+
+    orders.value = [...damaged, ...pendingInspection]
   } catch (error) {
     console.error('Error loading returns queue:', error)
   } finally {

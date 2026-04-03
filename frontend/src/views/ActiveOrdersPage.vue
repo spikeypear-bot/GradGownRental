@@ -124,6 +124,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AdminService from '../services/admin'
+import { fetchOrdersByStatus } from '../services/admin/helpers'
 
 const orders = ref([])
 const searchQuery = ref('')
@@ -180,10 +181,7 @@ const loadActiveOrders = async () => {
   isLoading.value = true
   try {
     const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    const response = await fetch(`${orderApiUrl}/orders/status/ACTIVE`)
-    if (response.ok) {
-      orders.value = await response.json()
-    }
+    orders.value = await fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
   } catch (error) {
     console.error('Error loading active orders:', error)
   } finally {

@@ -80,7 +80,7 @@ def update_order_status(order_id: str):
     service = current_app.extensions["order_service"]
     data = request.get_json() or {}
 
-    status = data.get("status")
+    status = data.get("status") or data.get("order_status")
     if not status:
         return jsonify({"error": "Missing required field: status"}), 400
 

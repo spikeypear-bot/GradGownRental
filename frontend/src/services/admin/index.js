@@ -112,6 +112,121 @@ class AdminService {
       throw error
     }
   }
+  
+    /**
+   * Confirm order from pending to confirmed.
+   * Needs backend order-service support.
+   * Expected order-service endpoint:
+   * PUT /orders/:orderId/status
+   * body: { status: "CONFIRMED" }
+   */
+  async confirmOrder(orderId) {
+    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    try {
+      const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'CONFIRMED' }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: Failed to confirm order`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error confirming order:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Mark active order for return queue.
+   * This is NOT implemented in the saga you showed.
+   * For now this assumes order-service supports direct status update.
+   * Expected backend endpoint:
+   * PUT /orders/:orderId/status
+   * body: { status: "RETURNED_PENDING_INSPECTION" }
+   */
+  async markForReturn(orderId) {
+    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    try {
+      const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'RETURNED_PENDING_INSPECTION' }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: Failed to mark for return`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error marking order for return:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Process return-repair action from queue page.
+   * Existing saga only supports:
+   * - processReturn()
+   * - transitionToWash()
+   * - maintenanceComplete()
+   * So this method routes to what already exists.
+   */
+  async processReturnRepair(orderId, action, notes = '') {
+    if (action === 'repair') {
+      return this.processReturn({
+        order_id: orderId,
+        damage_report: notes,
+        damage_fee: 0,
+      })
+    }
+
+    if (action === 'wash') {
+      return this.transitionToWash(orderId)
+    }
+
+    if (action === 'complete') {
+      return this.maintenanceComplete(orderId)
+    }
+
+    throw new Error('Invalid repair action')
+  }
+
+  /**
+   * Used by MaintenancePage.vue
+   * Existing saga endpoint:
+   * PUT /returns/transition-to-wash
+   */
+  async completeRepair(orderId) {
+    return this.transitionToWash(orderId)
+  }
+
+  /**
+   * Used by MaintenancePage.vue
+   * Existing saga endpoint:
+   * PUT /returns/maintenance-complete
+   */
+  async completeWash(orderId) {
+    return this.maintenanceComplete(orderId)
+  }
+
+  /**
+   * Placeholder wrapper for pages that mark the item/order fully done.
+   * Uses existing maintenance completion saga.
+   */
+  async markItemComplete(orderId) {
+    return this.maintenanceComplete(orderId)
+  }
 }
 
 export default new AdminService()
