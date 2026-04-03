@@ -39,6 +39,11 @@ public class InventoryService {
     public List<InventoryDto> getAllInventory(){
         return inventoryMapper.inventoriesToInventoryDtos((inventoryRepository.findAll()));
     }
+
+    public List<Inventory> getAllInventoryEntity() {
+        return inventoryRepository.findAll();
+    }
+
     public InventoryDto getByModelId(String modelId) throws ModelNotFoundException {
         Optional<Inventory> res=inventoryRepository.findById(modelId);
         

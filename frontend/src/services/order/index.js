@@ -2,24 +2,31 @@ const SAGA_API_BASE_URL = import.meta.env.VITE_SAGA_API_BASE_URL || 'http://loca
 const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  })
-
-  let payload = {}
   try {
-    payload = await response.json()
-  } catch {
-    payload = {}
-  }
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options
+    })
 
-  if (!response.ok) {
-    const message = payload?.error || `Request failed with status ${response.status}`
-    throw new Error(message)
-  }
+    let payload = {}
+    try {
+      payload = await response.json()
+    } catch {
+      payload = {}
+    }
 
-  return payload
+    if (!response.ok) {
+      const message = payload?.error || `Request failed with status ${response.status}`
+      throw new Error(message)
+    }
+
+    return payload
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Unable to reach the service right now. Please try again shortly.')
+    }
+    throw error
+  }
 }
 
 class OrderService {

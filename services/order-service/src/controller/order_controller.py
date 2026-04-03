@@ -18,7 +18,6 @@ Activation Logic:
 
 import logging
 from flask import Blueprint, request, jsonify, current_app
-import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ def create_order():
     
     try:
         order = service.create_order(
-            order_id=data.get("order_id") or str(uuid.uuid4()),
+            order_id=data.get("order_id"),
             student_name=data["student_name"],
             email=data["email"],
             phone=data["phone"],

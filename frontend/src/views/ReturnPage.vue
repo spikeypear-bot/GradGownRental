@@ -1,159 +1,203 @@
 <template>
   <div class="return-container">
     <div class="container py-4">
-      <div class="mb-4">
-        <p class="page-kicker mb-2">Admin Team</p>
-        <h2 class="fw-bold mb-2">Process Return</h2>
-        <p class="text-muted mb-0">Record the return and attach damage evidence when any item is affected</p>
+      <div class="page-header">
+        <h2 class="fw-bold mb-2">Admin Team</h2>
+        <p class="text-muted mb-0">Process returns and record any damage.</p>
       </div>
 
-      <div class="row g-4">
-        <div class="col-12">
-          <div class="reference-card">
-            <h2>Damage Deduction Board</h2>
-            <div class="table-responsive">
-              <table class="table table-sm align-middle compact-table mb-0">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Deduction</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in deductionBoard" :key="item.key">
-                    <td>{{ item.label }}</td>
-                    <td>{{ item.rateLabel }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+      <div v-if="successMessage" class="alert alert-success mb-4" role="alert">
+        <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
+      </div>
+      <div v-if="errorMessage" class="alert alert-danger mb-4" role="alert">
+        <i class="bi bi-exclamation-circle me-2"></i>{{ errorMessage }}
+      </div>
+
+      <div v-if="!selectedOrder" class="return-card">
+        <div class="card-header-section">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h5 class="mb-0 fw-bold">Return for {{ todayLabel }}</h5>
+            <span class="count-badge">{{ returnQueue.length }}</span>
           </div>
         </div>
 
-        <div class="col-12">
-          <div class="form-card">
-            <form @submit.prevent="submitReturn">
-              <div class="mb-3">
-                <label for="orderId" class="form-label">Order ID</label>
-                <input
-                  id="orderId"
-                  v-model="orderId"
-                  type="text"
-                  class="form-control"
-                  placeholder="Enter order ID"
-                  required
-                />
-              </div>
+        <div v-if="isLoading" class="text-center py-5">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 text-muted">Loading active returns...</p>
+        </div>
 
-              <div class="mb-3">
-                <label class="form-label">Damaged Items</label>
-                <div class="damage-checklist">
-                  <label v-for="item in deductionBoard" :key="item.key" class="damage-option">
-                    <input
-                      v-model="damagedComponents"
-                      type="checkbox"
-                      :value="item.key"
-                    />
-                    <span>{{ item.label }}</span>
-                    <small>{{ item.rateLabel }}</small>
-                  </label>
-                </div>
-              </div>
+        <div v-else-if="returnQueue.length === 0" class="empty-state">
+          <i class="bi bi-arrow-return-left"></i>
+          <p>No returns scheduled for today.</p>
+        </div>
 
-              <div class="mb-3">
-                <label for="damageReport" class="form-label">Damage Description</label>
-                <textarea
-                  id="damageReport"
-                  v-model="damageReport"
-                  class="form-control"
-                  rows="4"
-                  :placeholder="hasDamage ? 'Describe the damage clearly for the repair team...' : 'No damage notes required for a clean return'"
-                  :required="hasDamage"
-                ></textarea>
-              </div>
-
-              <div class="mb-3">
-                <label for="damagePhotos" class="form-label">Damage Photos</label>
-                <input
-                  id="damagePhotos"
-                  type="file"
-                  class="form-control"
-                  accept="image/*"
-                  multiple
-                  :required="hasDamage"
-                  @change="handleDamageImages"
-                />
-                <small class="text-muted">Upload one or more photos when damage is reported.</small>
-                <div v-if="damageImages.length" class="upload-list mt-2">
-                  <div v-for="image in damageImages" :key="image.name + image.size" class="upload-pill">
-                    {{ image.name }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="fee-preview">
-                <p class="preview-label">Estimated Damage Fee</p>
-                <p class="preview-value">SGD ${{ estimatedDamageFee }}</p>
-                <small class="text-muted">The saga calculates this automatically from the deposit and damaged items.</small>
-              </div>
-
-              <button type="submit" class="btn btn-primary w-100">
-                <span v-if="!isLoading">Process Return</span>
-                <span v-else>
-                  <span class="spinner-border spinner-border-sm me-2"></span>
-                  Processing...
-                </span>
-              </button>
-            </form>
-
-            <div v-if="successMessage" class="alert alert-success mt-3" role="alert">
-              {{ successMessage }}
+        <div v-else class="return-list">
+          <div
+            v-for="order in returnQueue"
+            :key="order.orderID"
+            class="return-row"
+          >
+            <div class="order-info">
+              <span class="order-id">{{ order.orderID }}</span>
+              <p class="customer-name mb-0">{{ order.CustomerName }}</p>
             </div>
-            <div v-if="returnSummary" class="summary-card mt-3">
-              <h6 class="mb-2">Return Summary</h6>
-              <p class="mb-1"><strong>Order:</strong> {{ returnSummary.order_id }}</p>
-              <p class="mb-1"><strong>Damaged Items:</strong> {{ formatComponents(returnSummary.damaged_components) }}</p>
-              <p class="mb-1"><strong>Damage Fee:</strong> SGD ${{ returnSummary.damage_fee }}</p>
-              <p class="mb-1"><strong>Refund ID:</strong> {{ returnSummary.refund_id || 'No refund issued' }}</p>
-              <p class="mb-0"><strong>Refundable Amount:</strong> SGD ${{ returnSummary.refundable_amount }}</p>
-            </div>
-            <div v-if="errorMessage" class="alert alert-danger mt-3" role="alert">
-              {{ errorMessage }}
-            </div>
+            <button
+              class="btn btn-sm btn-return"
+              @click="startInspection(order)"
+            >
+              Mark as Returned
+            </button>
           </div>
         </div>
+      </div>
+
+      <div v-else class="inspection-card">
+        <div class="inspection-head">
+          <div>
+            <h5 class="mb-1 fw-bold">Return for {{ todayLabel }}</h5>
+            <p class="mb-0 text-muted">{{ selectedOrder.CustomerName }} | {{ selectedOrder.orderID }}</p>
+          </div>
+          <button class="btn btn-outline-secondary" @click="resetInspection" :disabled="isSubmitting">
+            Back
+          </button>
+        </div>
+
+        <form @submit.prevent="submitReturn">
+          <div class="mb-4">
+            <label class="section-label">Damage Status</label>
+            <div class="choice-grid">
+              <label class="choice-card">
+                <input v-model="damageSelection" type="radio" value="NO_DAMAGE" />
+                <div>
+                  <span>No damage</span>
+                  <small>Complete the return without a repair report.</small>
+                </div>
+              </label>
+              <label class="choice-card">
+                <input v-model="damageSelection" type="radio" value="HAS_DAMAGE" />
+                <div>
+                  <span>Damage found</span>
+                  <small>Send the order into repair with evidence attached.</small>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div v-if="hasDamage" class="damage-section">
+            <div class="mb-4">
+              <label class="section-label">Damaged Items</label>
+              <div class="damage-checklist">
+                <label v-for="item in damageOptions" :key="item.key" class="damage-option">
+                  <input
+                    v-model="damagedComponents"
+                    type="checkbox"
+                    :value="item.key"
+                  />
+                  <span>{{ item.label }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="damageReport" class="section-label">Damage Description</label>
+              <textarea
+                id="damageReport"
+                v-model="damageReport"
+                class="form-control"
+                rows="4"
+                placeholder="Describe the damage clearly for the repair team..."
+                :required="hasDamage"
+              ></textarea>
+            </div>
+
+            <div class="mb-4">
+              <label for="damagePhotos" class="section-label">Attach Evidence</label>
+              <input
+                id="damagePhotos"
+                type="file"
+                class="form-control"
+                accept="image/*"
+                multiple
+                :required="hasDamage"
+                @change="handleDamageImages"
+              />
+              <small class="text-muted">Upload one or more photos when damage is reported.</small>
+              <div v-if="damageImages.length" class="upload-list mt-2">
+                <div v-for="image in damageImages" :key="image.name + image.size" class="upload-pill">
+                  {{ image.name }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-return w-100" :disabled="isSubmitting">
+            <span v-if="!isSubmitting">Submit Return</span>
+            <span v-else>
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Processing...
+            </span>
+          </button>
+        </form>
+
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
+import { fetchOrdersByStatus } from '../services/admin/helpers'
 
-const deductionBoard = [
-  { key: 'gown', label: 'Gown', rate: 0.6, rateLabel: '60% of deposit' },
-  { key: 'hood', label: 'Hood', rate: 0.25, rateLabel: '25% of deposit'},
-  { key: 'mortarboard', label: 'Mortarboard', rate: 0.15, rateLabel: '15% of deposit'}
+const damageOptions = [
+  { key: 'gown', label: 'Gown' },
+  { key: 'hood', label: 'Hood' },
+  { key: 'mortarboard', label: 'Mortarboard' }
 ]
 
-const orderId = ref('')
-const damageReport = ref('')
-const damagedComponents = ref([])
-const damageImages = ref([])
+const orders = ref([])
 const isLoading = ref(false)
+const isSubmitting = ref(false)
+const selectedOrder = ref(null)
+const damageSelection = ref('NO_DAMAGE')
+const damagedComponents = ref([])
+const damageReport = ref('')
+const damageImages = ref([])
 const successMessage = ref('')
 const errorMessage = ref('')
-const returnSummary = ref(null)
 
-const hasDamage = computed(() => damagedComponents.value.length > 0)
-const estimatedDamageFee = computed(() => {
-  const deductionRate = deductionBoard
-    .filter(item => damagedComponents.value.includes(item.key))
-    .reduce((sum, item) => sum + item.rate, 0)
+function formatDateKey(dateInput) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  return formatter.format(new Date(dateInput))
+}
 
-  return deductionRate === 0 ? '0.00' : 'Auto-calculated after order lookup'
+const todayKey = computed(() => formatDateKey(new Date()))
+
+const todayLabel = computed(() => {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Singapore',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(new Date())
+  } catch {
+    return String(new Date())
+  }
 })
+
+const returnQueue = computed(() =>
+  orders.value.filter(order => formatDateKey(order.rental_end_date) === todayKey.value)
+)
+
+const hasDamage = computed(() => damageSelection.value === 'HAS_DAMAGE')
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -163,22 +207,56 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file)
   })
 
-const handleDamageImages = async (event) => {
-  const files = Array.from(event.target.files || [])
-  damageImages.value = files
+const loadActiveReturns = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    orders.value = await fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
+  } catch (error) {
+    console.error('Error loading active returns:', error)
+    errorMessage.value = error.message || 'Failed to load active returns'
+  } finally {
+    isLoading.value = false
+  }
 }
 
-const formatComponents = (components = []) => {
-  if (!components.length) return 'No damaged items reported'
-  return components
-    .map(component => component.charAt(0).toUpperCase() + component.slice(1))
-    .join(', ')
+const startInspection = (order) => {
+  selectedOrder.value = order
+  damageSelection.value = 'NO_DAMAGE'
+  damagedComponents.value = []
+  damageReport.value = ''
+  damageImages.value = []
+  errorMessage.value = ''
+}
+
+const resetInspection = () => {
+  selectedOrder.value = null
+  damageSelection.value = 'NO_DAMAGE'
+  damagedComponents.value = []
+  damageReport.value = ''
+  damageImages.value = []
+  const damagePhotos = document.getElementById('damagePhotos')
+  if (damagePhotos) damagePhotos.value = ''
+}
+
+const handleDamageImages = (event) => {
+  damageImages.value = Array.from(event.target.files || [])
 }
 
 const submitReturn = async () => {
   errorMessage.value = ''
   successMessage.value = ''
-  returnSummary.value = null
+
+  if (!selectedOrder.value) {
+    errorMessage.value = 'Please choose an order to return.'
+    return
+  }
+
+  if (hasDamage.value && damagedComponents.value.length === 0) {
+    errorMessage.value = 'Please select at least one damaged item.'
+    return
+  }
 
   if (hasDamage.value && !damageReport.value.trim()) {
     errorMessage.value = 'Please add a damage description.'
@@ -190,7 +268,7 @@ const submitReturn = async () => {
     return
   }
 
-  isLoading.value = true
+  isSubmitting.value = true
 
   try {
     const damageImagesPayload = await Promise.all(
@@ -202,21 +280,16 @@ const submitReturn = async () => {
       }))
     )
 
-    const result = await AdminService.processReturn({
-      order_id: orderId.value,
-      damage_report: damageReport.value.trim(),
-      damaged_components: damagedComponents.value,
-      damage_images: damageImagesPayload
+    await AdminService.processReturn({
+      order_id: selectedOrder.value.orderID,
+      damage_report: hasDamage.value ? damageReport.value.trim() : '',
+      damaged_components: hasDamage.value ? damagedComponents.value : [],
+      damage_images: hasDamage.value ? damageImagesPayload : []
     })
-    returnSummary.value = result
-    successMessage.value = `Return processed for order ${orderId.value}. Refundable amount: SGD $${result.refundable_amount}`
 
-    orderId.value = ''
-    damageReport.value = ''
-    damagedComponents.value = []
-    damageImages.value = []
-    const damagePhotos = document.getElementById('damagePhotos')
-    if (damagePhotos) damagePhotos.value = ''
+    successMessage.value = `Return processed for order ${selectedOrder.value.orderID}.`
+    orders.value = orders.value.filter(order => order.orderID !== selectedOrder.value.orderID)
+    resetInspection()
 
     setTimeout(() => {
       successMessage.value = ''
@@ -224,16 +297,16 @@ const submitReturn = async () => {
   } catch (error) {
     errorMessage.value = error.message || 'Failed to process return'
   } finally {
-    isLoading.value = false
+    isSubmitting.value = false
   }
 }
 
+onMounted(loadActiveReturns)
 </script>
 
 <style scoped>
 .return-container {
   min-height: 100vh;
-  padding-top: 100px;
   background-color: #fbf7ef;
   padding-bottom: 3rem;
 }
@@ -243,127 +316,147 @@ const submitReturn = async () => {
   margin: 0 auto;
 }
 
-.page-kicker {
-  color: #8a5f10;
-  font-size: 0.85rem;
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.return-card,
+.inspection-card {
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card-header-section {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0ddd3;
+  margin-bottom: 1rem;
+}
+
+.inspection-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0ddd3;
+  margin-bottom: 1.5rem;
+}
+
+.count-badge {
+  margin-left: auto;
+  background-color: #d8a61c;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.form-card {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #aaa;
 }
 
-.summary-card {
-  padding: 1rem;
-  border-radius: 16px;
-  background: #f8f3e7;
-  border: 1px solid #eadfbe;
+.empty-state i {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #d8a61c;
+  opacity: 0.4;
 }
 
-.reference-card {
-  background: white;
-  border-radius: 20px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.compact-table th,
-.compact-table td {
-  padding-top: 0.4rem;
-  padding-bottom: 0.4rem;
-}
-
-.damage-checklist {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+.return-list {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.damage-option {
+.return-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background-color: #f9f7f2;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.return-row:hover {
+  background-color: #f3eedf;
+}
+
+.order-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-id {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #999;
+  display: block;
+  word-break: break-all;
+}
+
+.customer-name {
+  font-weight: 600;
+  color: #2b3035;
+  font-size: 0.95rem;
+}
+
+.section-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #7c7467;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.choice-card,
+.damage-option {
+  display: flex;
   gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  align-items: flex-start;
+  padding: 1rem;
   border: 1px solid #e0ddd3;
   border-radius: 14px;
   background: #fcfaf5;
 }
 
+.choice-card input,
 .damage-option input {
-  margin: 0;
+  margin-top: 0.2rem;
 }
 
+.choice-card span,
 .damage-option span {
-  font-weight: 600;
-  color: #2b3035;
-}
-
-.damage-option small {
-  margin-left: auto;
-  color: #7c7467;
-}
-
-.upload-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.upload-pill {
-  background: #f2ead8;
-  color: #6a5530;
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.fee-preview {
-  border-radius: 16px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #f7efdf 0%, #fff8ed 100%);
-  border: 1px solid #eadfbe;
-}
-
-.preview-label {
-  margin-bottom: 0.2rem;
-  color: #7c7467;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.preview-value {
-  margin-bottom: 0.2rem;
-  font-size: 1.5rem;
+  display: block;
   font-weight: 700;
-  color: #8a5f10;
-}
-
-.form-card h2,
-.reference-card h2 {
-  margin-bottom: 0.35rem;
   color: #2b3035;
-  font-weight: 700;
-  font-size: 1.75rem;
 }
 
-.form-card p,
-.reference-card p {
-  margin-bottom: 1.5rem;
-  color: #6c757d;
+.choice-card small {
+  display: block;
+  color: #7c7467;
+  margin-top: 0.25rem;
 }
 
-.form-label {
-  font-weight: 600;
-  color: #2b3035;
-  margin-bottom: 0.625rem;
+.damage-checklist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .form-control,
@@ -386,95 +479,38 @@ textarea {
   resize: vertical;
 }
 
-.btn-primary,
-.btn-secondary,
-.btn-success {
-  font-weight: 700;
-  border-radius: 12px;
-  padding: 0.75rem;
-  transition: background-color 0.2s ease;
-  border: none;
-}
-
-.btn-primary {
-  background-color: #d8a61c;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #c49416;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-}
-
-.btn-success {
-  background-color: #28a745;
-  color: white;
-}
-
-.btn-success:hover {
-  background-color: #218838;
-}
-
-.workflow-section h5 {
-  font-weight: 700;
-  color: #2b3035;
-  margin-bottom: 1rem;
-}
-
-.activity-list {
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-.return-item {
-  padding: 1.5rem;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  background-color: #fafaf8;
-}
-
-.return-item:last-child {
-  margin-bottom: 0;
-}
-
-.return-header {
+.upload-list {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.return-id {
-  margin: 0;
+.upload-pill {
+  background: #f2ead8;
+  color: #6a5530;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #2b3035;
 }
 
-.return-fee {
-  margin: 0;
+.btn-return {
+  background-color: #d8a61c;
+  border-color: #d8a61c;
+  color: white;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.btn-return:hover:not(:disabled) {
+  background-color: #c49416;
+  border-color: #c49416;
+  color: white;
+}
+
+.btn-outline-secondary {
+  border-radius: 10px;
   font-weight: 600;
-  color: #d8a61c;
-}
-
-.return-damage {
-  margin: 0.5rem 0;
-  color: #555;
-  font-size: 0.95rem;
-}
-
-.return-time {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.875rem;
-  color: #6c757d;
 }
 
 .alert {
@@ -492,9 +528,16 @@ textarea {
   color: #842029;
 }
 
-hr {
-  margin: 1.5rem 0;
-  border: none;
-  border-top: 1px solid #eee;
+@media (max-width: 768px) {
+  .inspection-head,
+  .return-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .choice-grid,
+  .damage-checklist {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

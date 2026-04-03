@@ -21,6 +21,7 @@ import com.inventory_service.inventory_service.dto.PackageWithPriceDto;
 import com.inventory_service.inventory_service.dto.PackageWithStyleAndInventoryDto;
 import com.inventory_service.inventory_service.dto.ReserveDto;
 import com.inventory_service.inventory_service.dto.SoftHoldDto;
+import com.inventory_service.inventory_service.dto.StockOverviewRowDto;
 import com.inventory_service.inventory_service.exception.DamageNotFoundException;
 import com.inventory_service.inventory_service.exception.ModelNotFoundException;
 import com.inventory_service.inventory_service.exception.PackageNotFoundException;
@@ -39,20 +40,6 @@ public class InventoryController {
         this.postService=postService;
     }
 
-    @GetMapping("/{packageId}")
-    public InventoryResponse<PackageWithStyleAndInventoryDto> getPackageWithStyleAndInventory(@PathVariable int packageId){
-        InventoryResponse<PackageWithStyleAndInventoryDto> res;
-        try {
-            PackageWithStyleAndInventoryDto packageWithStyleAndInventoryDto = getService.getPackageWithStyleAndInventory(packageId);
-            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(200, "success", packageWithStyleAndInventoryDto);
-        } catch (PackageNotFoundException e) {
-            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(400, e.getMessage(), null);
-            // TODO: handle exception
-        }
-        return res;
-        
-        
-    }
     @GetMapping("/availability")
     public InventoryResponse<DailyAvailabilityDto> getSetAvailabilityForTheDate(
         @RequestParam(required = false) String hatModelId, 
@@ -113,6 +100,30 @@ public class InventoryController {
             return new InventoryResponse<List<PackageWithPriceDto>>(200, "success", getService.getAllPackagesWithPricing());
         }
         return new InventoryResponse<List<PackageWithPriceDto>>(200, "success", getService.getAllPackagesMatched(educationLevel, faculty, institution));
+    }
+
+    @GetMapping("/stock-overview")
+    public InventoryResponse<List<StockOverviewRowDto>> getStockOverview(
+        @RequestParam(required = false) LocalDate date
+    ){
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        return new InventoryResponse<List<StockOverviewRowDto>>(
+            200,
+            "success",
+            getService.getStockOverview(targetDate)
+        );
+    }
+
+    @GetMapping("/{packageId}")
+    public InventoryResponse<PackageWithStyleAndInventoryDto> getPackageWithStyleAndInventory(@PathVariable int packageId){
+        InventoryResponse<PackageWithStyleAndInventoryDto> res;
+        try {
+            PackageWithStyleAndInventoryDto packageWithStyleAndInventoryDto = getService.getPackageWithStyleAndInventory(packageId);
+            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(200, "success", packageWithStyleAndInventoryDto);
+        } catch (PackageNotFoundException e) {
+            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(400, e.getMessage(), null);
+        }
+        return res;
     }
     
 

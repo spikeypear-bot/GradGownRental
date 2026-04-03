@@ -43,6 +43,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/admin/stock-overview',
+      name: 'admin-stock-overview',
+      component: () => import('../views/StockOverviewPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/fulfillment-overview',
+      name: 'admin-fulfillment-overview',
+      component: () => import('../views/FulfillmentOverviewPage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin/returns',
       name: 'admin-returns',
       component: () => import('../views/ReturnPage.vue'),

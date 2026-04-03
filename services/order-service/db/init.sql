@@ -26,15 +26,16 @@ CREATE TABLE IF NOT EXISTS orders (
     fulfillment_method VARCHAR(50) NOT NULL,    -- 'COLLECTION' | 'DELIVERY'
     
     -- Order lifecycle
-    status VARCHAR(50) NOT NULL DEFAULT 'CONFIRMED',
-    -- Status flow: CONFIRMED → ACTIVE → RETURNED → COMPLETED
-    -- CONFIRMED: payment processed
-    -- ACTIVE: rental period started (rental_start_date == TODAY)
-    -- RETURNED: gown returned by student
-    -- COMPLETED: return processed
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    -- Status flow: PENDING → CONFIRMED → ACTIVE → RETURNED_DAMAGED → COMPLETED
+    -- PENDING: order created, awaiting successful payment
+    -- CONFIRMED: payment processed and inventory reserved
+    -- ACTIVE: handover completed and items are rented out
+    -- RETURNED_DAMAGED: damaged return in repair / wash workflow
+    -- COMPLETED: return workflow finalized and stock restored
     
     -- Status transition timestamps
-    confirmed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confirmed_at TIMESTAMP,
     activated_at TIMESTAMP,
     returned_at TIMESTAMP,
     completed_at TIMESTAMP,
@@ -63,3 +64,9 @@ ADD COLUMN IF NOT EXISTS deposit DECIMAL(10, 2) DEFAULT 0.00;
 
 ALTER TABLE orders
 ADD COLUMN IF NOT EXISTS damaged_items JSONB DEFAULT '[]';
+
+ALTER TABLE orders
+ALTER COLUMN status SET DEFAULT 'PENDING';
+
+ALTER TABLE orders
+ALTER COLUMN confirmed_at DROP NOT NULL;

@@ -37,8 +37,11 @@ CREATE TABLE Package(
 CREATE TABLE InventoryQuantityTrack (
     date DATE,
     model_id VARCHAR(50),
+    available_qty INT DEFAULT 0,
     reserved_qty INT DEFAULT 0,
     rented_qty INT DEFAULT 0,
+    damaged_qty INT DEFAULT 0,
+    repair_qty INT DEFAULT 0,
     wash_qty INT DEFAULT 0,
     backup_qty INT DEFAULT 0,
     PRIMARY KEY (date, model_id),
@@ -56,6 +59,15 @@ CREATE TABLE ItemHold (
 );
 
 
+
+ALTER TABLE InventoryQuantityTrack
+ADD COLUMN IF NOT EXISTS available_qty INT DEFAULT 0;
+
+ALTER TABLE InventoryQuantityTrack
+ADD COLUMN IF NOT EXISTS damaged_qty INT DEFAULT 0;
+
+ALTER TABLE InventoryQuantityTrack
+ADD COLUMN IF NOT EXISTS repair_qty INT DEFAULT 0;
 
 -- InventoryStyle
 
@@ -992,4 +1004,3 @@ INSERT INTO Inventory (model_id, style_id, size, total_qty) VALUES
 ('5200063',63,'M',250),
 ('5300063',63,'L',250),
 ('5400063',63,'XL',250);
-

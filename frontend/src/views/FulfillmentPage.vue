@@ -1,29 +1,9 @@
 <template>
   <div class="fulfillment-container">
     <div class="container py-4">
-      <div class="mb-4">
-        <h2 class="fw-bold mb-2">Process Fulfillment</h2>
-        <p class="text-muted">Confirmed orders ready for collection or delivery</p>
-      </div>
-
-      <!-- Search -->
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <div class="search-box">
-            <i class="bi bi-search"></i>
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="form-control"
-              placeholder="Search by customer name or order ID"
-            />
-          </div>
-        </div>
-        <div class="col-md-6">
-          <button @click="refreshOrders" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-          </button>
-        </div>
+      <div class="page-header">
+        <h2 class="fw-bold mb-2">Admin / Driver</h2>
+        <p class="text-muted mb-0">Manage onsite collections and driver deliveries.</p>
       </div>
 
       <!-- Alerts -->
@@ -47,41 +27,30 @@
         <!-- Collection Column -->
         <div class="col-lg-6">
           <div class="fulfillment-card">
-            <div class="card-header-section">
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <i class="bi bi-bag-check section-icon"></i>
-                <h5 class="mb-0 fw-bold">Collection</h5>
-                <span class="count-badge">{{ filteredCollection.length }}</span>
-              </div>
-              <p class="text-muted small mb-0">Customers collecting in-store</p>
-            </div>
+            <h5 class="mb-3 fw-bold">Collection for {{ activeDateLabel }}</h5>
 
             <div v-if="filteredCollection.length === 0" class="empty-state">
               <i class="bi bi-bag-check"></i>
-              <p>No collection orders</p>
+              <p>No collection orders for today.</p>
             </div>
 
             <div v-else class="order-list">
               <div
                 v-for="order in filteredCollection"
-                :key="order.order_id"
+                :key="order.orderID"
                 class="order-row"
               >
                 <div class="order-info">
-                  <span class="order-id">{{ order.order_id.slice(0, 8) }}...</span>
-                  <p class="customer-name mb-0">{{ order.student_name }}</p>
-                  <small class="text-muted">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    {{ formatDate(order.rental_start_date) }}
-                  </small>
+                  <span class="order-id">{{ order.orderID }}</span>
+                  <p class="customer-name mb-0">{{ order.CustomerName }}</p>
                 </div>
                 <button
                   class="btn btn-sm btn-collected"
                   @click="openModal(order, 'COLLECTION')"
-                  :disabled="processingId === order.order_id"
+                  :disabled="processingId === order.orderID"
                 >
-                  <span v-if="processingId !== order.order_id">
-                    <i class="bi bi-check-lg me-1"></i>Collected
+                  <span v-if="processingId !== order.orderID">
+                    Mark as Collected
                   </span>
                   <span v-else>
                     <span class="spinner-border spinner-border-sm me-1"></span>
@@ -96,41 +65,30 @@
         <!-- Delivery Column -->
         <div class="col-lg-6">
           <div class="fulfillment-card">
-            <div class="card-header-section">
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <i class="bi bi-truck section-icon"></i>
-                <h5 class="mb-0 fw-bold">Delivery</h5>
-                <span class="count-badge">{{ filteredDelivery.length }}</span>
-              </div>
-              <p class="text-muted small mb-0">Orders to be delivered to customers</p>
-            </div>
+            <h5 class="mb-3 fw-bold">Delivery for {{ activeDateLabel }}</h5>
 
             <div v-if="filteredDelivery.length === 0" class="empty-state">
               <i class="bi bi-truck"></i>
-              <p>No delivery orders</p>
+              <p>No delivery orders for today.</p>
             </div>
 
             <div v-else class="order-list">
               <div
                 v-for="order in filteredDelivery"
-                :key="order.order_id"
+                :key="order.orderID"
                 class="order-row"
               >
                 <div class="order-info">
-                  <span class="order-id">{{ order.order_id.slice(0, 8) }}...</span>
-                  <p class="customer-name mb-0">{{ order.student_name }}</p>
-                  <small class="text-muted">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    {{ formatDate(order.rental_start_date) }}
-                  </small>
+                  <span class="order-id">{{ order.orderID }}</span>
+                  <p class="customer-name mb-0">{{ order.CustomerName }}</p>
                 </div>
                 <button
                   class="btn btn-sm btn-delivered"
                   @click="openModal(order, 'DELIVERY')"
-                  :disabled="processingId === order.order_id"
+                  :disabled="processingId === order.orderID"
                 >
-                  <span v-if="processingId !== order.order_id">
-                    <i class="bi bi-truck me-1"></i>Delivered
+                  <span v-if="processingId !== order.orderID">
+                   Mark as Delivered
                   </span>
                   <span v-else>
                     <span class="spinner-border spinner-border-sm me-1"></span>
@@ -150,8 +108,8 @@
             {{ modalType === 'COLLECTION' ? 'Confirm Collection' : 'Confirm Delivery' }}
           </h4>
           <p class="text-muted">
-            Mark order <strong>{{ selectedOrder?.order_id }}</strong> for
-            <strong>{{ selectedOrder?.student_name }}</strong> as
+            Mark order <strong>{{ selectedOrder?.orderID }}</strong> for
+            <strong>{{ selectedOrder?.CustomerName }}</strong> as
             {{ modalType === 'COLLECTION' ? 'collected' : 'delivered' }}?
             This will move the order to Active Rentals.
           </p>
@@ -162,7 +120,7 @@
               :class="modalType === 'COLLECTION' ? 'btn btn-collected' : 'btn btn-delivered'"
             >
               <span v-if="!isProcessing">
-                {{ modalType === 'COLLECTION' ? 'Collected' : 'Delivered' }}
+                {{ modalType === 'COLLECTION' ? 'Collect' : 'Deliver' }}
               </span>
               <span v-else>
                 <span class="spinner-border spinner-border-sm me-1"></span>
@@ -182,7 +140,6 @@ import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
 
 const orders = ref([])
-const searchQuery = ref('')
 const isLoading = ref(false)
 const processingId = ref(null)
 const isProcessing = ref(false)
@@ -192,14 +149,23 @@ const modalType = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 
+function formatDateKey(dateInput) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  return formatter.format(new Date(dateInput))
+}
+
 const filteredOrders = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return orders.value
-  return orders.value.filter(order =>
-    order.order_id?.toLowerCase().includes(query) ||
-    order.student_name?.toLowerCase().includes(query) ||
-    order.email?.toLowerCase().includes(query)
-  )
+  const targetDate = formatDateKey(new Date())
+  return orders.value
+    .filter(order => {
+      if (!order.rental_start_date) return false
+      return formatDateKey(order.rental_start_date) === targetDate
+    })
 })
 
 const filteredCollection = computed(() =>
@@ -210,21 +176,18 @@ const filteredDelivery = computed(() =>
   filteredOrders.value.filter(o => o.fulfillment_method === 'DELIVERY')
 )
 
-const formatDate = (dateString) => {
+const activeDateLabel = computed(() => {
   try {
     return new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Singapore',
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).format(new Date(dateString))
+      month: 'long',
+      day: 'numeric'
+    }).format(new Date())
   } catch {
-    return dateString
+    return String(new Date())
   }
-}
+})
 
 const loadConfirmedOrders = async () => {
   isLoading.value = true
@@ -238,8 +201,6 @@ const loadConfirmedOrders = async () => {
     isLoading.value = false
   }
 }
-
-const refreshOrders = () => loadConfirmedOrders()
 
 const openModal = (order, type) => {
   selectedOrder.value = order
@@ -255,14 +216,14 @@ const closeModal = () => {
 
 const submitFulfillment = async () => {
   isProcessing.value = true
-  processingId.value = selectedOrder.value.order_id
+  processingId.value = selectedOrder.value.orderID
   errorMessage.value = ''
   successMessage.value = ''
 
   try {
-    await AdminService.activateFulfillment(selectedOrder.value.order_id)
-    successMessage.value = `Order ${selectedOrder.value.order_id.slice(0, 8)}... marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'} and moved to Active Rentals.`
-    orders.value = orders.value.filter(o => o.order_id !== selectedOrder.value.order_id)
+    await AdminService.activateFulfillment(selectedOrder.value.orderID)
+    successMessage.value = `Order ${selectedOrder.value.orderID} marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'} and moved to Active Rentals.`
+    orders.value = orders.value.filter(o => o.orderID !== selectedOrder.value.orderID)
     closeModal()
     setTimeout(() => { successMessage.value = '' }, 4000)
   } catch (error) {
@@ -280,7 +241,6 @@ onMounted(() => loadConfirmedOrders())
 .fulfillment-container {
   min-height: 100vh;
   background-color: #fbf7ef;
-  padding-top: 100px;
   padding-bottom: 3rem;
 }
 
@@ -289,37 +249,8 @@ onMounted(() => loadConfirmedOrders())
   margin: 0 auto;
 }
 
-.search-box {
-  position: relative;
-}
-.search-box i {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #d8a61c;
-}
-.search-box .form-control {
-  padding-left: 2.5rem;
-  border: 1px solid #e0ddd3;
-  border-radius: 12px;
-  background-color: white;
-}
-.search-box .form-control:focus {
-  border-color: #d8a61c;
-  box-shadow: 0 0 0 3px rgba(216, 166, 28, 0.1);
-}
-
-.btn-outline-secondary {
-  border-color: #d8a61c;
-  color: #d8a61c;
-  border-radius: 12px;
-  font-weight: 600;
-}
-.btn-outline-secondary:hover {
-  background-color: #d8a61c;
-  border-color: #d8a61c;
-  color: white;
+.page-header {
+  margin-bottom: 1.5rem;
 }
 
 .fulfillment-card {
@@ -327,28 +258,7 @@ onMounted(() => loadConfirmedOrders())
   border-radius: 20px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  height: 100%;
-}
-
-.card-header-section {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e0ddd3;
-  margin-bottom: 1rem;
-}
-
-.section-icon {
-  font-size: 1.25rem;
-  color: #d8a61c;
-}
-
-.count-badge {
-  margin-left: auto;
-  background-color: #d8a61c;
-  color: white;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 10px;
-  font-weight: 700;
+  min-height: 360px;
 }
 
 .empty-state {

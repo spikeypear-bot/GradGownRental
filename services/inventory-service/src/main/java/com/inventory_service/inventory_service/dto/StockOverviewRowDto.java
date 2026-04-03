@@ -1,26 +1,30 @@
 package com.inventory_service.inventory_service.dto;
 
-import java.time.LocalDate;
-
-import com.inventory_service.inventory_service.entity.Inventory;
-
-public class InventoryQuantityTrackDto {
-    
-    private LocalDate date;
-    private Inventory model;
+public class StockOverviewRowDto {
+    private String modelId;
+    private String itemName;
+    private String itemType;
+    private String size;
+    private int totalQty;
     private int availableQty;
     private int reservedQty;
     private int rentedQty;
     private int damagedQty;
     private int repairQty;
     private int washQty;
-    
     private int backupQty;
 
-    public InventoryQuantityTrackDto(LocalDate date, Inventory model, int availableQty, int reservedQty, int rentedQty,
-            int damagedQty, int repairQty, int washQty, int backupQty) {
-        this.date = date;
-        this.model = model;
+    public StockOverviewRowDto() {
+    }
+
+    public StockOverviewRowDto(String modelId, String itemName, String itemType, String size, int totalQty,
+            int availableQty, int reservedQty, int rentedQty, int damagedQty, int repairQty, int washQty,
+            int backupQty) {
+        this.modelId = modelId;
+        this.itemName = itemName;
+        this.itemType = itemType;
+        this.size = size;
+        this.totalQty = totalQty;
         this.availableQty = availableQty;
         this.reservedQty = reservedQty;
         this.rentedQty = rentedQty;
@@ -30,23 +34,44 @@ public class InventoryQuantityTrackDto {
         this.backupQty = backupQty;
     }
 
-    public InventoryQuantityTrackDto() {
+    public String getModelId() {
+        return modelId;
     }
 
-    public LocalDate getDate() {
-        return date;
+    public void setModelId(String modelId) {
+        this.modelId = modelId;
     }
 
-    public void setDate(LocalDate date) {
-        this.date = date;
+    public String getItemName() {
+        return itemName;
     }
 
-    public Inventory getModel() {
-        return model;
+    public void setItemName(String itemName) {
+        this.itemName = itemName;
     }
 
-    public void setModel(Inventory model) {
-        this.model = model;
+    public String getItemType() {
+        return itemType;
+    }
+
+    public void setItemType(String itemType) {
+        this.itemType = itemType;
+    }
+
+    public String getSize() {
+        return size;
+    }
+
+    public void setSize(String size) {
+        this.size = size;
+    }
+
+    public int getTotalQty() {
+        return totalQty;
+    }
+
+    public void setTotalQty(int totalQty) {
+        this.totalQty = totalQty;
     }
 
     public int getAvailableQty() {
@@ -104,11 +129,4 @@ public class InventoryQuantityTrackDto {
     public void setBackupQty(int backupQty) {
         this.backupQty = backupQty;
     }
-    
-    
-    
-    
-    
-
-    
 }

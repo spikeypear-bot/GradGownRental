@@ -18,6 +18,7 @@ import com.inventory_service.inventory_service.dto.ItemHoldDto;
 import com.inventory_service.inventory_service.dto.ModelOnlyDto;
 import com.inventory_service.inventory_service.dto.PackageWithPriceDto;
 import com.inventory_service.inventory_service.dto.PackageWithStyleAndInventoryDto;
+import com.inventory_service.inventory_service.dto.StockOverviewRowDto;
 import com.inventory_service.inventory_service.dto.StyleWithInventoryDto;
 import com.inventory_service.inventory_service.exception.ModelNotFoundException;
 import com.inventory_service.inventory_service.exception.PackageNotFoundException;
@@ -150,6 +151,10 @@ public class GetService {
         }
         return res;
 
+    }
+
+    public List<StockOverviewRowDto> getStockOverview(LocalDate date){
+        return inventoryQuantityTrackService.getStockOverviewRows(date, inventoryService.getAllInventoryEntity());
     }
 
     //Get all packages, showing the styles and the sizes they offer//

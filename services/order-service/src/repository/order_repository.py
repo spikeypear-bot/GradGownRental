@@ -17,6 +17,13 @@ logger = logging.getLogger(__name__)
 
 class OrderRepository:
 
+    def get_next_order_sequence_value(self) -> int:
+        """Reserve the next database id so we can generate a matching ORDER### code."""
+        sql = "SELECT nextval(pg_get_serial_sequence('orders', 'id'))"
+        with self._conn.cursor() as cur:
+            cur.execute(sql)
+            return int(cur.fetchone()[0])
+
     def set_damage(self, order_id: str, damaged: bool, damaged_items: list = None) -> None:
         """Set the damaged flag and damaged items list for an order."""
         sql = """
@@ -40,24 +47,25 @@ class OrderRepository:
 
     def save(self, order: Order) -> Order:
         """Insert a new order and return it with the generated id."""
-        sql = """
-            INSERT INTO orders
-                (order_id, student_name, email, phone, package_id, 
-                 selected_items, rental_start_date, rental_end_date,
-                 total_amount, deposit, fulfillment_method, status, confirmed_at,
-                 created_at, updated_at, hold_id, payment_id)
-            VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(sql, (
+        if order.id is not None:
+            sql = """
+                INSERT INTO orders
+                    (id, order_id, student_name, email, phone, package_id,
+                     selected_items, rental_start_date, rental_end_date,
+                     total_amount, deposit, fulfillment_method, status, confirmed_at,
+                     created_at, updated_at, hold_id, payment_id)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+            params = (
+                order.id,
                 order.order_id,
                 order.student_name,
                 order.email,
                 order.phone,
                 order.package_id,
-                json.dumps(order.selected_items),  # Convert list to JSON
+                json.dumps(order.selected_items),
                 order.rental_start_date,
                 order.rental_end_date,
                 order.total_amount,
@@ -69,7 +77,39 @@ class OrderRepository:
                 order.updated_at,
                 order.hold_id,
                 order.payment_id,
-            ))
+            )
+        else:
+            sql = """
+                INSERT INTO orders
+                    (order_id, student_name, email, phone, package_id,
+                     selected_items, rental_start_date, rental_end_date,
+                     total_amount, deposit, fulfillment_method, status, confirmed_at,
+                     created_at, updated_at, hold_id, payment_id)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+            params = (
+                order.order_id,
+                order.student_name,
+                order.email,
+                order.phone,
+                order.package_id,
+                json.dumps(order.selected_items),
+                order.rental_start_date,
+                order.rental_end_date,
+                order.total_amount,
+                order.deposit,
+                order.fulfillment_method,
+                order.status.value,
+                order.confirmed_at,
+                order.created_at,
+                order.updated_at,
+                order.hold_id,
+                order.payment_id,
+            )
+        with self._conn.cursor() as cur:
+            cur.execute(sql, params)
             order.id = cur.fetchone()[0]
             # autocommit=True in connection, so no explicit commit needed
         return order
@@ -83,7 +123,10 @@ class OrderRepository:
         params = [new_status.value, datetime.now(timezone.utc)]
         
         # Also set status-specific timestamps
-        if new_status == OrderStatus.ACTIVE:
+        if new_status == OrderStatus.CONFIRMED:
+            sql += ", confirmed_at = %s"
+            params.append(datetime.now(timezone.utc))
+        elif new_status == OrderStatus.ACTIVE:
             sql += ", activated_at = %s"
             params.append(datetime.now(timezone.utc))
         elif new_status == OrderStatus.RETURNED or new_status == OrderStatus.RETURNED_DAMAGED:
