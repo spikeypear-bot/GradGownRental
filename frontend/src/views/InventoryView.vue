@@ -108,8 +108,8 @@ function addSelectedToCart() {
     }
 
     const nextItems = [...current.items, newItem]
-    const nextExpiresAt = current.expiresAt && current.expiresAt > Date.now() 
-      ? current.expiresAt 
+    const nextExpiresAt = current.expiresAt && current.expiresAt > Date.now()
+      ? current.expiresAt
       : Date.now() + 10 * 60 * 1000
 
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
@@ -140,31 +140,31 @@ onMounted(async () => {
     clearCartSession()
   }
 
-  console.log('🔄 InventoryView mounted - starting API fetch')
+  // console.log('🔄 InventoryView mounted - starting API fetch')
   loading.value = true
   error.value = null
   try {
     const packages = await inventoryService.getAllPackages()
     allPackages.value = packages
-    console.log('✅ Fetched packages:', packages.length, 'items')
-    console.log('📦 Sample package:', packages[0])
-    
+    // console.log('✅ Fetched packages:', packages.length, 'items')
+    // console.log('📦 Sample package:', packages[0])
+
     // Extract unique institutions and faculties
     const instSet = new Set()
     const facSet = new Set()
-    
+
     allPackages.value.forEach(pkg => {
       if (pkg.institution) instSet.add(pkg.institution)
       if (pkg.faculty) facSet.add(pkg.faculty)
     })
-    
+
     institutions.value = Array.from(instSet).sort()
     faculties.value = Array.from(facSet).sort()
-    console.log('✅ Extracted institutions:', institutions.value.length)
-    console.log('✅ Extracted faculties:', faculties.value.length)
+    // console.log('✅ Extracted institutions:', institutions.value.length)
+    // console.log('✅ Extracted faculties:', faculties.value.length)
   } catch (err) {
     error.value = err?.message || 'Failed to load packages from API'
-    console.error('❌ Error fetching packages:', err)
+    // console.error('❌ Error fetching packages:', err)
     institutions.value = []
     faculties.value = []
   } finally {
@@ -179,7 +179,7 @@ const educationLevels = computed(() => {
     if (pkg.educationLevel) levels.add(pkg.educationLevel)
   })
   const result = Array.from(levels).sort()
-  console.log('📚 Education levels computed:', result)
+  // console.log('📚 Education levels computed:', result)
   return result
 })
 
@@ -192,7 +192,7 @@ const filteredPackages = computed(() => {
     if (selectedFaculty.value && pkg.faculty !== selectedFaculty.value) return false
     return true
   })
-  
+
   console.log('Filter criteria:', {
     level: selectedLevel.value || 'all',
     institution: selectedInstitution.value || 'all',
@@ -289,7 +289,7 @@ watch(() => route.query.new, (newVal) => {
       <button @click="closeDetails" class="btn btn-link text-dark text-decoration-none p-0 mb-4 fw-medium fs-5">
         <i class="bi bi-arrow-left me-2"></i> Back to Collections
       </button>
-      
+
       <div class="row g-5">
         <!-- Left Column: Image Card -->
         <div class="col-lg-5 position-relative">
@@ -304,7 +304,7 @@ watch(() => route.query.new, (newVal) => {
               <h3 class="fw-bold text-dark mt-3 mb-1">{{ selectedPackage.title }}</h3>
               <p class="text-secondary fw-bold small" style="letter-spacing: 2px;">{{ selectedPackage.subtitle }}</p>
             </div>
-            
+
             <!-- Thumbnails -->
             <div class="d-flex gap-3 mt-3 justify-content-between">
               <div v-for="i in 3" :key="i" class="bg-white rounded-4 shadow-sm d-flex justify-content-center align-items-center flex-fill" style="height: 100px;">
@@ -319,30 +319,30 @@ watch(() => route.query.new, (newVal) => {
           <div class="d-flex justify-content-between align-items-start mb-4">
             <h1 class="fw-bold display-4 text-dark mb-0">{{ selectedPackage.title }}</h1>
             <div class="text-end">
-              <h1 class="fw-bold text-danger-custom mb-0">${{ selectedPackage.price }}</h1>
+              <h1 class="fw-bold text-danger-custom mb-0">${{ selectedPackage.rentalFee }}</h1>
               <p class="text-secondary small fw-bold mb-0 lh-1" style="letter-spacing: 1px;">PER 3-DAY<br>RENTAL</p>
             </div>
           </div>
-          
+
           <p class="text-secondary fs-5 mb-5">{{ selectedPackage.shortDesc }}</p>
-          
+
           <!-- Premium Features -->
           <div class="d-flex align-items-center gap-2 mb-4">
             <i class="bi bi-check-circle text-warning-custom fs-4"></i>
             <h4 class="fw-bold mb-0 text-dark">Premium Features</h4>
           </div>
-          
+
           <div class="d-flex flex-column gap-3 mb-5">
             <div v-for="(feature, idx) in selectedPackage.features" :key="'f-'+idx" class="bg-white rounded-3 shadow-sm p-4 d-flex align-items-center gap-3">
               <div class="feature-dot bg-warning rounded-circle"></div>
               <span class="fw-bold text-dark">{{ feature }}</span>
             </div>
           </div>
-          
+
           <!-- About the Collection -->
           <h4 class="fw-bold text-dark mb-3">About the Collection</h4>
           <p class="text-secondary mb-4">{{ selectedPackage.longDesc }}</p>
-          
+
           <div class="sanitization-box rounded-4 p-4 d-flex gap-3 align-items-start mb-5 border-danger-soft">
             <i class="bi bi-shield-check text-danger-custom fs-4"></i>
             <div>
@@ -352,7 +352,7 @@ watch(() => route.query.new, (newVal) => {
               </p>
             </div>
           </div>
-          
+
           <div class="mb-4">
             <h5 class="fw-bold text-dark mb-3">Select Size</h5>
             <div v-if="selectedPackage.availableSizes?.length" class="d-flex gap-2 flex-wrap">
@@ -372,7 +372,7 @@ watch(() => route.query.new, (newVal) => {
           </div>
 
           <hr class="mb-4 d-none d-lg-block border-0 opacity-0">
-          
+
           <button @click="addSelectedToCart" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
             Add To Cart <i class="bi bi-cart-plus ms-2"></i>
           </button>
@@ -457,19 +457,19 @@ watch(() => route.query.new, (newVal) => {
       <!-- Results Section -->
       <div class="results-section fade-in">
         <h2 class="fw-bold text-dark mb-5 text-center">Available Packages</h2>
-        
+
         <div v-if="filteredPackages.length === 0" class="empty-state-box d-flex flex-column align-items-center justify-content-center mx-auto rounded-5 border-dashed">
           <i class="bi bi-inbox empty-icon mb-3"></i>
           <h5 class="fw-bold text-secondary">No packages match your filters</h5>
         </div>
 
         <div v-else class="row g-4 justify-content-center mx-auto">
-          
+
           <!-- Dynamic Package Cards -->
           <div v-for="pkg in filteredPackages" :key="pkg.packageId" class="col-md-6 col-lg-4">
             <div class="card package-card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
               <div class="card-header bg-light-beige border-0 position-relative d-flex justify-content-center align-items-center p-5">
-                <span class="price-tag badge bg-warning text-white rounded-pill px-3 py-2 fs-6 fw-bold position-absolute top-0 end-0 mt-3 me-3">${{ pkg.totalPrice }}</span>
+                <span class="price-tag badge bg-warning text-white rounded-pill px-3 py-2 fs-6 fw-bold position-absolute top-0 end-0 mt-3 me-3">${{ pkg.totalRentalFee }}</span>
                 <div class="icon-box bg-white rounded-4 shadow-sm d-flex justify-content-center align-items-center">
                   <i class="bi bi-mortarboard fs-1 text-warning-custom"></i>
                 </div>
@@ -478,21 +478,21 @@ watch(() => route.query.new, (newVal) => {
                 <h4 class="fw-bold mb-1 text-dark">{{ pkg.institution }} - {{ pkg.educationLevel }}</h4>
                 <p class="text-secondary small mb-3">{{ pkg.faculty }}</p>
                 <p class="text-muted small mb-4">Premium academic regalia rentals with professional cleaning</p>
-                
+
                 <ul class="list-unstyled mb-5 d-flex flex-column gap-3">
                   <li v-for="(style, idx) in pkg.getStyles()" :key="'pkg-'+pkg.packageId+'-'+idx" class="d-flex align-items-start gap-2">
                     <i class="bi bi-check-circle text-warning-custom mt-1"></i>
                     <span class="text-secondary fs-6">{{ style.itemName }}</span>
                   </li>
                 </ul>
-                
+
                 <button @click="selectPackage(pkg)" class="btn btn-warning text-white fw-bold rounded-3 py-3 mt-auto fs-6 w-100 btn-hover-custom">
                   View Details <i class="bi bi-arrow-right ms-1"></i>
                 </button>
               </div>
             </div>
           </div>
-          
+
         </div>
       </div>
     </div>

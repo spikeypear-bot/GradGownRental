@@ -38,7 +38,7 @@ const contact = ref({
   firstName: '',
   lastName: '',
   email: '',
-  phone: ''
+  phone: '',
 })
 
 const isCartCheckout = computed(() => String(route.query.cartCheckout || '') === 'true')
@@ -67,9 +67,14 @@ const packageLevel = computed(() => {
 
 const rentalFee = computed(() => {
   if (isCartCheckout.value) {
-    return cartCheckoutItems.value.reduce((sum, item) => sum + Number(item.rentalFee || item.price || 0), 0)
+    return cartCheckoutItems.value.reduce(
+      (sum, item) => sum + Number(item.rentalFee || item.price || 0),
+      0,
+    )
   }
-  return Number(packageDetail.value?.totalRentalFee || route.query.rentalFee || route.query.price || 0)
+  return Number(
+    packageDetail.value?.totalRentalFee || route.query.rentalFee || route.query.price || 0,
+  )
 })
 const depositFee = computed(() => {
   if (isCartCheckout.value) {
@@ -78,24 +83,33 @@ const depositFee = computed(() => {
   return Number(packageDetail.value?.totalDeposit || route.query.deposit || 0)
 })
 const deliveryFee = computed(() => (fulfillment.value === 'delivery' ? 5 : 0))
-const totalCharge = computed(() => rentalFee.value + deliveryFee.value)
+const totalCharge = computed(() => rentalFee.value + depositFee.value + deliveryFee.value)
 const totalCost = computed(() => totalCharge.value)
 
 const stylesInPackage = computed(() => {
   if (!packageDetail.value) return []
-  return [packageDetail.value.hatStyle, packageDetail.value.hoodStyle, packageDetail.value.gownStyle].filter(Boolean)
+  return [
+    packageDetail.value.hatStyle,
+    packageDetail.value.hoodStyle,
+    packageDetail.value.gownStyle,
+  ].filter(Boolean)
 })
 
 const availableSizes = computed(() => {
   const styleSizeSets = stylesInPackage.value
-    .map(style => new Set((style.models || []).map(m => String(m.size || '').toUpperCase()).filter(Boolean)))
-    .filter(set => set.size > 0)
+    .map(
+      (style) =>
+        new Set(
+          (style.models || []).map((m) => String(m.size || '').toUpperCase()).filter(Boolean),
+        ),
+    )
+    .filter((set) => set.size > 0)
 
   if (styleSizeSets.length === 0) return []
 
   let intersection = styleSizeSets[0]
   for (let i = 1; i < styleSizeSets.length; i++) {
-    intersection = new Set([...intersection].filter(size => styleSizeSets[i].has(size)))
+    intersection = new Set([...intersection].filter((size) => styleSizeSets[i].has(size)))
   }
 
   const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -109,15 +123,19 @@ const availableSizes = computed(() => {
   })
 })
 
-watch(availableSizes, (sizes) => {
-  if (!sizes.length) {
-    selectedSize.value = ''
-    return
-  }
-  if (!sizes.includes(selectedSize.value)) {
-    selectedSize.value = sizes[0]
-  }
-}, { immediate: true })
+watch(
+  availableSizes,
+  (sizes) => {
+    if (!sizes.length) {
+      selectedSize.value = ''
+      return
+    }
+    if (!sizes.includes(selectedSize.value)) {
+      selectedSize.value = sizes[0]
+    }
+  },
+  { immediate: true },
+)
 
 watch(currentStep, async (step) => {
   if (step === 4) {
@@ -155,10 +173,14 @@ const selectedItemsForBooking = computed(() => {
     for (const entry of cartPackageDetails.value) {
       const targetSize = String(entry.selectedSize || '').toUpperCase()
       if (!targetSize) continue
-      const styleBuckets = [entry.detail.hatStyle, entry.detail.hoodStyle, entry.detail.gownStyle].filter(Boolean)
+      const styleBuckets = [
+        entry.detail.hatStyle,
+        entry.detail.hoodStyle,
+        entry.detail.gownStyle,
+      ].filter(Boolean)
       for (const styleBucket of styleBuckets) {
         const model = (styleBucket.models || []).find(
-          m => String(m.size || '').toUpperCase() === targetSize
+          (m) => String(m.size || '').toUpperCase() === targetSize,
         )
         if (!model) continue
         const style = styleBucket.inventoryStyle || {}
@@ -171,7 +193,7 @@ const selectedItemsForBooking = computed(() => {
           itemName: style.itemName,
           styleId: style.styleId,
           rentalFee: Number(style.rentalFee || 0),
-          deposit: Number(style.deposit || 0)
+          deposit: Number(style.deposit || 0),
         })
       }
     }
@@ -181,9 +203,9 @@ const selectedItemsForBooking = computed(() => {
   if (!selectedSize.value) return []
   const targetSize = selectedSize.value.toUpperCase()
   return stylesInPackage.value
-    .map(styleBucket => {
+    .map((styleBucket) => {
       const model = (styleBucket.models || []).find(
-        m => String(m.size || '').toUpperCase() === targetSize
+        (m) => String(m.size || '').toUpperCase() === targetSize,
       )
       if (!model) return null
 
@@ -197,7 +219,7 @@ const selectedItemsForBooking = computed(() => {
         itemName: style.itemName,
         styleId: style.styleId,
         rentalFee: Number(style.rentalFee || 0),
-        deposit: Number(style.deposit || 0)
+        deposit: Number(style.deposit || 0),
       }
     })
     .filter(Boolean)
@@ -208,22 +230,24 @@ const canProceedStep1 = computed(() => {
     return Boolean(
       cartCheckoutItems.value.length &&
       selectedFullDate.value &&
-      selectedItemsForBooking.value.length > 0
+      selectedItemsForBooking.value.length > 0,
     )
   }
   return Boolean(
     packageDetail.value &&
     selectedFullDate.value &&
     selectedSize.value &&
-    selectedItemsForBooking.value.length === stylesInPackage.value.length
+    selectedItemsForBooking.value.length === stylesInPackage.value.length,
   )
 })
 
 const isContactValid = computed(() => {
-  return contact.value.firstName.trim() !== '' &&
-         contact.value.lastName.trim() !== '' &&
-         /^\S+@\S+\.\S+$/.test(contact.value.email) &&
-         /^[+\d][\d\s-]{6,}$/.test(contact.value.phone.trim())
+  return (
+    contact.value.firstName.trim() !== '' &&
+    contact.value.lastName.trim() !== '' &&
+    /^\S+@\S+\.\S+$/.test(contact.value.email) &&
+    /^[+\d][\d\s-]{6,}$/.test(contact.value.phone.trim())
+  )
 })
 
 const isSelectedDateToday = computed(() => {
@@ -231,7 +255,7 @@ const isSelectedDateToday = computed(() => {
   const selectedDateNoTime = new Date(
     selectedFullDate.value.getFullYear(),
     selectedFullDate.value.getMonth(),
-    selectedFullDate.value.getDate()
+    selectedFullDate.value.getDate(),
   )
   return selectedDateNoTime.getTime() === todayNoTime.getTime()
 })
@@ -244,7 +268,9 @@ const isDeliveryDisabled = computed(() => {
   return disabled
 })
 
-const canGoPrev = computed(() => viewDate.value > new Date(today.getFullYear(), today.getMonth(), 1))
+const canGoPrev = computed(
+  () => viewDate.value > new Date(today.getFullYear(), today.getMonth(), 1),
+)
 
 const canGoNext = computed(() => {
   const currentViewYear = viewDate.value.getFullYear()
@@ -278,13 +304,15 @@ const calendarDays = computed(() => {
       empty: false,
       date: i,
       fullDate: thisDate,
-      disabled: isDisabled
+      disabled: isDisabled,
     })
   }
   return days
 })
 
-const formattedStartDate = computed(() => selectedFullDate.value ? formatDate(selectedFullDate.value) : '')
+const formattedStartDate = computed(() =>
+  selectedFullDate.value ? formatDate(selectedFullDate.value) : '',
+)
 const formattedEndDate = computed(() => {
   if (!selectedFullDate.value) return ''
   const end = new Date(selectedFullDate.value)
@@ -305,18 +333,22 @@ onMounted(async () => {
       }
       cartCheckoutItems.value = items
 
-      const uniquePackageIds = [...new Set(items.map(item => Number(item.packageId)).filter(Boolean))]
+      const uniquePackageIds = [
+        ...new Set(items.map((item) => Number(item.packageId)).filter(Boolean)),
+      ]
       const detailMap = new Map()
-      await Promise.all(uniquePackageIds.map(async (id) => {
-        const detail = await inventoryService.getPackageById(id)
-        detailMap.set(id, detail)
-      }))
+      await Promise.all(
+        uniquePackageIds.map(async (id) => {
+          const detail = await inventoryService.getPackageById(id)
+          detailMap.set(id, detail)
+        }),
+      )
       cartPackageDetails.value = items
-        .map(item => ({
+        .map((item) => ({
           ...item,
-          detail: detailMap.get(Number(item.packageId))
+          detail: detailMap.get(Number(item.packageId)),
         }))
-        .filter(entry => Boolean(entry.detail))
+        .filter((entry) => Boolean(entry.detail))
     } else {
       if (!packageId.value) {
         throw new Error('Missing package ID. Please select a package again.')
@@ -360,10 +392,10 @@ const goToReview = async () => {
   reviewError.value = ''
   isReviewLoading.value = true
   try {
-    const softlockItems = selectedItemsForBooking.value.map(item => ({
+    const softlockItems = selectedItemsForBooking.value.map((item) => ({
       modelId: item.modelId,
       qty: item.qty,
-      chosenDate: item.chosenDate
+      chosenDate: item.chosenDate,
     }))
     const hold = await inventoryService.softLockItems(softlockItems)
     holdId.value = hold.holdId
@@ -379,7 +411,7 @@ const goToReview = async () => {
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
       total_amount: totalCharge.value.toFixed(2),
-      package_id: primaryPackageId.value
+      package_id: primaryPackageId.value,
     })
 
     orderId.value = orderInit.order_id
@@ -406,7 +438,7 @@ const confirmPayment = async () => {
     const intentResponse = await fetch(`${PAYMENT_API_BASE_URL}/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: Number(totalCharge.value.toFixed(2)) })
+      body: JSON.stringify({ amount: Number(totalCharge.value.toFixed(2)) }),
     })
     const intentPayload = await intentResponse.json()
     const clientSecret = intentPayload?.client_secret
@@ -421,9 +453,9 @@ const confirmPayment = async () => {
         billing_details: {
           name: billingName,
           email: contact.value.email.trim(),
-          phone: contact.value.phone.trim()
-        }
-      }
+          phone: contact.value.phone.trim(),
+        },
+      },
     })
     if (confirmation.error) {
       throw new Error(confirmation.error.message || 'Card payment failed.')
@@ -444,7 +476,7 @@ const confirmPayment = async () => {
         method: 'CARD',
         payer_email: contact.value.email.trim(),
         payment_intent_id: paymentIntent.id,
-        client_secret: paymentIntent.client_secret
+        client_secret: paymentIntent.client_secret,
       },
       student_name: studentName,
       phone: contact.value.phone.trim(),
@@ -452,7 +484,7 @@ const confirmPayment = async () => {
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
       total_amount: totalCharge.value.toFixed(2),
-      package_id: primaryPackageId.value
+      package_id: primaryPackageId.value,
     })
 
     isPaymentConfirmed.value = true
@@ -468,13 +500,16 @@ const confirmPayment = async () => {
           localStorage.removeItem(key)
         } else {
           const nextItems = Array.isArray(parsed.items)
-            ? parsed.items.filter(item => Number(item.packageId) !== Number(packageId.value))
+            ? parsed.items.filter((item) => Number(item.packageId) !== Number(packageId.value))
             : []
           if (nextItems.length) {
-            localStorage.setItem(key, JSON.stringify({
-              ...parsed,
-              items: nextItems
-            }))
+            localStorage.setItem(
+              key,
+              JSON.stringify({
+                ...parsed,
+                items: nextItems,
+              }),
+            )
           } else {
             localStorage.removeItem(key)
           }
@@ -518,7 +553,9 @@ function loadStripeJs() {
     const existing = document.querySelector('script[src="https://js.stripe.com/v3/"]')
     if (existing) {
       existing.addEventListener('load', resolve, { once: true })
-      existing.addEventListener('error', () => reject(new Error('Failed to load Stripe.js')), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Failed to load Stripe.js')), {
+        once: true,
+      })
       return
     }
     const script = document.createElement('script')
@@ -540,16 +577,33 @@ function toISODate(date) {
 function getOrdinalSuffix(d) {
   if (d > 3 && d < 21) return 'th'
   switch (d % 10) {
-    case 1: return 'st'
-    case 2: return 'nd'
-    case 3: return 'rd'
-    default: return 'th'
+    case 1:
+      return 'st'
+    case 2:
+      return 'nd'
+    case 3:
+      return 'rd'
+    default:
+      return 'th'
   }
 }
 
 function formatDate(date) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ]
   const dayName = days[date.getDay()]
   const monthName = months[date.getMonth()]
   const day = date.getDate()
@@ -559,29 +613,43 @@ function formatDate(date) {
 
 <template>
   <div class="order-page pt-5 pb-5">
-    
     <!-- Top-Right Fixed Notification Toast -->
-    <div v-if="isPaymentConfirmed" class="position-fixed top-0 end-0 p-4 slide-in-right" style="z-index: 1050; margin-top: 75px;">
-      <div class="bg-light-beige rounded-4 shadow p-4 border" style="width: 380px; border-color: rgba(0,0,0,0.05) !important;">
-         <h5 class="fw-bold text-dark mb-2">Order Confirmed!</h5>
-         <p class="text-dark mb-0 lh-base" style="font-size: 0.95rem;">Order ID: {{ confirmedOrderId || orderId }}. You can now track this order.</p>
+    <div
+      v-if="isPaymentConfirmed"
+      class="position-fixed top-0 end-0 p-4 slide-in-right"
+      style="z-index: 1050; margin-top: 75px"
+    >
+      <div
+        class="bg-light-beige rounded-4 shadow p-4 border"
+        style="width: 380px; border-color: rgba(0, 0, 0, 0.05) !important"
+      >
+        <h5 class="fw-bold text-dark mb-2">Order Confirmed!</h5>
+        <p class="text-dark mb-0 lh-base" style="font-size: 0.95rem">
+          Order ID: {{ confirmedOrderId || orderId }}. You can now track this order.
+        </p>
       </div>
     </div>
 
     <div class="container fade-in">
       <!-- Top Navigation / Steps -->
       <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
-        <button @click="goBack" class="btn btn-link text-dark text-decoration-none p-0 fw-medium fs-6 d-flex align-items-center gap-2">
-          <i class="bi bi-arrow-left"></i> {{ currentStep === 1 ? 'Back to Details' : 'Back to Configuration' }}
+        <button
+          @click="goBack"
+          class="btn btn-link text-dark text-decoration-none p-0 fw-medium fs-6 d-flex align-items-center gap-2"
+        >
+          <i class="bi bi-arrow-left"></i>
+          {{ currentStep === 1 ? 'Back to Details' : 'Back to Configuration' }}
         </button>
         <div class="d-flex align-items-center gap-2">
           <div class="step-dots d-flex gap-2">
-            <div class="step-dot" :class="{ 'active': currentStep >= 1 }"></div>
-            <div class="step-dot" :class="{ 'active': currentStep >= 2 }"></div>
-            <div class="step-dot" :class="{ 'active': currentStep >= 3 }"></div>
-            <div class="step-dot" :class="{ 'active': currentStep >= 4 }"></div>
+            <div class="step-dot" :class="{ active: currentStep >= 1 }"></div>
+            <div class="step-dot" :class="{ active: currentStep >= 2 }"></div>
+            <div class="step-dot" :class="{ active: currentStep >= 3 }"></div>
+            <div class="step-dot" :class="{ active: currentStep >= 4 }"></div>
           </div>
-          <span class="ms-2 fw-bold text-secondary small step-text">STEP {{ currentStep }} OF 4</span>
+          <span class="ms-2 fw-bold text-secondary small step-text"
+            >STEP {{ currentStep }} OF 4</span
+          >
         </div>
       </div>
 
@@ -589,227 +657,341 @@ function formatDate(date) {
         <!-- Left Column: Form -->
         <div class="col-lg-8">
           <div class="bg-white rounded-5 shadow-sm p-5 border-0 position-relative">
-            
             <!-- STEP 1: Configure -->
             <div v-if="currentStep === 1" class="fade-in">
               <h2 class="fw-bold text-dark mb-1">Configure Your Rental</h2>
-              <p class="text-secondary mb-5">Reserve up to 90 days in advance. 3-day standard rental period.</p>
-              <div v-if="packageLoading" class="alert alert-info mb-4">Loading package details...</div>
+              <p class="text-secondary mb-5">
+                Reserve up to 90 days in advance. 3-day standard rental period.
+              </p>
+              <div v-if="packageLoading" class="alert alert-info mb-4">
+                Loading package details...
+              </div>
               <div v-if="packageError" class="alert alert-danger mb-4">{{ packageError }}</div>
 
-              <hr class="mb-5 custom-hr">
+              <hr class="mb-5 custom-hr" />
 
               <div class="row g-5 mb-5">
-              <!-- Select Size -->
-              <div class="col-md-6">
-                <h5 class="fw-bold text-dark mb-4">{{ isCartCheckout ? 'Selected Sizes' : 'Select Size' }}</h5>
-                <div v-if="!isCartCheckout" class="d-flex gap-3 flex-wrap">
-                  <button v-for="size in availableSizes" :key="size"
-                          class="btn size-btn fw-bold" 
-                          :class="selectedSize === size ? 'active' : ''"
-                          @click="selectedSize = size">
-                    {{ size }}
-                  </button>
+                <!-- Select Size -->
+                <div class="col-md-6">
+                  <h5 class="fw-bold text-dark mb-4">
+                    {{ isCartCheckout ? 'Selected Sizes' : 'Select Size' }}
+                  </h5>
+                  <div v-if="!isCartCheckout" class="d-flex gap-3 flex-wrap">
+                    <button
+                      v-for="size in availableSizes"
+                      :key="size"
+                      class="btn size-btn fw-bold"
+                      :class="selectedSize === size ? 'active' : ''"
+                      @click="selectedSize = size"
+                    >
+                      {{ size }}
+                    </button>
+                  </div>
+                  <div v-else class="d-flex flex-column gap-2">
+                    <div
+                      v-for="item in cartCheckoutItems"
+                      :key="item.cartKey || `${item.packageId}-${item.selectedSize}`"
+                      class="bg-light rounded-3 px-3 py-2 d-flex justify-content-between"
+                    >
+                      <span class="text-dark fw-medium">{{ item.title }}</span>
+                      <span class="fw-bold">Size {{ item.selectedSize || 'N/A' }}</span>
+                    </div>
+                  </div>
                 </div>
-                <div v-else class="d-flex flex-column gap-2">
-                  <div v-for="item in cartCheckoutItems" :key="item.cartKey || `${item.packageId}-${item.selectedSize}`" class="bg-light rounded-3 px-3 py-2 d-flex justify-content-between">
-                    <span class="text-dark fw-medium">{{ item.title }}</span>
-                    <span class="fw-bold">Size {{ item.selectedSize || 'N/A' }}</span>
+
+                <!-- Fulfillment Method -->
+                <div class="col-md-6">
+                  <h5 class="fw-bold text-dark mb-4">Fulfillment Method</h5>
+                  <div class="d-flex flex-column gap-3">
+                    <!-- In-Store Pickup -->
+                    <div
+                      class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4 cursor-pointer"
+                      :class="fulfillment === 'pickup' ? 'active' : ''"
+                      @click="fulfillment = 'pickup'"
+                    >
+                      <i
+                        class="bi fs-5"
+                        :class="
+                          fulfillment === 'pickup'
+                            ? 'bi-record-circle-fill text-warning-custom'
+                            : 'bi-circle text-muted'
+                        "
+                      ></i>
+                      <div
+                        class="icon-box-small bg-light-beige rounded-3 d-flex justify-content-center align-items-center"
+                      >
+                        <i class="bi bi-bag text-warning-custom fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 class="fw-bold mb-0 text-dark">In-Store Pickup</h6>
+                        <small class="text-secondary">Free collection at main campus</small>
+                      </div>
+                    </div>
+
+                    <!-- Home Delivery -->
+                    <div
+                      class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4"
+                      :class="[
+                        fulfillment === 'delivery' ? 'active' : '',
+                        isDeliveryDisabled ? 'disabled' : 'cursor-pointer',
+                      ]"
+                      @click="!isDeliveryDisabled && (fulfillment = 'delivery')"
+                    >
+                      <i
+                        class="bi fs-5"
+                        :class="
+                          fulfillment === 'delivery'
+                            ? 'bi-record-circle-fill text-warning-custom'
+                            : 'bi-circle text-muted'
+                        "
+                      ></i>
+                      <div
+                        class="icon-box-small bg-danger-soft rounded-3 d-flex justify-content-center align-items-center"
+                        :class="isDeliveryDisabled ? 'opacity-50' : ''"
+                      >
+                        <i
+                          class="bi bi-truck text-danger-custom fs-5"
+                          :class="isDeliveryDisabled ? 'opacity-50' : ''"
+                        ></i>
+                      </div>
+                      <div>
+                        <h6
+                          class="fw-bold mb-0 text-dark"
+                          :class="isDeliveryDisabled ? 'opacity-50' : ''"
+                        >
+                          Home Delivery
+                        </h6>
+                        <small
+                          class="text-secondary"
+                          :class="isDeliveryDisabled ? 'opacity-50' : ''"
+                        >
+                          {{
+                            isDeliveryDisabled
+                              ? 'Not available for same-day rental'
+                              : '$5 flat rate fee'
+                          }}
+                        </small>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Fulfillment Method -->
-              <div class="col-md-6">
-                <h5 class="fw-bold text-dark mb-4">Fulfillment Method</h5>
-                <div class="d-flex flex-column gap-3">
-                  <!-- In-Store Pickup -->
-                  <div class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4 cursor-pointer"
-                       :class="fulfillment === 'pickup' ? 'active' : ''"
-                       @click="fulfillment = 'pickup'">
-                    <i class="bi fs-5" :class="fulfillment === 'pickup' ? 'bi-record-circle-fill text-warning-custom' : 'bi-circle text-muted'"></i>
-                    <div class="icon-box-small bg-light-beige rounded-3 d-flex justify-content-center align-items-center">
-                      <i class="bi bi-bag text-warning-custom fs-5"></i>
-                    </div>
-                    <div>
-                      <h6 class="fw-bold mb-0 text-dark">In-Store Pickup</h6>
-                      <small class="text-secondary">Free collection at main campus</small>
-                    </div>
+              <hr class="mb-5 custom-hr" />
+
+              <!-- Select Ceremony Date -->
+              <div class="d-flex flex-column align-items-center mb-5">
+                <h5 class="fw-bold text-dark mb-4 text-center">Select Your Ceremony Date</h5>
+
+                <div
+                  class="calendar-wrapper border rounded-5 p-4 bg-white d-flex flex-column align-items-center"
+                  style="width: 320px"
+                >
+                  <div class="d-flex justify-content-between align-items-center w-100 mb-4 px-2">
+                    <!-- Prev Button or placeholder -->
+                    <button
+                      @click="prevMonth"
+                      v-if="canGoPrev"
+                      class="btn btn-sm btn-link text-muted shadow-none p-0"
+                    >
+                      <i class="bi bi-chevron-left fs-6"></i>
+                    </button>
+                    <div v-else style="width: 16px"></div>
+
+                    <span class="fw-bold text-dark">{{ viewingMonthYear }}</span>
+
+                    <!-- Next Button or placeholder -->
+                    <button
+                      @click="nextMonth"
+                      v-if="canGoNext"
+                      class="btn btn-sm btn-link text-dark shadow-none p-0"
+                    >
+                      <i class="bi bi-chevron-right fs-6"></i>
+                    </button>
+                    <div v-else style="width: 16px"></div>
                   </div>
 
-                  <!-- Home Delivery -->
-                  <div class="fulfillment-card d-flex align-items-center gap-3 p-3 rounded-4"
-                       :class="[
-                         fulfillment === 'delivery' ? 'active' : '',
-                         isDeliveryDisabled ? 'disabled' : 'cursor-pointer'
-                       ]"
-                       @click="!isDeliveryDisabled && (fulfillment = 'delivery')">
-                    <i class="bi fs-5" :class="fulfillment === 'delivery' ? 'bi-record-circle-fill text-warning-custom' : 'bi-circle text-muted'"></i>
-                    <div class="icon-box-small bg-danger-soft rounded-3 d-flex justify-content-center align-items-center"
-                         :class="isDeliveryDisabled ? 'opacity-50' : ''">
-                      <i class="bi bi-truck text-danger-custom fs-5" :class="isDeliveryDisabled ? 'opacity-50' : ''"></i>
-                    </div>
-                    <div>
-                      <h6 class="fw-bold mb-0 text-dark" :class="isDeliveryDisabled ? 'opacity-50' : ''">Home Delivery</h6>
-                      <small class="text-secondary" :class="isDeliveryDisabled ? 'opacity-50' : ''">
-                        {{ isDeliveryDisabled ? 'Not available for same-day rental' : '$5 flat rate fee' }}
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  <div class="calendar-grid w-100">
+                    <div class="text-center small text-secondary fw-bold calendar-header">Su</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">Mo</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">Tu</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">We</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">Th</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">Fr</div>
+                    <div class="text-center small text-secondary fw-bold calendar-header">Sa</div>
 
-            <hr class="mb-5 custom-hr">
-
-            <!-- Select Ceremony Date -->
-            <div class="d-flex flex-column align-items-center mb-5">
-              <h5 class="fw-bold text-dark mb-4 text-center">Select Your Ceremony Date</h5>
-              
-              <div class="calendar-wrapper border rounded-5 p-4 bg-white d-flex flex-column align-items-center" style="width: 320px;">
-                <div class="d-flex justify-content-between align-items-center w-100 mb-4 px-2">
-                  <!-- Prev Button or placeholder -->
-                  <button @click="prevMonth" v-if="canGoPrev" class="btn btn-sm btn-link text-muted shadow-none p-0">
-                    <i class="bi bi-chevron-left fs-6"></i>
-                  </button>
-                  <div v-else style="width: 16px;"></div>
-                  
-                  <span class="fw-bold text-dark">{{ viewingMonthYear }}</span>
-                  
-                  <!-- Next Button or placeholder -->
-                  <button @click="nextMonth" v-if="canGoNext" class="btn btn-sm btn-link text-dark shadow-none p-0">
-                    <i class="bi bi-chevron-right fs-6"></i>
-                  </button>
-                  <div v-else style="width: 16px;"></div>
-                </div>
-                
-                <div class="calendar-grid w-100">
-                  <div class="text-center small text-secondary fw-bold calendar-header">Su</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">Mo</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">Tu</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">We</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">Th</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">Fr</div>
-                  <div class="text-center small text-secondary fw-bold calendar-header">Sa</div>
-                  
-                  <div v-for="(day, idx) in calendarDays" :key="idx" 
-                       class="calendar-day text-center small fw-medium"
-                       :class="{
-                          'cursor-pointer': !day.empty && !day.disabled,
-                          'active': selectedFullDate && day.fullDate && selectedFullDate.getTime() === day.fullDate.getTime(),
-                          'text-muted-light': day.empty || day.disabled,
-                          'text-dark': !day.empty && !day.disabled
-                       }"
-                       @click="!day.empty && !day.disabled && (selectedFullDate = day.fullDate)">
-                    {{ day.date || '' }}
+                    <div
+                      v-for="(day, idx) in calendarDays"
+                      :key="idx"
+                      class="calendar-day text-center small fw-medium"
+                      :class="{
+                        'cursor-pointer': !day.empty && !day.disabled,
+                        active:
+                          selectedFullDate &&
+                          day.fullDate &&
+                          selectedFullDate.getTime() === day.fullDate.getTime(),
+                        'text-muted-light': day.empty || day.disabled,
+                        'text-dark': !day.empty && !day.disabled,
+                      }"
+                      @click="!day.empty && !day.disabled && (selectedFullDate = day.fullDate)"
+                    >
+                      {{ day.date || '' }}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <hr class="mb-4 custom-hr">
-            
-            <div class="d-flex justify-content-end w-100">
-              <button class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom" :disabled="!canProceedStep1" @click="currentStep = 2">
-                Continue <i class="bi bi-arrow-right ms-2"></i>
-              </button>
+              <hr class="mb-4 custom-hr" />
+
+              <div class="d-flex justify-content-end w-100">
+                <button
+                  class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom"
+                  :disabled="!canProceedStep1"
+                  @click="currentStep = 2"
+                >
+                  Continue <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+              </div>
             </div>
-            </div> <!-- End Step 1 -->
+            <!-- End Step 1 -->
 
             <!-- STEP 2: Contact Information -->
             <div v-if="currentStep === 2" class="fade-in">
               <h2 class="fw-bold text-dark mb-1">Contact Information</h2>
               <p class="text-secondary mb-5">Please provide your details for the order.</p>
 
-              <hr class="mb-5 custom-hr">
-              
+              <hr class="mb-5 custom-hr" />
+
               <div class="row g-4 mb-5">
                 <div class="col-md-6">
                   <label class="form-label fw-bold text-dark mb-2">First Name</label>
-                  <input type="text" class="form-control form-control-lg bg-light border-0 py-3" placeholder="e.g. John" v-model="contact.firstName">
+                  <input
+                    type="text"
+                    class="form-control form-control-lg bg-light border-0 py-3"
+                    placeholder="e.g. John"
+                    v-model="contact.firstName"
+                  />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-bold text-dark mb-2">Last Name</label>
-                  <input type="text" class="form-control form-control-lg bg-light border-0 py-3" placeholder="e.g. Doe" v-model="contact.lastName">
+                  <input
+                    type="text"
+                    class="form-control form-control-lg bg-light border-0 py-3"
+                    placeholder="e.g. Doe"
+                    v-model="contact.lastName"
+                  />
                 </div>
                 <div class="col-12">
                   <label class="form-label fw-bold text-dark mb-2">Email Address</label>
-                  <input type="email" class="form-control form-control-lg bg-light border-0 py-3" placeholder="john.doe@example.com" v-model="contact.email">
+                  <input
+                    type="email"
+                    class="form-control form-control-lg bg-light border-0 py-3"
+                    placeholder="john.doe@example.com"
+                    v-model="contact.email"
+                  />
                 </div>
                 <div class="col-12">
                   <label class="form-label fw-bold text-dark mb-2">Phone Number</label>
-                  <input type="text" class="form-control form-control-lg bg-light border-0 py-3" placeholder="+65 9123 4567" v-model="contact.phone">
+                  <input
+                    type="text"
+                    class="form-control form-control-lg bg-light border-0 py-3"
+                    placeholder="+65 9123 4567"
+                    v-model="contact.phone"
+                  />
                 </div>
               </div>
 
-              <hr class="mt-5 mb-5 custom-hr">
+              <hr class="mt-5 mb-5 custom-hr" />
 
               <div class="d-flex justify-content-end w-100 mt-4">
-                <button 
-                  class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom" 
+                <button
+                  class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom"
                   :disabled="!isContactValid"
                   @click="currentStep = 3"
                 >
                   Continue
                 </button>
               </div>
-            </div> <!-- End Step 2 -->
+            </div>
+            <!-- End Step 2 -->
 
             <!-- STEP 3: Rental Policies -->
             <div v-if="currentStep === 3" class="fade-in">
               <h2 class="fw-bold text-dark mb-5">Rental Policies</h2>
 
-              <div class="sanitization-box rounded-5 p-4 px-xl-4 border-warning-soft d-flex align-items-start gap-4 mb-4">
+              <div
+                class="sanitization-box rounded-5 p-4 px-xl-4 border-warning-soft d-flex align-items-start gap-4 mb-4"
+              >
                 <i class="bi bi-shield-check text-warning-custom fs-2 mt-1"></i>
                 <p class="text-dark fs-5 lh-base mb-0">
-                  Standard <span class="fw-bold">3-day rental window.</span> Late returns incur a full $150 security deposit forfeiture. All gowns are professionally sanitized and pressed before handover.
+                  Standard <span class="fw-bold">3-day rental window.</span> Late returns incur a
+                  full $150 security deposit forfeiture. All gowns are professionally sanitized and
+                  pressed before handover.
                 </p>
               </div>
 
-              <hr class="mt-5 mb-5 custom-hr">
+              <hr class="mt-5 mb-5 custom-hr" />
 
               <div class="d-flex justify-content-end w-100 mt-4">
-                <button 
-                  class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom shadow-sm d-flex align-items-center gap-2" 
+                <button
+                  class="btn btn-warning text-white fw-bold rounded-pill px-5 py-3 fs-5 btn-hover-custom shadow-sm d-flex align-items-center gap-2"
                   :disabled="isReviewLoading"
                   @click="goToReview"
                 >
-                  {{ isReviewLoading ? 'Reserving...' : 'Review Order' }} <i class="bi bi-arrow-right"></i>
+                  {{ isReviewLoading ? 'Reserving...' : 'Review Order' }}
+                  <i class="bi bi-arrow-right"></i>
                 </button>
               </div>
               <div v-if="reviewError" class="alert alert-danger mt-3">{{ reviewError }}</div>
-            </div> <!-- End Step 3 -->
+            </div>
+            <!-- End Step 3 -->
 
             <!-- STEP 4: Review & Checkout -->
             <div v-if="currentStep === 4" class="fade-in">
               <h2 class="fw-bold text-dark mb-1">Review & Checkout</h2>
-              <p class="text-secondary mb-5">Final check of your details before processing payment.</p>
+              <p class="text-secondary mb-5">
+                Final check of your details before processing payment.
+              </p>
 
               <div class="row g-4 mb-4">
                 <!-- Left: Reserved Item Box -->
                 <div class="col-md-6">
-                  <div class="bg-light-beige rounded-5 p-4 h-100 border-0" style="background-color: #fbf7ef;">
+                  <div
+                    class="bg-light-beige rounded-5 p-4 h-100 border-0"
+                    style="background-color: #fbf7ef"
+                  >
                     <div class="d-flex align-items-center gap-3 mb-4 mt-2">
-                      <div class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm" style="width: 70px; height: 70px;">
-                         <i class="bi bi-mortarboard text-warning-custom fs-2"></i>
+                      <div
+                        class="bg-white rounded-circle d-flex justify-content-center align-items-center shadow-sm"
+                        style="width: 70px; height: 70px"
+                      >
+                        <i class="bi bi-mortarboard text-warning-custom fs-2"></i>
                       </div>
                       <div class="pe-2">
-                        <span class="text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">RESERVED ITEM</span>
+                        <span
+                          class="text-secondary fw-bold"
+                          style="font-size: 0.75rem; letter-spacing: 1px"
+                          >RESERVED ITEM</span
+                        >
                         <h4 class="fw-bold text-dark mb-0 lh-1 mt-1">{{ packageTitle }}</h4>
-                        <p v-if="isCartCheckout" class="text-secondary mb-0 mt-1 small">{{ cartCheckoutItems.length }} packages</p>
+                        <p v-if="isCartCheckout" class="text-secondary mb-0 mt-1 small">
+                          {{ cartCheckoutItems.length }} packages
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div class="d-flex justify-content-between align-items-center mt-5 mb-3">
-                       <span class="text-secondary fw-bold fs-6">Size</span>
-                       <span class="bg-white px-3 py-1 rounded-pill border fw-bold text-dark small shadow-sm">
+                      <span class="text-secondary fw-bold fs-6">Size</span>
+                      <span
+                        class="bg-white px-3 py-1 rounded-pill border fw-bold text-dark small shadow-sm"
+                      >
                         <template v-if="isCartCheckout">Mixed (Per Item)</template>
                         <template v-else>Standard {{ selectedSize }}</template>
-                       </span>
+                      </span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                       <span class="text-secondary fw-bold fs-6">Fulfillment</span>
-                       <span class="fw-bold text-dark fs-6">{{ fulfillment.toUpperCase() }}</span>
+                      <span class="text-secondary fw-bold fs-6">Fulfillment</span>
+                      <span class="fw-bold text-dark fs-6">{{ fulfillment.toUpperCase() }}</span>
                     </div>
                   </div>
                 </div>
@@ -818,44 +1000,70 @@ function formatDate(date) {
                 <div class="col-md-6 d-flex flex-column gap-4">
                   <!-- User Details -->
                   <div class="d-flex gap-3 align-items-center mt-3 ms-2">
-                    <div class="bg-light-beige rounded-circle d-flex justify-content-center align-items-center" style="width: 55px; height: 55px; background-color: #fbf7ef;">
+                    <div
+                      class="bg-light-beige rounded-circle d-flex justify-content-center align-items-center"
+                      style="width: 55px; height: 55px; background-color: #fbf7ef"
+                    >
                       <i class="bi bi-person text-warning-custom fs-3"></i>
                     </div>
                     <div>
-                      <span class="text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">BILLING & DELIVERY TO</span>
-                      <h4 class="fw-bold text-dark mb-0 mt-1">{{ contact.firstName }} {{ contact.lastName }}</h4>
+                      <span
+                        class="text-secondary fw-bold"
+                        style="font-size: 0.75rem; letter-spacing: 1px"
+                        >BILLING & DELIVERY TO</span
+                      >
+                      <h4 class="fw-bold text-dark mb-0 mt-1">
+                        {{ contact.firstName }} {{ contact.lastName }}
+                      </h4>
                       <p class="text-secondary mb-0">{{ contact.email }}</p>
                     </div>
                   </div>
 
                   <!-- Secure Payment Box -->
-                  <div class="mt-auto rounded-5 p-4 pe-5 border" style="border-color: rgba(181, 74, 42, 0.2) !important; background-color: #fffaf8 !important;">
+                  <div
+                    class="mt-auto rounded-5 p-4 pe-5 border"
+                    style="
+                      border-color: rgba(181, 74, 42, 0.2) !important;
+                      background-color: #fffaf8 !important;
+                    "
+                  >
                     <div class="d-flex align-items-center gap-2 mb-3">
                       <i class="bi bi-credit-card text-danger-custom fs-5"></i>
-                      <span class="text-danger-custom fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">SECURE PAYMENT</span>
+                      <span
+                        class="text-danger-custom fw-bold"
+                        style="font-size: 0.75rem; letter-spacing: 1px"
+                        >SECURE PAYMENT</span
+                      >
                     </div>
                     <div class="mb-3 small text-secondary">
                       Sandbox cards: <code>4242 4242 4242 4242</code> (success),
                       <code>4000 0000 0000 0002</code> (declined), any future expiry/CVC.
                     </div>
                     <div id="stripe-card-element" class="form-control py-3 mb-3"></div>
-                    <p class="text-secondary mb-0 lh-base fw-medium" style="font-size: 0.95rem;">
-                       Your ${{ depositFee.toFixed(2) }} security deposit will be authorized and held until the successful return of the regalia.
+                    <p class="text-secondary mb-0 lh-base fw-medium" style="font-size: 0.95rem">
+                      Your ${{ depositFee.toFixed(2) }} security deposit will be authorized and held
+                      until the successful return of the regalia.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <hr class="mt-5 mb-4 custom-hr">
+              <hr class="mt-5 mb-4 custom-hr" />
 
-              <button class="btn btn-warning text-white fw-bold rounded-pill w-100 py-3 fs-3 shadow-sm mb-3" @click="confirmPayment" :disabled="isPaymentConfirmed || isSubmittingPayment || !orderId">
+              <button
+                class="btn btn-warning text-white fw-bold rounded-pill w-100 py-3 fs-3 shadow-sm mb-3"
+                @click="confirmPayment"
+                :disabled="isPaymentConfirmed || isSubmittingPayment || !orderId"
+              >
                 <span v-if="!isPaymentConfirmed && !isSubmittingPayment">Confirm Payment</span>
-                <span v-else-if="isSubmittingPayment">Processing <i class="bi bi-arrow-repeat ms-2 rotate-animation"></i></span>
+                <span v-else-if="isSubmittingPayment"
+                  >Processing <i class="bi bi-arrow-repeat ms-2 rotate-animation"></i
+                ></span>
                 <span v-else>Payment Confirmed</span>
               </button>
               <div v-if="stripeError" class="alert alert-danger">{{ stripeError }}</div>
               <div v-if="paymentError" class="alert alert-danger">{{ paymentError }}</div>
-              <p class="text-center text-secondary small mb-0 fw-medium" style="font-style: italic;">
+              <p class="text-center text-secondary small mb-0 fw-medium" style="font-style: italic">
                 By confirming, you agree to our 3-day rental period and terms of service.
               </p>
             </div>
@@ -864,32 +1072,37 @@ function formatDate(date) {
 
         <!-- Right Column: Summary -->
         <div class="col-lg-4">
-          <div class="sticky-top" style="top: 100px;">
+          <div class="sticky-top" style="top: 100px">
             <!-- Order Summary -->
             <div class="bg-white rounded-5 shadow-sm p-4 px-xl-5 mb-4 border-0">
               <h4 class="fw-bold text-dark mb-4 mt-2">Order Summary</h4>
-              <hr class="custom-hr mb-4">
-              
+              <hr class="custom-hr mb-4" />
+
               <div class="d-flex justify-content-between mb-4">
                 <span class="text-secondary fw-medium fs-5">Rental Package</span>
                 <span class="fw-bold text-dark fs-5">${{ rentalFee.toFixed(2) }}</span>
               </div>
-              
+
               <div class="d-flex justify-content-between mb-4">
                 <span class="text-secondary fw-medium fs-5">Security Deposit</span>
                 <span class="fw-bold text-dark fs-5">${{ depositFee.toFixed(2) }}</span>
               </div>
-              
+
               <div class="d-flex justify-content-between mb-4">
                 <span class="text-secondary fw-medium fs-5">Delivery Fee</span>
                 <span class="fw-bold text-dark fs-5">${{ deliveryFee.toFixed(2) }}</span>
               </div>
 
-              <hr class="custom-hr mb-4 border-dashed" style="border-top: 2px dashed #e0e0e0; opacity: 1;">
+              <hr
+                class="custom-hr mb-4 border-dashed"
+                style="border-top: 2px dashed #e0e0e0; opacity: 1"
+              />
 
               <div class="d-flex justify-content-between align-items-center mb-4 mt-4">
                 <span class="fw-bold text-warning-custom display-6 mb-0">Charge Now</span>
-                <span class="fw-bold text-warning-custom display-6 mb-0">${{ totalCost.toFixed(2) }}</span>
+                <span class="fw-bold text-warning-custom display-6 mb-0"
+                  >${{ totalCost.toFixed(2) }}</span
+                >
               </div>
             </div>
 
@@ -897,34 +1110,55 @@ function formatDate(date) {
             <div class="sanitization-box rounded-5 p-4 px-xl-5 border-warning-soft mb-4">
               <div class="d-flex align-items-center gap-2 mb-3">
                 <i class="bi bi-check-circle text-warning-custom fs-6"></i>
-                <span class="text-warning-custom fw-bold small" style="letter-spacing: 1px;">
+                <span class="text-warning-custom fw-bold small" style="letter-spacing: 1px">
                   {{ isCartCheckout ? 'SELECTED ITEMS' : 'SELECTED ITEM' }}
                 </span>
               </div>
               <h4 class="fw-bold text-dark mb-1">{{ packageTitle }}</h4>
-              <p class="text-secondary fw-bold small mb-0" v-if="!isCartCheckout">{{ packageLevel }} Collection</p>
+              <p class="text-secondary fw-bold small mb-0" v-if="!isCartCheckout">
+                {{ packageLevel }} Collection
+              </p>
               <div v-else class="small text-secondary">
-                <div v-for="item in cartCheckoutItems" :key="item.cartKey || `${item.packageId}-${item.selectedSize}`">
+                <div
+                  v-for="item in cartCheckoutItems"
+                  :key="item.cartKey || `${item.packageId}-${item.selectedSize}`"
+                >
                   • {{ item.title }} ({{ item.selectedSize }})
                 </div>
               </div>
             </div>
 
             <!-- Timeline Card -->
-            <div v-if="selectedFullDate" class="bg-white rounded-5 p-4 px-xl-5 mb-4 border border-1 fade-in" style="border-color: rgba(216, 166, 28, 0.2) !important;">
+            <div
+              v-if="selectedFullDate"
+              class="bg-white rounded-5 p-4 px-xl-5 mb-4 border border-1 fade-in"
+              style="border-color: rgba(216, 166, 28, 0.2) !important"
+            >
               <div class="mb-4">
-                <span class="text-warning-custom fw-bold small" style="letter-spacing: 1px;">YOUR TIMELINE</span>
+                <span class="text-warning-custom fw-bold small" style="letter-spacing: 1px"
+                  >YOUR TIMELINE</span
+                >
               </div>
-              
+
               <div class="mb-3">
-                <p class="text-secondary fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.5px; opacity: 0.8;">PICKUP</p>
+                <p
+                  class="text-secondary fw-bold mb-1"
+                  style="font-size: 0.8rem; letter-spacing: 0.5px; opacity: 0.8"
+                >
+                  PICKUP
+                </p>
                 <h5 class="text-dark fw-bold mb-0 lh-base">{{ formattedStartDate }}</h5>
               </div>
 
-              <hr class="custom-hr my-4">
+              <hr class="custom-hr my-4" />
 
               <div class="mt-3">
-                <p class="text-danger-custom fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.5px;">RETURN BY</p>
+                <p
+                  class="text-danger-custom fw-bold mb-1"
+                  style="font-size: 0.8rem; letter-spacing: 0.5px"
+                >
+                  RETURN BY
+                </p>
                 <h5 class="text-dark fw-bold mb-0 lh-base">{{ formattedEndDate }}</h5>
               </div>
             </div>
@@ -946,8 +1180,14 @@ function formatDate(date) {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .step-dot {
@@ -965,7 +1205,7 @@ function formatDate(date) {
 }
 
 .custom-hr {
-  border-color: rgba(0,0,0,0.08);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .size-btn {
@@ -1127,7 +1367,11 @@ function formatDate(date) {
 }
 
 @keyframes rotation {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(359deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
 }
 </style>

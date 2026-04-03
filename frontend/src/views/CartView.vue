@@ -22,7 +22,9 @@ const cartTimeLeftLabel = computed(() => {
   const ss = String(sec % 60).padStart(2, '0')
   return `${mm}:${ss}`
 })
-const cartTotal = computed(() => cartItems.value.reduce((sum, item) => sum + Number(item.price || 0), 0))
+const cartTotal = computed(() =>
+  cartItems.value.reduce((sum, item) => sum + Number(item.price || 0), 0),
+)
 
 function loadCartSession() {
   try {
@@ -42,10 +44,13 @@ function loadCartSession() {
 }
 
 function saveCartSession() {
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
-    expiresAt: cartExpiresAt.value,
-    items: cartItems.value
-  }))
+  localStorage.setItem(
+    CART_STORAGE_KEY,
+    JSON.stringify({
+      expiresAt: cartExpiresAt.value,
+      items: cartItems.value,
+    }),
+  )
 }
 
 function clearCartSession() {
@@ -55,7 +60,7 @@ function clearCartSession() {
 }
 
 function removeFromCart(packageId) {
-  cartItems.value = cartItems.value.filter(item => (item.cartKey || item.packageId) !== packageId)
+  cartItems.value = cartItems.value.filter((item) => (item.cartKey || item.packageId) !== packageId)
   if (!cartItems.value.length) {
     clearCartSession()
     return
@@ -107,8 +112,15 @@ onBeforeUnmount(() => {
       <div v-if="!cartItems.length" class="bg-white rounded-4 shadow-sm p-5 text-center">
         <i class="bi bi-cart3 fs-1 text-secondary"></i>
         <h4 class="fw-bold mt-3">Your cart is empty</h4>
-        <p class="text-secondary mb-4">Add a regalia package from the collections page to start checkout.</p>
-        <button class="btn btn-warning text-white fw-bold rounded-pill px-4" @click="browsePackages">Browse Collections</button>
+        <p class="text-secondary mb-4">
+          Add a regalia package from the collections page to start checkout.
+        </p>
+        <button
+          class="btn btn-warning text-white fw-bold rounded-pill px-4"
+          @click="browsePackages"
+        >
+          Browse Collections
+        </button>
       </div>
 
       <div v-else>
@@ -124,33 +136,48 @@ onBeforeUnmount(() => {
           <div class="small mt-2" v-if="cartActive">
             Items stay in cart for 10 minutes. Complete checkout quickly to secure your order.
           </div>
-          <div class="small mt-2" v-else>
-            Please add items again to continue.
-          </div>
+          <div class="small mt-2" v-else>Please add items again to continue.</div>
         </div>
 
         <div class="d-flex flex-column gap-3 mb-4">
-          <div v-for="item in cartItems" :key="item.cartKey || item.packageId" class="bg-white rounded-4 shadow-sm p-4 d-flex justify-content-between align-items-center gap-3">
+          <div
+            v-for="item in cartItems"
+            :key="item.cartKey || item.packageId"
+            class="bg-white rounded-4 shadow-sm p-4 d-flex justify-content-between align-items-center gap-3"
+          >
             <div>
               <h5 class="fw-bold text-dark mb-1">{{ item.title }}</h5>
               <div class="text-secondary">{{ item.faculty }}</div>
-              <div class="small text-secondary mt-1">Size: <span class="fw-bold text-dark">{{ item.selectedSize || 'N/A' }}</span></div>
-              <div class="fw-bold mt-2">${{ Number(item.price).toFixed(2) }}</div>
+              <div class="small text-secondary mt-1">
+                Size: <span class="fw-bold text-dark">{{ item.selectedSize || 'N/A' }}</span>
+              </div>
+              <div class="fw-bold mt-2">Price: ${{ Number(item.rentalFee).toFixed(2) }}</div>
+              <div class="fw-bold mt-2">Deposit: ${{ Number(item.deposit).toFixed(2) }}</div>
+              <div class="fw-bold mt-2">Item Total: ${{ Number(item.price).toFixed(2) }}</div>
             </div>
             <div class="d-flex flex-column gap-2 align-items-end">
-              <button class="btn btn-outline-secondary" @click="removeFromCart(item.cartKey || item.packageId)">
+              <button
+                class="btn btn-outline-secondary"
+                @click="removeFromCart(item.cartKey || item.packageId)"
+              >
                 Remove
               </button>
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-4 shadow-sm p-4 d-flex justify-content-between align-items-center">
+        <div
+          class="bg-white rounded-4 shadow-sm p-4 d-flex justify-content-between align-items-center"
+        >
           <span class="fw-bold fs-5">Total</span>
           <span class="fw-bold fs-4 text-dark">${{ cartTotal.toFixed(2) }}</span>
         </div>
         <div class="mt-3 d-grid">
-          <button class="btn btn-warning text-white fw-bold py-3" :disabled="!cartActive || !cartItems.length" @click="checkoutAll">
+          <button
+            class="btn btn-warning text-white fw-bold py-3"
+            :disabled="!cartActive || !cartItems.length"
+            @click="checkoutAll"
+          >
             Checkout All Items
           </button>
         </div>
@@ -171,8 +198,14 @@ onBeforeUnmount(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .btn-warning {
