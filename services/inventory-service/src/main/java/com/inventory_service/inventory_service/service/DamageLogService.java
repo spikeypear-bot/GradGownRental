@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.inventory_service.inventory_service.dto.DamageAndQtyDto;
 import com.inventory_service.inventory_service.dto.DamageLogDto;
 import com.inventory_service.inventory_service.dto.InventoryDto;
+import com.inventory_service.inventory_service.dto.ModelIdAndQtyAndDateDto;
 import com.inventory_service.inventory_service.entity.DamageLog;
 import com.inventory_service.inventory_service.entity.Inventory;
 import com.inventory_service.inventory_service.exception.DamageNotFoundException;
@@ -53,6 +54,35 @@ public class DamageLogService {
         damageLogRepository.save(damageLog);
         return damageLog.getDamageId();
 
+    }
+
+    @Transactional
+    public void repairDamageByModels(List<ModelIdAndQtyAndDateDto> items) throws RuntimeException{
+        for (ModelIdAndQtyAndDateDto item : items) {
+            int remainingQty = item.getQty();
+            List<DamageLog> activeLogs = damageLogRepository
+                .findByModel_ModelIdAndDateRepairedIsNullOrderByDateAsc(item.getModelId());
+
+            for (DamageLog log : activeLogs) {
+                if (remainingQty <= 0) {
+                    break;
+                }
+
+                int repairedQty = Math.min(log.getQuantity(), remainingQty);
+                log.setQuantity(log.getQuantity() - repairedQty);
+                remainingQty -= repairedQty;
+
+                if (log.getQuantity() == 0) {
+                    log.setDateRepaired(LocalDate.now());
+                }
+            }
+
+            if (remainingQty > 0) {
+                throw new RuntimeException("Unable to fully repair damage logs for modelId " + item.getModelId());
+            }
+
+            damageLogRepository.saveAll(activeLogs);
+        }
     }
 
     @Transactional

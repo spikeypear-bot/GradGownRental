@@ -25,6 +25,9 @@ class ReturnOrderContext:
     payment_id: str
     selected_packages: list
     chosen_date: str
+    damaged_packages: list = field(default_factory=list)
+    clean_packages: list = field(default_factory=list)
+    complete_order: bool = True
 
     student_name: str = "Student"
     phone: str = ""

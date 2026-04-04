@@ -24,7 +24,7 @@
               <p class="item-title mb-0">{{ item.gownName }}</p>
             </div>
             <button
-              @click="markRepairComplete(item.itemId)"
+              @click="markRepairComplete(item)"
               class="btn btn-sm btn-repair"
               :disabled="processingId === item.itemId"
             >
@@ -44,7 +44,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
-import { loadMaintenanceBuckets, readStageMap, writeStageMap } from '../services/admin/maintenance'
+import { loadMaintenanceBuckets, readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
 
 const repairQueue = ref([])
 const isLoading = ref(false)
@@ -63,13 +63,17 @@ const loadData = async () => {
   }
 }
 
-const markRepairComplete = async (itemId) => {
-  processingId.value = itemId
+const markRepairComplete = async (item) => {
+  processingId.value = item.itemId
   try {
-    await AdminService.completeRepair(itemId)
-    const stageMap = readStageMap()
-    stageMap[itemId] = 'wash'
-    writeStageMap(stageMap)
+    await AdminService.completeRepair(item.itemId, item?.selectedPackages || null)
+    const detailsMap = readMaintenanceDetails()
+    const entry = { ...(detailsMap[item.itemId] || {}) }
+    if (item.subsetKey === 'damaged') {
+      entry.damagedStage = 'wash'
+    }
+    detailsMap[item.itemId] = entry
+    writeMaintenanceDetails(detailsMap)
     await loadData()
   } catch (error) {
     console.error('Error completing repair:', error)

@@ -40,10 +40,8 @@ CREATE TABLE InventoryQuantityTrack (
     available_qty INT DEFAULT 0,
     reserved_qty INT DEFAULT 0,
     rented_qty INT DEFAULT 0,
-    damaged_qty INT DEFAULT 0,
-    repair_qty INT DEFAULT 0,
     wash_qty INT DEFAULT 0,
-    backup_qty INT DEFAULT 0,
+    backup_qty INT DEFAULT 10,
     PRIMARY KEY (date, model_id),
     FOREIGN KEY (model_id) REFERENCES Inventory(model_id)
 );
@@ -65,10 +63,16 @@ ALTER TABLE InventoryQuantityTrack
 ADD COLUMN IF NOT EXISTS available_qty INT DEFAULT 0;
 
 ALTER TABLE InventoryQuantityTrack
-ADD COLUMN IF NOT EXISTS damaged_qty INT DEFAULT 0;
+ADD COLUMN IF NOT EXISTS backup_qty INT DEFAULT 10;
 
 ALTER TABLE InventoryQuantityTrack
-ADD COLUMN IF NOT EXISTS repair_qty INT DEFAULT 0;
+ALTER COLUMN backup_qty SET DEFAULT 10;
+
+ALTER TABLE InventoryQuantityTrack
+DROP COLUMN IF EXISTS damaged_qty;
+
+ALTER TABLE InventoryQuantityTrack
+DROP COLUMN IF EXISTS repair_qty;
 
 ALTER TABLE ItemHold
 ADD COLUMN IF NOT EXISTS chosen_date DATE;

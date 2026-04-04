@@ -5,6 +5,7 @@ services:
   vue-app:
     build: ./frontend
     environment:
+      VITE_DEMO_MODE: ${VITE_DEMO_MODE}
       VITE_INVENTORY_API_BASE_URL: ${VITE_INVENTORY_API_BASE_URL}
       VITE_SAGA_API_BASE_URL: ${VITE_SAGA_API_BASE_URL}
       VITE_ORDER_API_BASE_URL: ${VITE_ORDER_API_BASE_URL}

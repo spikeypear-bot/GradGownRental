@@ -4,7 +4,7 @@ Persisted to PostgreSQL via the repository layer.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date as date_type, datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -84,6 +84,16 @@ class Order:
 
     def to_dict(self) -> dict:
         """Convert Order to dictionary for JSON serialization."""
+        rental_start_date = (
+            self.rental_start_date.isoformat()
+            if isinstance(self.rental_start_date, date_type)
+            else self.rental_start_date
+        )
+        rental_end_date = (
+            self.rental_end_date.isoformat()
+            if isinstance(self.rental_end_date, date_type)
+            else self.rental_end_date
+        )
         return {
             "id": self.id,
             "order_id": self.order_id,
@@ -92,8 +102,8 @@ class Order:
             "phone": self.phone,
             "package_id": self.package_id,
             "selected_items": self.selected_items,
-            "rental_start_date": self.rental_start_date,
-            "rental_end_date": self.rental_end_date,
+            "rental_start_date": rental_start_date,
+            "rental_end_date": rental_end_date,
             "total_amount": self.total_amount,
             "deposit": self.deposit,
             "fulfillment_method": self.fulfillment_method,

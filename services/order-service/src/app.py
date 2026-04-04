@@ -19,6 +19,7 @@ from .repository.order_repository import OrderRepository
 from .service.order_service import OrderService
 from .scheduler.order_scheduler import get_scheduler
 from .scheduler.kafka_event_publisher import KafkaEventPublisher
+from .swagger_docs import register_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +72,7 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     app.register_blueprint(root_bp)
     app.register_blueprint(order_bp)
+    register_swagger(app)
 
     logger.info("order-service ready")
     return app

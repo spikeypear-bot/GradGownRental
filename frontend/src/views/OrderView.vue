@@ -512,13 +512,6 @@ const confirmPayment = async () => {
       throw new Error(`Payment did not succeed (status=${paymentIntent?.status || 'unknown'}).`)
     }
 
-    const reservationItems = selectedItemsForBooking.value.map((item) => ({
-      modelId: item.modelId,
-      qty: item.qty,
-      chosenDate: item.chosenDate,
-    }))
-    await inventoryService.reserveItems(holdId.value, reservationItems)
-
     const studentName = `${contact.value.firstName} ${contact.value.lastName}`.trim()
     const summary = await orderService.submitPayment({
       order_id: orderId.value,

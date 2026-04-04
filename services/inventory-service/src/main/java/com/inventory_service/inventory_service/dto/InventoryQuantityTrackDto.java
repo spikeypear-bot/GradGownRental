@@ -11,21 +11,17 @@ public class InventoryQuantityTrackDto {
     private int availableQty;
     private int reservedQty;
     private int rentedQty;
-    private int damagedQty;
-    private int repairQty;
     private int washQty;
     
     private int backupQty;
 
     public InventoryQuantityTrackDto(LocalDate date, Inventory model, int availableQty, int reservedQty, int rentedQty,
-            int damagedQty, int repairQty, int washQty, int backupQty) {
+            int washQty, int backupQty) {
         this.date = date;
         this.model = model;
         this.availableQty = availableQty;
         this.reservedQty = reservedQty;
         this.rentedQty = rentedQty;
-        this.damagedQty = damagedQty;
-        this.repairQty = repairQty;
         this.washQty = washQty;
         this.backupQty = backupQty;
     }
@@ -71,22 +67,6 @@ public class InventoryQuantityTrackDto {
 
     public void setRentedQty(int rentedQty) {
         this.rentedQty = rentedQty;
-    }
-
-    public int getDamagedQty() {
-        return damagedQty;
-    }
-
-    public void setDamagedQty(int damagedQty) {
-        this.damagedQty = damagedQty;
-    }
-
-    public int getRepairQty() {
-        return repairQty;
-    }
-
-    public void setRepairQty(int repairQty) {
-        this.repairQty = repairQty;
     }
 
     public int getWashQty() {

@@ -16,13 +16,27 @@ class ReturnOrderSagaService:
 
     def process_return(self, context: ReturnOrderContext) -> dict:
         try:
+            has_damage = bool(
+                context.damaged_components
+                or context.damage_report.strip()
+                or context.damage_images
+            )
+
             # Step 2
-            self._orders.update_status(context.order_id, "RETURNED_DAMAGED")
+            self._orders.update_status(
+                context.order_id,
+                "RETURNED_DAMAGED" if has_damage else "RETURNED",
+            )
             context.status = SagaStatus.ORDER_UPDATED
 
             # Step 3
-            self._inventory.transition("RENTED_TO_DAMAGED", context.selected_packages)
-            context.status = SagaStatus.INVENTORY_DAMAGED
+            if has_damage and context.damaged_packages:
+                self._inventory.transition("RENTED_TO_DAMAGED", context.damaged_packages)
+            if context.clean_packages:
+                self._inventory.transition("RENTED_TO_WASH", context.clean_packages)
+            if not has_damage and not context.clean_packages:
+                self._inventory.transition("RENTED_TO_WASH", context.selected_packages)
+            context.status = SagaStatus.INVENTORY_DAMAGED if has_damage else SagaStatus.MAINTENANCE_REQUESTED
 
             # Step 4
             context.refundable_amount = max(0.0, context.original_deposit - context.damage_fee)
@@ -42,10 +56,12 @@ class ReturnOrderSagaService:
             })
 
             # Step 9
-            self._inventory.transition("DAMAGED_TO_REPAIR", context.selected_packages)
-            context.status = SagaStatus.MAINTENANCE_REQUESTED
+            if has_damage:
+                self._inventory.transition("DAMAGED_TO_REPAIR", context.damaged_packages or context.selected_packages)
+                context.status = SagaStatus.MAINTENANCE_REQUESTED
             context.metadata["damage_report"] = context.damage_report
             context.metadata["damage_images_count"] = len(context.damage_images)
+            context.metadata["has_damage"] = has_damage
 
             return context.to_return_summary()
         except Exception as exc:
@@ -69,8 +85,11 @@ class ReturnOrderSagaService:
     def maintenance_complete(self, context: ReturnOrderContext) -> dict:
         try:
             self._inventory.transition("WASH_TO_AVAILABLE", context.selected_packages)
-            self._orders.update_status(context.order_id, "COMPLETED")
-            context.status = SagaStatus.COMPLETED
+            if context.complete_order:
+                self._orders.update_status(context.order_id, "COMPLETED")
+                context.status = SagaStatus.COMPLETED
+            else:
+                context.status = SagaStatus.MAINTENANCE_REQUESTED
             return context.to_return_summary()
         except Exception as exc:
             self._errors.log_error(SAGA_NAME, "maintenance_complete", context.order_id, str(exc))

@@ -106,7 +106,16 @@ public class PostService {
     public void dbMakeItemsReserve(String modelId,int qty,LocalDate date) throws ModelNotFoundException{
         InventoryDto itemDto=inventoryService.getByModelId(modelId);
         Inventory itemMapped=inventoryMapper.inventoryDtoToInventory(itemDto);
-        inventoryQuantityTrackRepository.save(new InventoryQuantityTrack(date,itemMapped,qty,0,0,10));
+        inventoryQuantityTrackRepository.save(
+            new InventoryQuantityTrack(
+                date,
+                itemMapped,
+                qty,
+                0,
+                0,
+                InventoryQuantityTrackService.DEFAULT_BACKUP_QTY
+            )
+        );
 
     }
     
@@ -172,7 +181,15 @@ public class PostService {
             .orElse(null);
 
         if (snapshot == null) {
-            return new InventoryQuantityTrackDto(targetDate, itemMapped, 0, 0, 0, 0, 0, 0, 0);
+            return new InventoryQuantityTrackDto(
+                targetDate,
+                itemMapped,
+                0,
+                0,
+                0,
+                0,
+                InventoryQuantityTrackService.DEFAULT_BACKUP_QTY
+            );
         }
 
         return new InventoryQuantityTrackDto(
@@ -181,10 +198,8 @@ public class PostService {
             snapshot.getAvailableQty(),
             snapshot.getReservedQty(),
             snapshot.getRentedQty(),
-            snapshot.getDamagedQty(),
-            snapshot.getRepairQty(),
             snapshot.getWashQty(),
-            snapshot.getBackupQty()
+            inventoryQuantityTrackService.resolveBackupQty(snapshot.getBackupQty())
         );
     }
 
@@ -195,6 +210,15 @@ public class PostService {
         inventoryQuantityTrackRepository.save(
             inventoryQuantityTrackMapper.inventoryQuantityTrackDtoToInventoryQuantityTrack(trackDto)
         );
+    }
+
+    private int getRemainingWindowDays(LocalDate chosenDate) {
+        LocalDate today = LocalDate.now();
+        if (today.isBefore(chosenDate)) {
+            return 7;
+        }
+        long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
+        return Math.max(7 - (int) daysDiff, 0);
     }
     @Transactional
     public void collectItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
@@ -225,14 +249,12 @@ public class PostService {
     public void washItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         
         for(ModelIdAndQtyAndDateDto item:items){
-            LocalDate chosenDate=item.getChosenDate();
             LocalDate today=LocalDate.now();
-            long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
-            int daysDiff2=7-(int) daysDiff;
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
 
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
 
-            for(int i=0;i<daysDiff2;i++){
+            for(int i=0;i<remainingDays;i++){
                 
                 LocalDate curr=today.plusDays(i);
                 InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
@@ -257,21 +279,17 @@ public class PostService {
         
         
         for(ModelIdAndQtyAndDateDto item:items){
-            LocalDate chosenDate=item.getChosenDate();
             LocalDate today=LocalDate.now();
-            long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
-            int daysDiff2=7-(int) daysDiff;
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
             Integer damageId= damageLogService.createDamage(item.getModelId(),item.getQty(),null);
             itemAndDamageIdDtos.add(new ItemAndDamageIdDto(damageId,item));
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
-            for(int i=0;i<daysDiff2;i++){
+            for(int i=0;i<remainingDays;i++){
 
                 LocalDate curr=today.plusDays(i);
                 InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
                 int rentedQty= inventoryQuantityTrackDto.getRentedQty();
                 inventoryQuantityTrackDto.setRentedQty(rentedQty-item.getQty());
-                int damagedQty = inventoryQuantityTrackDto.getDamagedQty();
-                inventoryQuantityTrackDto.setDamagedQty(damagedQty + item.getQty());
                 
                 inventoryQuantityTrackRepository.save(inventoryQuantityTrackMapper.inventoryQuantityTrackDtoToInventoryQuantityTrack(inventoryQuantityTrackDto));
 
@@ -288,33 +306,36 @@ public class PostService {
 
     @Transactional
     public void moveDamagedToRepair(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
-        LocalDate today = LocalDate.now();
-        for (ModelIdAndQtyAndDateDto item : items) {
-            applyTrackAdjustment(item.getModelId(), today, trackDto -> {
-                trackDto.setDamagedQty(Math.max(trackDto.getDamagedQty() - item.getQty(), 0));
-                trackDto.setRepairQty(trackDto.getRepairQty() + item.getQty());
-            });
-        }
+        // Damaged stock is tracked through DamageLog. No inventoryquantitytrack
+        // bucket updates are needed for the repair stage.
     }
 
     @Transactional
     public void moveRepairToWash(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
-        LocalDate today = LocalDate.now();
         for (ModelIdAndQtyAndDateDto item : items) {
-            applyTrackAdjustment(item.getModelId(), today, trackDto -> {
-                trackDto.setRepairQty(Math.max(trackDto.getRepairQty() - item.getQty(), 0));
-                trackDto.setWashQty(trackDto.getWashQty() + item.getQty());
-            });
+            LocalDate today = LocalDate.now();
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
+            for (int i = 0; i < remainingDays; i++) {
+                LocalDate targetDate = today.plusDays(i);
+                applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
+                    trackDto.setWashQty(trackDto.getWashQty() + item.getQty());
+                });
+            }
         }
+        damageLogService.repairDamageByModels(items);
     }
 
     @Transactional
     public void moveWashToAvailable(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
-        LocalDate today = LocalDate.now();
         for (ModelIdAndQtyAndDateDto item : items) {
-            applyTrackAdjustment(item.getModelId(), today, trackDto -> {
-                trackDto.setWashQty(Math.max(trackDto.getWashQty() - item.getQty(), 0));
-            });
+            LocalDate today = LocalDate.now();
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
+            for (int i = 0; i < remainingDays; i++) {
+                LocalDate targetDate = today.plusDays(i);
+                applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
+                    trackDto.setWashQty(Math.max(trackDto.getWashQty() - item.getQty(), 0));
+                });
+            }
         }
     }
 

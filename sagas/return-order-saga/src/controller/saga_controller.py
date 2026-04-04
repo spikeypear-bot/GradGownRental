@@ -11,16 +11,20 @@ def health():
 
 
 def _default_items(order: dict, body: dict) -> list:
-    if body.get("selected_packages"):
-        return body["selected_packages"]
-    return [
-        {
+    selected_packages = body.get("selected_packages") or []
+    fallback_date = body.get("chosen_date") or order.get("rental_start_date")
+
+    def _normalize_item(item: dict) -> dict:
+        return {
+            **item,
             "modelId": item.get("modelId"),
             "qty": item.get("qty", 1),
-            "chosenDate": body.get("chosen_date") or order.get("rental_start_date"),
+            "chosenDate": item.get("chosenDate") or fallback_date,
         }
-        for item in (order.get("selected_items") or [])
-    ]
+
+    if body.get("selected_packages"):
+        return [_normalize_item(item) for item in selected_packages]
+    return [_normalize_item(item) for item in (order.get("selected_items") or [])]
 
 
 def _normalize_components(raw_components: list) -> list:
@@ -30,6 +34,47 @@ def _normalize_components(raw_components: list) -> list:
         if normalized in COMPONENT_DAMAGE_RATES and normalized not in valid_components:
             valid_components.append(normalized)
     return valid_components
+
+
+def _item_component_key(item: dict) -> str | None:
+    raw = str(
+        item.get("itemType")
+        or item.get("item_type")
+        or item.get("itemName")
+        or item.get("item_name")
+        or ""
+    ).strip().lower()
+
+    if "gown" in raw:
+        return "gown"
+    if "hood" in raw:
+        return "hood"
+    if "hat" in raw or "mortarboard" in raw or "cap" in raw:
+        return "mortarboard"
+    return None
+
+
+def _partition_items_by_damage(items: list, damaged_components: list) -> tuple[list, list]:
+    if not damaged_components:
+        return [], items
+
+    damaged = []
+    clean = []
+    for item in items:
+        component_key = _item_component_key(item)
+        if component_key and component_key in damaged_components:
+            damaged.append(item)
+        else:
+            clean.append(item)
+    return damaged, clean
+
+
+def _parse_complete_order_flag(raw_value) -> bool:
+    if raw_value is None:
+        return True
+    if isinstance(raw_value, bool):
+        return raw_value
+    return str(raw_value).strip().lower() not in {"false", "0", "no"}
 
 
 def _calculate_damage_fee(original_deposit: float, damaged_components: list) -> float:
@@ -53,6 +98,7 @@ def process_return():
         items = _default_items(order, body)
         original_deposit = float(order.get("deposit") or 0.0)
         damaged_components = _normalize_components(body.get("damaged_components", []))
+        damaged_packages, clean_packages = _partition_items_by_damage(items, damaged_components)
         damage_fee = body.get("damage_fee")
         if damage_fee is None:
             damage_fee = _calculate_damage_fee(original_deposit, damaged_components)
@@ -67,6 +113,8 @@ def process_return():
             payment_id=payment_id,
             selected_packages=items,
             chosen_date=body.get("chosen_date") or order.get("rental_start_date"),
+            damaged_packages=damaged_packages,
+            clean_packages=clean_packages,
             student_name=order.get("student_name", "Student"),
             phone=order.get("phone", ""),
             email=order.get("email", ""),
@@ -126,6 +174,7 @@ def maintenance_complete():
             selected_packages=items,
             chosen_date=body.get("chosen_date") or order.get("rental_start_date"),
             original_deposit=float(order.get("deposit") or 0.0),
+            complete_order=_parse_complete_order_flag(body.get("complete_order")),
         )
         result = saga.maintenance_complete(ctx)
         return jsonify(result), 200

@@ -9,7 +9,7 @@ inventory-service -> 8080:8080
 
 To view the databases, run in the terminal 
 
-`docker exec -it my-postgres psql -U postgres`
+`docker exec -it inventory-service-db psql -U $env:INVENTORY_DB_USER -d inventory`
 
 `SET search_path TO inventory_service;`
 `select * from inventory limit 5;` 
@@ -187,6 +187,11 @@ Returns per-model counts for:
 - wash
 - backup
 
+Notes:
+- `backup` defaults to `10` units even when there is no per-day track row yet.
+- `damaged` is derived from `DamageLog`, not stored directly on `InventoryQuantityTrack`.
+- `repair` remains part of the API response for overview compatibility, but is no longer persisted as a quantity column.
+
 ### 10. Verifying inventory movement in PostgreSQL
 
 Run:
@@ -200,7 +205,23 @@ WHERE model_id IN ('0000024', '0000002', '0100020')
 ORDER BY date DESC, model_id;
 ```
 
-This is the easiest way to verify that transitions are updating the expected quantity buckets.
+Since damaged and repair are no longer stored on `inventoryquantitytrack`, use:
+
+```sql
+SET search_path TO inventory_service;
+
+SELECT date, model_id, reserved_qty, rented_qty, wash_qty, backup_qty
+FROM inventoryquantitytrack
+WHERE model_id IN ('0000024', '0000002', '0100020')
+ORDER BY date DESC, model_id;
+
+SELECT damage_id, model_id, quantity, date, date_repaired
+FROM damagelog
+WHERE model_id IN ('0000024', '0000002', '0100020')
+ORDER BY date DESC, damage_id DESC;
+```
+
+This is the easiest way to verify track buckets together with damage-log-backed damaged stock.
 
 
 # Structures of the service
@@ -233,13 +254,12 @@ Tracks quantity of inventory day by day for each model.
 Quantities are tracked as:
 - reserved
 - rented
-- damaged
-- repair
 - wash
 - backup
 
 The rental window is treated as a 7-day blocked period beginning from `chosenDate`.
 Operational transitions move qty between these buckets as the order progresses through fulfillment, return, repair, and washing.
+Damaged quantities are derived from `DamageLog`, and backup uses a default operational buffer of `10`.
 
 ### 4. GraduationPackage
 The Grad package mainly defines the type of packages offered, in particular the different packages maps to different faculty, institution and education level.

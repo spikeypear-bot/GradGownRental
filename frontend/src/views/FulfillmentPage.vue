@@ -4,6 +4,7 @@
       <div class="page-header">
         <h2 class="fw-bold mb-2">Admin / Driver</h2>
         <p class="text-muted mb-0">Manage onsite collections and driver deliveries.</p>
+        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. All confirmed orders are shown regardless of date.</p>
       </div>
 
       <!-- Alerts -->
@@ -138,6 +139,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
+import { isDemoMode } from '../config/demoMode'
 
 const orders = ref([])
 const isLoading = ref(false)
@@ -160,6 +162,10 @@ function formatDateKey(dateInput) {
 }
 
 const filteredOrders = computed(() => {
+  if (isDemoMode) {
+    return orders.value
+  }
+
   const targetDate = formatDateKey(new Date())
   return orders.value
     .filter(order => {

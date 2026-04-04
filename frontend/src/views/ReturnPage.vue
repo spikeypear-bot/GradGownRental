@@ -4,6 +4,7 @@
       <div class="page-header">
         <h2 class="fw-bold mb-2">Admin Team</h2>
         <p class="text-muted mb-0">Process returns and record any damage.</p>
+        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. All active orders are available for return inspection immediately.</p>
       </div>
 
       <div v-if="successMessage" class="alert alert-success mb-4" role="alert">
@@ -150,6 +151,8 @@
 import { computed, onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
+import { isDemoMode } from '../config/demoMode'
+import { readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
 
 const damageOptions = [
   { key: 'gown', label: 'Gown' },
@@ -194,7 +197,7 @@ const todayLabel = computed(() => {
 })
 
 const returnQueue = computed(() =>
-  orders.value.filter(order => formatDateKey(order.rental_end_date) === todayKey.value)
+  orders.value.filter(order => isDemoMode || formatDateKey(order.rental_end_date) === todayKey.value)
 )
 
 const hasDamage = computed(() => damageSelection.value === 'HAS_DAMAGE')
@@ -206,6 +209,14 @@ const readFileAsDataUrl = (file) =>
     reader.onerror = () => reject(new Error(`Failed to read ${file.name}`))
     reader.readAsDataURL(file)
   })
+
+const getComponentKeyForItem = (item = {}) => {
+  const raw = String(item.itemType || item.item_type || item.itemName || item.item_name || '').toLowerCase()
+  if (raw.includes('gown')) return 'gown'
+  if (raw.includes('hood')) return 'hood'
+  if (raw.includes('hat') || raw.includes('mortarboard') || raw.includes('cap')) return 'mortarboard'
+  return null
+}
 
 const loadActiveReturns = async () => {
   isLoading.value = true
@@ -282,10 +293,30 @@ const submitReturn = async () => {
 
     await AdminService.processReturn({
       order_id: selectedOrder.value.orderID,
+      selected_packages: (Array.isArray(selectedOrder.value.selected_items) ? selectedOrder.value.selected_items : []).map(item => ({
+        ...item,
+        chosenDate: item.chosenDate || selectedOrder.value.rental_start_date
+      })),
       damage_report: hasDamage.value ? damageReport.value.trim() : '',
       damaged_components: hasDamage.value ? damagedComponents.value : [],
       damage_images: hasDamage.value ? damageImagesPayload : []
     })
+
+    const allSelected = Array.isArray(selectedOrder.value.selected_items)
+      ? selectedOrder.value.selected_items
+      : []
+    const damagedSet = new Set(hasDamage.value ? damagedComponents.value : [])
+    const damagedPackages = allSelected.filter(item => damagedSet.has(getComponentKeyForItem(item)))
+    const cleanPackages = allSelected.filter(item => !damagedSet.has(getComponentKeyForItem(item)))
+    const detailsMap = readMaintenanceDetails()
+    detailsMap[selectedOrder.value.orderID] = {
+      allSelected,
+      damagedPackages,
+      cleanPackages,
+      damagedStage: damagedPackages.length ? 'repair' : null,
+      cleanStage: cleanPackages.length ? 'wash' : null,
+    }
+    writeMaintenanceDetails(detailsMap)
 
     successMessage.value = `Return processed for order ${selectedOrder.value.orderID}.`
     orders.value = orders.value.filter(order => order.orderID !== selectedOrder.value.orderID)

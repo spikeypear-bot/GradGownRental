@@ -4,6 +4,7 @@
       <div class="mb-4">
         <h2 class="fw-bold mb-2">Returns Queue</h2>
         <p class="text-muted">Gowns returned by customers awaiting inspection and processing</p>
+        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. Returned damaged orders remain visible for easier walkthroughs.</p>
       </div>
 
       <!-- Filters and Actions -->
@@ -146,6 +147,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AdminService from '../services/admin'
+import { isDemoMode } from '../config/demoMode'
 
 const orders = ref([])
 const searchQuery = ref('')

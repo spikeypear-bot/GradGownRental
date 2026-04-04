@@ -86,14 +86,17 @@ class AdminService {
    * @param {string} orderId - The order ID
    * @returns {Promise<Object>}
    */
-  async transitionToWash(orderId) {
+  async transitionToWash(orderId, selectedPackages = null) {
     try {
       const response = await fetch(`${RETURN_API_BASE_URL}/transition-to-wash`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ order_id: orderId })
+        body: JSON.stringify({
+          order_id: orderId,
+          ...(selectedPackages ? { selected_packages: selectedPackages } : {}),
+        })
       })
 
       if (!response.ok) {
@@ -112,14 +115,20 @@ class AdminService {
    * @param {string} orderId - The order ID
    * @returns {Promise<Object>}
    */
-  async maintenanceComplete(orderId) {
+  async maintenanceComplete(orderId, selectedPackages = null, options = {}) {
     try {
       const response = await fetch(`${RETURN_API_BASE_URL}/maintenance-complete`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ order_id: orderId })
+        body: JSON.stringify({
+          order_id: orderId,
+          ...(selectedPackages ? { selected_packages: selectedPackages } : {}),
+          ...(Object.prototype.hasOwnProperty.call(options, 'completeOrder')
+            ? { complete_order: options.completeOrder }
+            : {}),
+        })
       })
 
       if (!response.ok) {
@@ -218,8 +227,8 @@ class AdminService {
    * Existing saga endpoint:
    * PUT /returns/transition-to-wash
    */
-  async completeRepair(orderId) {
-    return this.transitionToWash(orderId)
+  async completeRepair(orderId, selectedPackages = null) {
+    return this.transitionToWash(orderId, selectedPackages)
   }
 
   /**
@@ -227,16 +236,16 @@ class AdminService {
    * Existing saga endpoint:
    * PUT /returns/maintenance-complete
    */
-  async completeWash(orderId) {
-    return this.maintenanceComplete(orderId)
+  async completeWash(orderId, selectedPackages = null, options = {}) {
+    return this.maintenanceComplete(orderId, selectedPackages, options)
   }
 
   /**
    * Placeholder wrapper for pages that mark the item/order fully done.
    * Uses existing maintenance completion saga.
    */
-  async markItemComplete(orderId) {
-    return this.maintenanceComplete(orderId)
+  async markItemComplete(orderId, selectedPackages = null, options = {}) {
+    return this.maintenanceComplete(orderId, selectedPackages, options)
   }
 }
 

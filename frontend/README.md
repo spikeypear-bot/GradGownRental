@@ -31,6 +31,23 @@ npm install
 npm run dev
 ```
 
+### Demo Mode
+
+To make the admin UI easier to demo without waiting for real rental and return dates, run:
+
+```sh
+VITE_DEMO_MODE=true npm run dev
+```
+
+When enabled, the frontend surfaces eligible orders immediately for walkthroughs while backend saga and service logic stays unchanged.
+
+## Admin Workflow Updates
+
+- Return processing now stores split maintenance details for clean versus damaged package subsets.
+- Repair queue actions send the damaged subset into the return saga so repaired items move correctly into laundry.
+- Laundry and maintenance views now work against the updated maintenance detail model and order subset stages.
+- Stock overview reflects the backend inventory transition updates, including backup-buffered availability and damage-log-driven damaged counts.
+
 ### Compile and Minify for Production
 
 ```sh

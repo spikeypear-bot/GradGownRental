@@ -33,10 +33,6 @@ public class InventoryQuantityTrack {
     private int reservedQty;
     @Column(name = "rented_qty")
     private int rentedQty;
-    @Column(name = "damaged_qty")
-    private int damagedQty;
-    @Column(name = "repair_qty")
-    private int repairQty;
     @Column(name="wash_qty")
     private int washQty;
     @Column(name="backup_qty")
@@ -48,18 +44,16 @@ public class InventoryQuantityTrack {
 
     public InventoryQuantityTrack(LocalDate date, Inventory model, int reservedQty, int rentedQty, int washQty,
             int backupQty) {
-        this(date, model, 0, reservedQty, rentedQty, 0, 0, washQty, backupQty);
+        this(date, model, 0, reservedQty, rentedQty, washQty, backupQty);
     }
 
     public InventoryQuantityTrack(LocalDate date, Inventory model, int availableQty, int reservedQty, int rentedQty,
-            int damagedQty, int repairQty, int washQty, int backupQty) {
+            int washQty, int backupQty) {
         this.date = date;
         this.model = model;
         this.availableQty = availableQty;
         this.reservedQty = reservedQty;
         this.rentedQty = rentedQty;
-        this.damagedQty = damagedQty;
-        this.repairQty = repairQty;
         this.washQty = washQty;
         this.backupQty = backupQty;
     }
@@ -103,22 +97,6 @@ public class InventoryQuantityTrack {
 
     public void setRentedQty(int rentedQty) {
         this.rentedQty = rentedQty;
-    }
-
-    public int getDamagedQty() {
-        return damagedQty;
-    }
-
-    public void setDamagedQty(int damagedQty) {
-        this.damagedQty = damagedQty;
-    }
-
-    public int getRepairQty() {
-        return repairQty;
-    }
-
-    public void setRepairQty(int repairQty) {
-        this.repairQty = repairQty;
     }
 
     public int getWashQty() {

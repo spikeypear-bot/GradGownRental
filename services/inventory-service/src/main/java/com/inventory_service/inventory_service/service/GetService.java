@@ -194,18 +194,21 @@ public class GetService {
 
         }
         int damageQty= damageLogService.getDamagedQty(modelId, date);
+        int backupQty = inventoryQuantityTrackService.resolveBackupQty(
+            inventoryQuantityTrackDto != null ? inventoryQuantityTrackDto.getBackupQty() : null
+        );
         
         if(inventoryQuantityTrackDto!=null){
-            int unavailableQty=inventoryQuantityTrackDto.getBackupQty()+inventoryQuantityTrackDto.getRentedQty()+inventoryQuantityTrackDto.getReservedQty()+inventoryQuantityTrackDto.getWashQty()+on_hold_qty+damageQty;
+            int unavailableQty=backupQty+inventoryQuantityTrackDto.getRentedQty()+inventoryQuantityTrackDto.getReservedQty()+inventoryQuantityTrackDto.getWashQty()+on_hold_qty+damageQty;
             availableQty=availableQty-unavailableQty;
 
             
             
         }
         else{
-            availableQty=availableQty-on_hold_qty-10;
+            availableQty=availableQty-backupQty-on_hold_qty-damageQty;
         }
-        return new InventoryDateAndQuantityDto(inventoryDto,date,availableQty);
+        return new InventoryDateAndQuantityDto(inventoryDto,date,Math.max(availableQty, 0));
 
     }
 

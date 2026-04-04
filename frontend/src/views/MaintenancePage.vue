@@ -4,6 +4,7 @@
       <div class="mb-4">
         <h2 class="fw-bold mb-2">Maintenance Workflow</h2>
         <p class="text-muted">Manage gown repairs and washing operations</p>
+        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. Maintenance queues use the same UI flow without waiting on calendar timing.</p>
       </div>
 
       <!-- Maintenance Sections -->
@@ -34,11 +35,11 @@
                   <p class="item-issue">Issue: {{ item.issue }}</p>
                   <p class="item-date">Added: {{ formatDate(item.dateAdded) }}</p>
                   <button 
-                    @click="markRepairComplete(item.itemId)"
+                    @click="markRepairComplete(item)"
                     class="btn btn-sm btn-success"
-                    :disabled="processingId === item.itemId"
+                    :disabled="processingId === item.id"
                   >
-                    <span v-if="processingId !== item.itemId">
+                      <span v-if="processingId !== item.id">
                       <i class="bi bi-check"></i> Mark Complete
                     </span>
                     <span v-else>
@@ -78,11 +79,11 @@
                   <p class="item-condition">Condition: {{ item.condition }}</p>
                   <p class="item-date">Added: {{ formatDate(item.dateAdded) }}</p>
                   <button 
-                    @click="markWashComplete(item.itemId)"
+                    @click="markWashComplete(item)"
                     class="btn btn-sm btn-primary"
-                    :disabled="processingId === item.itemId"
+                    :disabled="processingId === item.id"
                   >
-                    <span v-if="processingId !== item.itemId">
+                      <span v-if="processingId !== item.id">
                       <i class="bi bi-check"></i> Mark Complete
                     </span>
                     <span v-else>
@@ -137,11 +138,11 @@
                       </td>
                       <td>
                         <button 
-                          @click="markReadyToReturn(item.itemId)"
+                          @click="markReadyToReturn(item)"
                           class="btn btn-sm btn-outline-success"
-                          :disabled="processingId === item.itemId"
+                          :disabled="processingId === item.id"
                         >
-                          <span v-if="processingId !== item.itemId">Return</span>
+                          <span v-if="processingId !== item.id">Return</span>
                           <span v-else>
                             <span class="spinner-border spinner-border-sm me-1"></span>
                             Updating...
@@ -211,6 +212,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AdminService from '../services/admin'
+import { isDemoMode } from '../config/demoMode'
+import { loadMaintenanceBuckets, readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
 
 const repairQueue = ref([])
 const washQueue = ref([])
@@ -244,17 +247,11 @@ const loadMaintenanceData = async () => {
   loadingReady.value = true
 
   try {
-    // Simulate loading repair queue
-    repairQueue.value = []
-    // In a real app, fetch from API
-
-    // Simulate loading wash queue
-    washQueue.value = []
-    // In a real app, fetch from API
-
-    // Simulate loading ready for return
-    readyForReturn.value = []
-    // In a real app, fetch from API
+    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const buckets = await loadMaintenanceBuckets(orderApiUrl)
+    repairQueue.value = buckets.repairQueue
+    washQueue.value = buckets.washQueue
+    readyForReturn.value = buckets.completedQueue
   } catch (error) {
     console.error('Error loading maintenance data:', error)
   } finally {
@@ -264,17 +261,18 @@ const loadMaintenanceData = async () => {
   }
 }
 
-const markRepairComplete = async (itemId) => {
-  processingId.value = itemId
+const markRepairComplete = async (item) => {
+  processingId.value = item.id
   try {
-    await AdminService.completeRepair(itemId)
-    repairQueue.value = repairQueue.value.filter(item => item.itemId !== itemId)
-    
-    // Move to wash queue or ready queue based on condition
-    const item = repairQueue.value.find(i => i.itemId === itemId)
-    if (item) {
-      washQueue.value.push(item)
+    await AdminService.completeRepair(item.itemId, item?.selectedPackages || null)
+    const detailsMap = readMaintenanceDetails()
+    const entry = { ...(detailsMap[item.itemId] || {}) }
+    if (item.subsetKey === 'damaged') {
+      entry.damagedStage = 'wash'
     }
+    detailsMap[item.itemId] = entry
+    writeMaintenanceDetails(detailsMap)
+    await loadMaintenanceData()
   } catch (error) {
     console.error('Error completing repair:', error)
     alert('Failed to complete repair: ' + error.message)
@@ -283,18 +281,25 @@ const markRepairComplete = async (itemId) => {
   }
 }
 
-const markWashComplete = async (itemId) => {
-  processingId.value = itemId
+const markWashComplete = async (item) => {
+  processingId.value = item.id
   try {
-    await AdminService.completeWash(itemId)
-    washQueue.value = washQueue.value.filter(item => item.itemId !== itemId)
-    
-    // Move to ready for return
-    const item = washQueue.value.find(i => i.itemId === itemId)
-    if (item) {
-      item.washDate = new Date().toISOString()
-      readyForReturn.value.push(item)
+    const detailsMap = readMaintenanceDetails()
+    const entry = { ...(detailsMap[item.itemId] || {}) }
+
+    if (item.subsetKey === 'clean') {
+      entry.cleanStage = 'done'
+    } else if (item.subsetKey === 'damaged') {
+      entry.damagedStage = 'done'
     }
+
+    const remainingStages = [entry.cleanStage, entry.damagedStage].filter(stage => stage && stage !== 'done')
+    const completeOrder = remainingStages.length === 0
+
+    await AdminService.completeWash(item.itemId, item?.selectedPackages || null, { completeOrder })
+    detailsMap[item.itemId] = entry
+    writeMaintenanceDetails(detailsMap)
+    await loadMaintenanceData()
   } catch (error) {
     console.error('Error completing wash:', error)
     alert('Failed to complete wash: ' + error.message)
@@ -303,11 +308,11 @@ const markWashComplete = async (itemId) => {
   }
 }
 
-const markReadyToReturn = async (itemId) => {
-  processingId.value = itemId
+const markReadyToReturn = async (item) => {
+  processingId.value = item.id
   try {
-    await AdminService.markItemComplete(itemId)
-    readyForReturn.value = readyForReturn.value.filter(item => item.itemId !== itemId)
+    await AdminService.markItemComplete(item.itemId, item?.selectedPackages || null, { completeOrder: true })
+    readyForReturn.value = readyForReturn.value.filter(entry => entry.id !== item.id)
   } catch (error) {
     console.error('Error marking item complete:', error)
     alert('Failed to mark item complete: ' + error.message)

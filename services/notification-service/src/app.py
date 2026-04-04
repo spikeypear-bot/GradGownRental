@@ -21,6 +21,7 @@ from consumer.notification_consumer import NotificationConsumer
 from controller.notification_controller import root_bp, notification_bp
 from repository.notification_repository import NotificationRepository
 from service.notification_service import NotificationService
+from swagger_docs import register_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,6 +71,7 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     app.register_blueprint(root_bp)
     app.register_blueprint(notification_bp)
+    register_swagger(app)
 
     logger.info("notification-service ready")
     return app

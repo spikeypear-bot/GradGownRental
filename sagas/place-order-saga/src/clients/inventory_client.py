@@ -19,6 +19,13 @@ _TIMEOUT = 10  # seconds
 
 
 class InventoryClient:
+    @staticmethod
+    def _unwrap_or_raise(resp: requests.Response) -> dict:
+        resp.raise_for_status()
+        payload = resp.json()
+        if isinstance(payload, dict) and payload.get("status") != 200:
+            raise RuntimeError(payload.get("msg") or "Inventory transition failed")
+        return payload
 
     def reserve_items(self, hold_id: str, items: list) -> dict:
         """
@@ -37,8 +44,7 @@ class InventoryClient:
         }
         try:
             resp = requests.put(url, json=payload, timeout=_TIMEOUT)
-            resp.raise_for_status()
-            return resp.json()
+            return self._unwrap_or_raise(resp)
         except requests.RequestException as exc:
             logger.error(
                 "InventoryClient.reserve_items failed | hold_id=%s | %s",

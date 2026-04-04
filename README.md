@@ -52,4 +52,24 @@ project-root/
 ```bash
 git clone <repo-url>
 cd project-root
+```
+
+## API Docs
+
+Swagger/OpenAPI docs are available per service after startup.
+
+- See `docs/SWAGGER_DOCS.md` for the full list of `/docs` and raw spec URLs.
+
+## Recent Updates
+
+- Added OpenAPI/Swagger coverage across the active services and sagas for easier local API inspection.
+- Refined the admin operations flow in the frontend for fulfillment, returns, repair, laundry, and maintenance queue handling.
+- Extended the inventory transition contract so sagas can drive `AVAILABLE_TO_RESERVED`, `RESERVED_TO_RENTED`, `RENTED_TO_WASH`, `RENTED_TO_DAMAGED`, `DAMAGED_TO_REPAIR`, `REPAIR_TO_WASH`, and `WASH_TO_AVAILABLE`.
+- Improved return-order saga handling for split clean versus damaged package processing and maintenance progression.
+- Updated inventory availability and stock overview behavior so default backup stock is treated as a buffer and damaged quantities come from the damage log.
+
+## Notes
+
+- Inventory schema changes now treat `backup_qty` with a default value of `10`.
+- `damaged_qty` and `repair_qty` are no longer stored in `InventoryQuantityTrack`; damaged counts are derived from `DamageLog`.
 

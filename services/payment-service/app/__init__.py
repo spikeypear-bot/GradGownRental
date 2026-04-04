@@ -73,5 +73,8 @@ def create_app():
     from app.api.webhook import webhook as webhook_blueprint
     app.register_blueprint(webhook_blueprint)
 
+    from app.swagger_docs import register_swagger
+    register_swagger(app)
+
     logger.info("Flask server initialised")
     return app

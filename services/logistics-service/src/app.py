@@ -8,6 +8,11 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from kafka import KafkaConsumer
 
+try:
+    from .swagger_docs import register_swagger
+except ImportError:
+    from swagger_docs import register_swagger
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -89,6 +94,7 @@ def create_app() -> Flask:
             return jsonify({"error": "Shipment not found"}), 404
         return jsonify(shipment), 200
 
+    register_swagger(app)
     _start_order_paid_consumer(state)
     return app
 

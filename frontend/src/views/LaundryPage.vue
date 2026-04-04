@@ -4,6 +4,7 @@
       <div class="page-header">
         <h2 class="fw-bold mb-2">Laundry Team</h2>
         <p class="text-muted mb-0">Mark washed orders as done so stock can move back into circulation.</p>
+        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. Laundry queue stays available for immediate testing.</p>
       </div>
 
       <div class="team-card">
@@ -24,11 +25,11 @@
               <p class="item-title mb-0">{{ item.gownName }}</p>
             </div>
             <button
-              @click="markWashComplete(item.itemId)"
+              @click="markWashComplete(item)"
               class="btn btn-sm btn-laundry"
-              :disabled="processingId === item.itemId"
+              :disabled="processingId === item.id"
             >
-              <span v-if="processingId !== item.itemId">Mark Laundry Done</span>
+              <span v-if="processingId !== item.id">Mark Laundry Done</span>
               <span v-else>
                 <span class="spinner-border spinner-border-sm me-1"></span>
                 Updating...
@@ -44,7 +45,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
-import { loadMaintenanceBuckets, readStageMap, writeStageMap } from '../services/admin/maintenance'
+import { loadMaintenanceBuckets, readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
+import { isDemoMode } from '../config/demoMode'
 
 const washQueue = ref([])
 const isLoading = ref(false)
@@ -63,13 +65,24 @@ const loadData = async () => {
   }
 }
 
-const markWashComplete = async (itemId) => {
-  processingId.value = itemId
+const markWashComplete = async (item) => {
+  processingId.value = item.id
   try {
-    await AdminService.completeWash(itemId)
-    const stageMap = readStageMap()
-    delete stageMap[itemId]
-    writeStageMap(stageMap)
+    const detailsMap = readMaintenanceDetails()
+    const entry = { ...(detailsMap[item.itemId] || {}) }
+
+    if (item.subsetKey === 'clean') {
+      entry.cleanStage = 'done'
+    } else if (item.subsetKey === 'damaged') {
+      entry.damagedStage = 'done'
+    }
+
+    const remainingStages = [entry.cleanStage, entry.damagedStage].filter(stage => stage && stage !== 'done')
+    const completeOrder = remainingStages.length === 0
+
+    await AdminService.completeWash(item.itemId, item?.selectedPackages || null, { completeOrder })
+    detailsMap[item.itemId] = entry
+    writeMaintenanceDetails(detailsMap)
     await loadData()
   } catch (error) {
     console.error('Error completing wash:', error)

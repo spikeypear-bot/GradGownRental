@@ -18,15 +18,19 @@ import com.inventory_service.inventory_service.repository.InventoryQuantityTrack
 
 @Service
 public class InventoryQuantityTrackService {
+    public static final int DEFAULT_BACKUP_QTY = 10;
+
     private final InventoryQuantityTrackRepository inventoryQuantityTrackRepository;
     private final InventoryQuantityTrackMapper inventoryQuantityTrackMapper;
+    private final DamageLogService damageLogService;
     
     
 
     public InventoryQuantityTrackService(InventoryQuantityTrackRepository inventoryQuantityTrackRepository,
-            InventoryQuantityTrackMapper inventoryQuantityTrackMapper) {
+            InventoryQuantityTrackMapper inventoryQuantityTrackMapper, DamageLogService damageLogService) {
         this.inventoryQuantityTrackRepository = inventoryQuantityTrackRepository;
         this.inventoryQuantityTrackMapper = inventoryQuantityTrackMapper;
+        this.damageLogService = damageLogService;
     }
 
 
@@ -48,6 +52,10 @@ public class InventoryQuantityTrackService {
         }
     }
 
+    public int resolveBackupQty(Integer backupQty) {
+        return backupQty != null && backupQty > 0 ? backupQty : DEFAULT_BACKUP_QTY;
+    }
+
     public List<StockOverviewRowDto> getStockOverviewRows(LocalDate date, List<Inventory> inventoryList) {
         Map<String, InventoryQuantityTrack> latestTrackByModelId = new HashMap<>();
         for (InventoryQuantityTrack track : inventoryQuantityTrackRepository.getLatestInventoryQuantityTrackForDate(date)) {
@@ -58,13 +66,14 @@ public class InventoryQuantityTrackService {
             InventoryQuantityTrack track = latestTrackByModelId.get(inventory.getModelId());
             int reservedQty = track != null ? track.getReservedQty() : 0;
             int rentedQty = track != null ? track.getRentedQty() : 0;
-            int damagedQty = track != null ? track.getDamagedQty() : 0;
-            int repairQty = track != null ? track.getRepairQty() : 0;
+            int damagedQty = damageLogService.getDamagedQty(inventory.getModelId(), date);
+            int repairQty = 0;
             int washQty = track != null ? track.getWashQty() : 0;
-            int backupQty = track != null ? track.getBackupQty() : 0;
-            int availableQty = track != null
-                ? track.getAvailableQty()
-                : Math.max(inventory.getTotalQty() - reservedQty - rentedQty - damagedQty - repairQty - washQty, 0);
+            int backupQty = resolveBackupQty(track != null ? track.getBackupQty() : null);
+            int availableQty = Math.max(
+                inventory.getTotalQty() - reservedQty - rentedQty - damagedQty - repairQty - washQty - backupQty,
+                0
+            );
 
             return new StockOverviewRowDto(
                 inventory.getModelId(),

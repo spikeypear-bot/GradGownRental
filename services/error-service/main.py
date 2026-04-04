@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from swagger_docs import register_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +51,7 @@ def create_app() -> Flask:
     def list_errors():
         return jsonify(app.extensions["error_logs"]), 200
 
+    register_swagger(app)
     return app
 
 
