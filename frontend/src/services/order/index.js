@@ -48,19 +48,6 @@ class OrderService {
     return requestJson(`${ORDER_API_BASE_URL}/orders/${orderId}`)
   }
 
-  async activateOrder(orderId) {
-    return requestJson(`${ORDER_API_BASE_URL}/orders/${orderId}/activate`, {
-      method: 'POST'
-    })
-  }
-
-  async returnOrder(orderId, damagedItems = []) {
-    return requestJson(`${ORDER_API_BASE_URL}/orders/${orderId}/return`, {
-      method: 'POST',
-      body: JSON.stringify({ damaged_items: damagedItems })
-    })
-  }
-
   async getOrdersByEmail(email) {
     return requestJson(`${ORDER_API_BASE_URL}/orders/by-email/${encodeURIComponent(email)}`)
   }
