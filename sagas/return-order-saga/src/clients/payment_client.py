@@ -7,7 +7,7 @@ _TIMEOUT = 15
 
 class PaymentClient:
     def refund(self, order_id: str, payment_id: str, refundable_amount: float) -> dict:
-        url = f"{PAYMENT_SERVICE_URL}/payments/refunds"
+        url = f"{PAYMENT_SERVICE_URL}/api/payment/refunds"
         payload = {
             "order_id": order_id,
             "payment_id": payment_id,

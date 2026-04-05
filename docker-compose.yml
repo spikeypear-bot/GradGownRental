@@ -1,3 +1,12 @@
+x-saga-env: &saga-env
+  ORDER_SERVICE_URL: http://order-service:8081
+  INVENTORY_SERVICE_URL: http://inventory-service:8080
+  ERROR_SERVICE_URL: http://error-service:5002
+  PAYMENT_SERVICE_URL: http://payment-service:3000
+  LOGISTICS_SERVICE_URL: http://logistics-service:5004
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+
 services:
   # =========================================================================
   # Frontend
@@ -6,16 +15,11 @@ services:
     build: ./frontend
     environment:
       VITE_DEMO_MODE: ${VITE_DEMO_MODE}
-      VITE_INVENTORY_API_BASE_URL: ${VITE_INVENTORY_API_BASE_URL}
-      VITE_SAGA_API_BASE_URL: ${VITE_SAGA_API_BASE_URL}
-      VITE_ORDER_API_BASE_URL: ${VITE_ORDER_API_BASE_URL}
-      VITE_PAYMENT_API_BASE_URL: ${VITE_PAYMENT_API_BASE_URL}
-      VITE_FULFILLMENT_API_BASE_URL: ${VITE_FULFILLMENT_API_BASE_URL}
-      VITE_RETURN_API_BASE_URL: ${VITE_RETURN_API_BASE_URL}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
       VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
     ports:
       - 5173:5173
-      
+
 
 
 
@@ -28,9 +32,9 @@ services:
     image: apache/kafka:latest
     hostname: kafka
     container_name: kafka
-    ports:
-      - "9092:9092"       # host access
-      - "29092:29092"     # internal container access
+    # ports:
+    #   - "9092:9092"       # host access
+    #   - "29092:29092"     # internal container access
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -73,8 +77,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-service-db:5432/inventory
       SPRING_DATASOURCE_USERNAME: ${INVENTORY_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${INVENTORY_DB_PASSWORD}
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080"
     networks:
       - app-network
     restart: on-failure
@@ -120,8 +124,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     networks:
       - app-network
     restart: on-failure
@@ -152,7 +156,7 @@ services:
     environment:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
-    entrypoint: ["stripe", "listen", "-f", "host.docker.internal:3000/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
+    entrypoint: ["stripe", "listen", "--forward-to", "http://payment-service:3000/api/payment/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
     networks:
       - app-network
     healthcheck:
@@ -185,8 +189,8 @@ services:
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
-    ports:
-      - "5001:5001"
+    # ports:
+    #   - "5001:5001"
     networks:
       - app-network
     restart: on-failure
@@ -196,8 +200,8 @@ services:
     build:
       context: ./services/error-service
     container_name: error-service
-    ports:
-      - "5002:5002"
+    # ports:
+    #   - "5002:5002"
     networks:
       - app-network
     restart: on-failure
@@ -237,108 +241,8 @@ services:
       DB_USER: ${ORDER_DB_USER}
       DB_PASSWORD: ${ORDER_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-    ports:
-      - "8081:8081"
-    networks:
-      - app-network
-    restart: on-failure
-
-  # ── Logistics Service ────────────────────────────────────────────────────
-  logistics-service:
-    build:
-      context: ./services/logistics-service
-    container_name: logistics-service
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-    ports:
-      - "5006:5004"
-    networks:
-      - app-network
-    restart: on-failure
-
-  # =========================================================================
-  # SAGA ORCHESTRATORS
-  # =========================================================================
-  place-order-saga:
-    build:
-      context: ./sagas/place-order-saga
-    container_name: place-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      PAYMENT_SERVICE_URL: http://payment-service:3000
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5003:5003"
-    networks:
-      - app-network
-    restart: on-failure
-
-  fulfill-order-saga:
-    build:
-      context: ./sagas/fulfill-order-saga
-    container_name: fulfill-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      logistics-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      LOGISTICS_SERVICE_URL: http://logistics-service:5004
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5004:5004"
-    networks:
-      - app-network
-    restart: on-failure
-
-  return-order-saga:
-    build:
-      context: ./sagas/return-order-saga
-    container_name: return-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      PAYMENT_SERVICE_URL: http://payment-service:3000
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5005:5005"
+    # ports:
+    #   - "8081:8081"
     networks:
       - app-network
     restart: on-failure
@@ -363,6 +267,174 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Logistics Service ────────────────────────────────────────────────────
+  logistics-service:
+    build:
+      context: ./services/logistics-service
+    container_name: logistics-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    # ports:
+    #   - "5006:5004"
+    networks:
+      - app-network
+    restart: on-failure
+
+  # =========================================================================
+  # SAGA ORCHESTRATORS
+  # =========================================================================
+  place-order-saga:
+    build:
+      context: ./sagas/place-order-saga
+    container_name: place-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5003:5003"
+    networks:
+      - app-network
+    restart: on-failure
+
+  fulfill-order-saga:
+    build:
+      context: ./sagas/fulfill-order-saga
+    container_name: fulfill-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      logistics-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5004:5004"
+    networks:
+      - app-network
+    restart: on-failure
+
+  return-order-saga:
+    build:
+      context: ./sagas/return-order-saga
+    container_name: return-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5005:5005"
+    networks:
+      - app-network
+    restart: on-failure
+
+  # =========================================================================
+  # KONG
+  # =========================================================================
+
+  kong-db:
+    container_name: kong-db
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    volumes:
+      - kong-db-data:/var/lib/postgresql
+
+  kong-migrations:
+    container_name: kong-migrations
+    image: kong:latest
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    command: kong migrations bootstrap
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  kong:
+    container_name: kong
+    image: kong:latest
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_PASSWORD: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+    ports:
+      - "8000:8000"    # Proxy port (Public API)
+      - "8001:8001"    # Admin API
+      - "8002:8002"    # GUI
+    networks:
+      - app-network
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+      kong-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  kong-config:
+    container_name: kong-config
+    image: kong/deck:latest
+    volumes:
+      - ./kong/kong.yml:/kong.yml:ro
+    command: gateway sync --kong-addr http://kong:8001 /kong.yml
+    networks:
+      - app-network
+    depends_on:
+      kong:
+        condition: service_healthy
+    restart: on-failure
+
 # =============================================================================
 # VOLUMES
 # =============================================================================
@@ -374,6 +446,7 @@ volumes:
   kafka-data:
   kafka-secrets:
   kafka-config:
+  kong-db-data:
 
 # =============================================================================
 # NETWORKS

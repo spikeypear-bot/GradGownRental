@@ -85,8 +85,13 @@ class PlaceOrderSagaService:
             context.status = SagaStatus.ORDER_INITIALISED
 
             logger.info("[%s] Order initialised | order_id=%s", SAGA_NAME, context.order_id)
-            # Step 8 — return order_id to UI
-            return {"order_id": context.order_id}
+
+            # Create Stripe PaymentIntent so frontend can render the card element
+            checkout = self._payments.create_checkout_intent(context.total_amount)
+            client_secret = checkout.get("client_secret")
+
+            # Step 8 — return order_id + client_secret to UI
+            return {"order_id": context.order_id, "client_secret": client_secret}
 
         except Exception as exc:
             self._handle_failure(context, step, exc)
