@@ -13,8 +13,6 @@ const success = ref('')
 const order = ref(null)
 const packageDetail = ref(null)
 
-const damagedItems = ref([{ modelId: '', qty: 1 }])
-
 // Status steps
 const STATUS_STEPS = [
   { key: 'CONFIRMED',  label: 'Confirmed',     icon: 'bi-check-circle' },
@@ -40,8 +38,6 @@ const canActivate = computed(() =>
   order.value?.status === 'CONFIRMED' && order.value?.fulfillment_method === 'COLLECTION'
 )
 
-const canReturn = computed(() => order.value?.status === 'ACTIVE')
-
 const selectedItems = computed(() =>
   Array.isArray(order.value?.selected_items) ? order.value.selected_items : []
 )
@@ -54,12 +50,6 @@ const packageTitle = computed(() => {
 
 const gownItem = computed(() =>
   selectedItems.value.find(i => i.itemType === 'gown') || selectedItems.value[0]
-)
-
-const parsedDamagedItems = computed(() =>
-  damagedItems.value
-    .map(i => ({ modelId: String(i.modelId || '').trim(), qty: Number(i.qty || 0) }))
-    .filter(i => i.modelId && i.qty > 0)
 )
 
 const trackOrder = async () => {
@@ -93,27 +83,6 @@ const activateOrder = async () => {
   } finally {
     actionLoading.value = false
   }
-}
-
-const processReturn = async () => {
-  if (!order.value?.order_id) return
-  actionLoading.value = true
-  error.value = ''
-  success.value = ''
-  try {
-    order.value = await orderService.returnOrder(order.value.order_id, parsedDamagedItems.value)
-    success.value = `Return processed. Status: ${order.value.status}`
-  } catch (err) {
-    error.value = err.message || 'Unable to process return.'
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-const addDamagedRow = () => damagedItems.value.push({ modelId: '', qty: 1 })
-const removeDamagedRow = (idx) => {
-  damagedItems.value.splice(idx, 1)
-  if (!damagedItems.value.length) damagedItems.value.push({ modelId: '', qty: 1 })
 }
 
 if (orderId.value.trim()) trackOrder()
@@ -304,30 +273,6 @@ const depositStatus = computed(() => {
           {{ actionLoading ? 'Activating...' : 'Mark as Collected' }}
         </button>
       </div>
-
-      <!-- Return form -->
-      <div v-if="order && canReturn" class="info-card mb-3">
-        <h6 class="fw-bold mb-1">Process Return</h6>
-        <p class="text-muted small mb-3">Add damaged items if any, then submit return.</p>
-        <div class="mb-3">
-          <div class="row g-2 align-items-center mb-2" v-for="(row, idx) in damagedItems" :key="idx">
-            <div class="col-md-7">
-              <input v-model="row.modelId" class="form-control" placeholder="Model ID (leave blank if no damage)" />
-            </div>
-            <div class="col-md-3">
-              <input v-model.number="row.qty" type="number" min="1" class="form-control" placeholder="Qty" />
-            </div>
-            <div class="col-md-2 d-grid">
-              <button class="btn btn-outline-secondary btn-sm" @click="removeDamagedRow(idx)">Remove</button>
-            </div>
-          </div>
-          <button class="btn btn-outline-dark btn-sm" @click="addDamagedRow">+ Add Row</button>
-        </div>
-        <button class="btn btn-lookup fw-bold" :disabled="actionLoading" @click="processReturn">
-          {{ actionLoading ? 'Processing...' : 'Process Return' }}
-        </button>
-      </div>
-
     </div>
   </section>
 </template>
