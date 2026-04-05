@@ -71,10 +71,16 @@ def handle_webhook():
 
 def handle_payment_success(intent):
     id = intent.id
-    # logger.debug(intent)
     logger.info(f"Payment {id} succeeded")
 
-    kfk.publish_payment_succeeded_event(current_app.kafka_client, id, intent) # publish to kafka for followup from saga
+    payload = {
+        "payment_intent_id": id,
+        "amount": intent.amount,
+        "currency": intent.currency,
+        "status": intent.status,
+        "order_id": getattr(intent.metadata, "order_id", None) if intent.metadata else None,
+    }
+    kfk.publish_payment_succeeded_event(current_app.kafka_client, id, payload)
 
     return
 
@@ -82,6 +88,14 @@ def handle_payment_failed(intent):
     id = intent.id
     logger.info(f"Payment {id} failed")
 
-    kfk.publish_payment_failed_event(current_app.kafka_client, id, intent) # publish to kafka for followup from saga
+    payload = {
+        "payment_intent_id": id,
+        "amount": intent.amount,
+        "currency": intent.currency,
+        "status": intent.status,
+        "order_id": getattr(intent.metadata, "order_id", None) if intent.metadata else None,
+        "error_message": getattr(intent.last_payment_error, "message", None) if intent.last_payment_error else None,
+    }
+    kfk.publish_payment_failed_event(current_app.kafka_client, id, payload)
 
     return

@@ -19,7 +19,7 @@ services:
         strip_path: true   # strips /error-service prefix -> /health upstream
 
       - name: error-list
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: [/errors]
         strip_path: false
 
@@ -35,7 +35,7 @@ services:
         strip_path: true
 
       - name: logistics-get-shipment
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/logistics/(?<shipment_id>[^/]+)$"]
         strip_path: false
 
@@ -51,7 +51,7 @@ services:
         strip_path: true
 
       - name: notification-get-by-order
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/notifications/(?<order_id>[^/]+)$"]
         strip_path: false
 
@@ -67,17 +67,17 @@ services:
         strip_path: true
 
       - name: order-list-by-status
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/orders/status/(?<status>[^/]+)$"]
         strip_path: false
 
       - name: order-list-by-email
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/orders/by-email/(?<email>[^/]+)$"]
         strip_path: false
 
       - name: order-get-by-id
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/orders/(?<order_id>[^/]+)$"]
         strip_path: false
 
@@ -111,17 +111,17 @@ services:
         strip_path: true
 
       - name: inventory-service_availability90_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/availability90$"]
         strip_path: false
 
       - name: inventory-service_availability_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/availability$"]
         strip_path: false
 
       - name: inventory-service_catalogue_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/catalogue$"]
         strip_path: false
 
@@ -131,22 +131,22 @@ services:
         strip_path: false
 
       - name: inventory-service_packages-all_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/packages/all$"]
         strip_path: false
 
       - name: inventory-service_packages_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/packages$"]
         strip_path: false
 
       - name: inventory-service_stock-overview_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/stock-overview$"]
         strip_path: false
 
       - name: inventory-service_packageid_get
-        methods: [GET]
+        methods: [GET, OPTIONS]
         paths: ["~/api/inventory/(?<packageid>[^#?/]+)$"]
         strip_path: false
 

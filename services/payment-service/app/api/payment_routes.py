@@ -57,7 +57,8 @@ def create_payment_intent():
 def authorise_payment():
     """
     Saga-facing endpoint.
-    Creates a successful payment record synchronously and returns payment_id.
+    Verifies a Stripe PaymentIntent already confirmed by the frontend via Stripe.js,
+    records it in the database, and returns a payment_id.
     """
     data = request.get_json() or {}
     required = ["order_id", "total_amount"]
@@ -68,7 +69,6 @@ def authorise_payment():
     order_id = data["order_id"]
     total_amount = Decimal(str(data["total_amount"]))
     payment_details = data.get("payment_details", {})
-    amount_cents = int(total_amount * 100)
 
     existing = Payment.query.filter_by(order_id=order_id).first()
     if existing:
@@ -78,40 +78,16 @@ def authorise_payment():
             "idempotent": True,
         }), 200
 
-    stripe_client = current_app.stripe_client
-    intent = None
-
-    # Path A: frontend already confirmed a PaymentIntent via Stripe.js
     payment_intent_id = payment_details.get("payment_intent_id")
-    if payment_intent_id:
-        try:
-            intent = stripe_client.v1.payment_intents.retrieve(payment_intent_id)
-        except Exception as e:
-            logger.error(f"Stripe intent retrieval failed for order {order_id}: {e}")
-            return jsonify({"error": f"Payment verification failed: {str(e)}"}), 402
-    else:
-        # Path B: server-side sandbox shortcut (fallback)
-        # Use Stripe test payment methods such as:
-        #   pm_card_visa            -> success
-        #   pm_card_chargeDeclined  -> declined
-        payment_method_id = payment_details.get("test_payment_method_id", "pm_card_visa")
+    if not payment_intent_id:
+        return jsonify({"error": "payment_intent_id is required in payment_details"}), 400
 
-        try:
-            intent = stripe_client.v1.payment_intents.create({
-                "amount": amount_cents,
-                "currency": "sgd",
-                "confirm": True,
-                "payment_method": payment_method_id,
-                "automatic_payment_methods": {
-                    "enabled": True,
-                    "allow_redirects": "never",
-                },
-                "description": f"GradGown order {order_id}",
-                "metadata": {"order_id": order_id},
-            })
-        except Exception as e:
-            logger.error(f"Stripe payment failed for order {order_id}: {e}")
-            return jsonify({"error": f"Payment authorisation failed: {str(e)}"}), 402
+    stripe_client = current_app.stripe_client
+    try:
+        intent = stripe_client.v1.payment_intents.retrieve(payment_intent_id)
+    except Exception as e:
+        logger.error(f"Stripe intent retrieval failed for order {order_id}: {e}")
+        return jsonify({"error": f"Payment verification failed: {str(e)}"}), 402
 
     intent_status = getattr(intent, "status", None) or intent.get("status")
     if intent_status != "succeeded":
@@ -137,7 +113,7 @@ def authorise_payment():
     }), 201
 
 
-@api.route('/payments/refunds', methods=["POST"])
+@api.route('/refunds', methods=["POST"])
 def refund_payment():
     """
     Scenario 4 refund endpoint.
