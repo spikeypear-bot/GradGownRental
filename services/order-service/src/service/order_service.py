@@ -246,18 +246,6 @@ class OrderService:
         """Fetch all orders returning on a specific date."""
         return self._repo.find_by_rental_end_date(date_str)
 
-    def mark_collection_reminder_sent(self, order_id: str) -> None:
-        """Mark that collection reminder has been sent for this order."""
-        self._repo.mark_collection_reminder_sent(order_id)
-
-    def mark_return_reminder_sent(self, order_id: str) -> None:
-        """Mark that return reminder has been sent for this order."""
-        self._repo.mark_return_reminder_sent(order_id)
-
-    def update_email_status(self, order_id: str, status: str) -> None:
-        """Update email status (CONFIRMATION, COLLECTION, RETURN, DEPOSIT)."""
-        self._repo.update_email_status(order_id, status)
-
     # ------------------------------------------------------------------
     # Auto-activation (for scheduled jobs or background tasks)
     # ------------------------------------------------------------------

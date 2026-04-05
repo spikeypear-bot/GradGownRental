@@ -66,23 +66,6 @@ ALTER TABLE orders
 ADD COLUMN IF NOT EXISTS damaged_items JSONB DEFAULT '[]';
 
 ALTER TABLE orders
-ADD COLUMN IF NOT EXISTS email_status VARCHAR(50) DEFAULT 'CONFIRMATION';
-
-ALTER TABLE orders
-ADD COLUMN IF NOT EXISTS collection_reminder_sent BOOLEAN DEFAULT FALSE;
-
-ALTER TABLE orders
-ADD COLUMN IF NOT EXISTS return_reminder_sent BOOLEAN DEFAULT FALSE;
-
--- Create indexes for reminder tracking
-CREATE INDEX IF NOT EXISTS idx_orders_collection_reminder 
-ON orders(collection_reminder_sent, rental_start_date)
-WHERE fulfillment_method = 'COLLECTION' AND collection_reminder_sent = FALSE;
-
-CREATE INDEX IF NOT EXISTS idx_orders_return_reminder 
-ON orders(return_reminder_sent, rental_end_date)
-WHERE return_reminder_sent = FALSE;
-ALTER TABLE orders
 ALTER COLUMN status SET DEFAULT 'PENDING';
 
 ALTER TABLE orders

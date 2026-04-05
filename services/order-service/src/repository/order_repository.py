@@ -53,10 +53,9 @@ class OrderRepository:
                     (id, order_id, student_name, email, phone, package_id,
                      selected_items, rental_start_date, rental_end_date,
                      total_amount, deposit, fulfillment_method, status, confirmed_at,
-                     created_at, updated_at, hold_id, payment_id, email_status,
-                     collection_reminder_sent, return_reminder_sent)
+                     created_at, updated_at, hold_id, payment_id)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """
             params = (
@@ -78,9 +77,6 @@ class OrderRepository:
                 order.updated_at,
                 order.hold_id,
                 order.payment_id,
-                order.email_status,
-                order.collection_reminder_sent,
-                order.return_reminder_sent,
             )
         else:
             sql = """
@@ -88,10 +84,9 @@ class OrderRepository:
                     (order_id, student_name, email, phone, package_id,
                      selected_items, rental_start_date, rental_end_date,
                      total_amount, deposit, fulfillment_method, status, confirmed_at,
-                     created_at, updated_at, hold_id, payment_id, email_status,
-                     collection_reminder_sent, return_reminder_sent)
+                     created_at, updated_at, hold_id, payment_id)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """
             params = (
@@ -112,9 +107,6 @@ class OrderRepository:
                 order.updated_at,
                 order.hold_id,
                 order.payment_id,
-                order.email_status,
-                order.collection_reminder_sent,
-                order.return_reminder_sent,
             )
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
@@ -162,39 +154,6 @@ class OrderRepository:
             cur.execute(sql, (payment_id, datetime.now(timezone.utc), order_id))
             self._conn.commit()
 
-    def mark_collection_reminder_sent(self, order_id: str) -> None:
-        """Mark that collection reminder has been sent."""
-        sql = """
-            UPDATE orders
-            SET collection_reminder_sent = true, updated_at = %s
-            WHERE order_id = %s
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(sql, (datetime.now(timezone.utc), order_id))
-            self._conn.commit()
-
-    def mark_return_reminder_sent(self, order_id: str) -> None:
-        """Mark that return reminder has been sent."""
-        sql = """
-            UPDATE orders
-            SET return_reminder_sent = true, updated_at = %s
-            WHERE order_id = %s
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(sql, (datetime.now(timezone.utc), order_id))
-            self._conn.commit()
-
-    def update_email_status(self, order_id: str, new_status: str) -> None:
-        """Update email status (CONFIRMATION, COLLECTION, RETURN, DEPOSIT)."""
-        sql = """
-            UPDATE orders
-            SET email_status = %s, updated_at = %s
-            WHERE order_id = %s
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(sql, (new_status, datetime.now(timezone.utc), order_id))
-            self._conn.commit()
-
     # ------------------------------------------------------------------
     # Reads
     # ------------------------------------------------------------------
@@ -206,8 +165,7 @@ class OrderRepository:
                    selected_items, rental_start_date, rental_end_date,
                    total_amount, deposit, fulfillment_method, status,
                    created_at, updated_at, confirmed_at, activated_at,
-                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items,
-                   email_status, collection_reminder_sent, return_reminder_sent
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
             FROM orders
             WHERE order_id = %s
         """
@@ -225,8 +183,7 @@ class OrderRepository:
                    selected_items, rental_start_date, rental_end_date,
                    total_amount, deposit, fulfillment_method, status,
                    created_at, updated_at, confirmed_at, activated_at,
-                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items,
-                   email_status, collection_reminder_sent, return_reminder_sent
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
             FROM orders
             WHERE email = %s
             ORDER BY created_at DESC
@@ -242,8 +199,7 @@ class OrderRepository:
                    selected_items, rental_start_date, rental_end_date,
                    total_amount, deposit, fulfillment_method, status,
                    created_at, updated_at, confirmed_at, activated_at,
-                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items,
-                   email_status, collection_reminder_sent, return_reminder_sent
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
             FROM orders
             WHERE status = %s
             ORDER BY created_at DESC
@@ -259,8 +215,7 @@ class OrderRepository:
                    selected_items, rental_start_date, rental_end_date,
                    total_amount, deposit, fulfillment_method, status,
                    created_at, updated_at, confirmed_at, activated_at,
-                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items,
-                   email_status, collection_reminder_sent, return_reminder_sent
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
             FROM orders
             WHERE rental_start_date = %s
             ORDER BY created_at DESC
@@ -276,8 +231,7 @@ class OrderRepository:
                    selected_items, rental_start_date, rental_end_date,
                    total_amount, deposit, fulfillment_method, status,
                    created_at, updated_at, confirmed_at, activated_at,
-                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items,
-                   email_status, collection_reminder_sent, return_reminder_sent
+                   returned_at, completed_at, hold_id, payment_id, damaged, damaged_items
             FROM orders
             WHERE rental_end_date = %s
             ORDER BY created_at DESC
@@ -292,75 +246,68 @@ class OrderRepository:
 
     def _row_to_order(self, row) -> Order:
         """Convert a database row to an Order object."""
-        try:
-            # selected_items from JSONB column is already parsed as a list/dict
-            selected_items = row[6]
-            if isinstance(selected_items, str):
-                selected_items = json.loads(selected_items)
-            
-            # damaged_items from JSONB column (index 22)
-            damaged_items = row[22] if len(row) > 22 else None
-            if isinstance(damaged_items, str):
-                damaged_items = json.loads(damaged_items)
-            elif damaged_items is None:
-                damaged_items = []
-            
-            # damaged is at index 21
-            damaged = row[21] if len(row) > 21 else None
-            
-            # Convert naive datetimes from database to timezone-aware UTC
-            created_at = row[13]
-            if created_at and isinstance(created_at, datetime) and created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            
-            updated_at = row[14]
-            if updated_at and isinstance(updated_at, datetime) and updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=timezone.utc)
-            
-            confirmed_at = row[15]
-            if confirmed_at and isinstance(confirmed_at, datetime) and confirmed_at.tzinfo is None:
-                confirmed_at = confirmed_at.replace(tzinfo=timezone.utc)
-            
-            activated_at = row[16]
-            if activated_at and isinstance(activated_at, datetime) and activated_at.tzinfo is None:
-                activated_at = activated_at.replace(tzinfo=timezone.utc)
-            
-            returned_at = row[17]
-            if returned_at and isinstance(returned_at, datetime) and returned_at.tzinfo is None:
-                returned_at = returned_at.replace(tzinfo=timezone.utc)
-            
-            completed_at = row[18]
-            if completed_at and isinstance(completed_at, datetime) and completed_at.tzinfo is None:
-                completed_at = completed_at.replace(tzinfo=timezone.utc)
-            
-            return Order(
-                id=row[0],
-                order_id=row[1],
-                student_name=row[2],
-                email=row[3],
-                phone=row[4],
-                package_id=row[5],
-                selected_items=selected_items,
-                rental_start_date=row[7],
-                rental_end_date=row[8],
-                total_amount=row[9],
-                deposit=row[10],
-                fulfillment_method=row[11],
-                status=OrderStatus(row[12]),
-                created_at=created_at,
-                updated_at=updated_at,
-                confirmed_at=confirmed_at,
-                activated_at=activated_at,
-                returned_at=returned_at,
-                completed_at=completed_at,
-                hold_id=row[19],
-                payment_id=row[20],
-                damaged=damaged,
-                damaged_items=damaged_items,
-                email_status=row[23] if len(row) > 23 else "CONFIRMATION",
-                collection_reminder_sent=row[24] if len(row) > 24 else False,
-                return_reminder_sent=row[25] if len(row) > 25 else False,
-            )
-        except (IndexError, TypeError, ValueError) as e:
-            logger.error(f"Error converting row to Order: {e}. Row length: {len(row) if row else 0}")
-            raise
+        # selected_items from JSONB column is already parsed as a list/dict
+        selected_items = row[6]
+        if isinstance(selected_items, str):
+            selected_items = json.loads(selected_items)
+        
+        # damaged_items from JSONB column
+        damaged_items = row[22] if len(row) > 22 else []
+        if isinstance(damaged_items, str):
+            damaged_items = json.loads(damaged_items)
+        elif damaged_items is None:
+            damaged_items = []
+        
+        # damaged is at index 21
+        damaged = row[21] if len(row) > 21 else None
+        
+        # Convert naive datetimes from database to timezone-aware UTC
+        created_at = row[13]
+        if created_at and isinstance(created_at, datetime) and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        
+        updated_at = row[14]
+        if updated_at and isinstance(updated_at, datetime) and updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+        
+        confirmed_at = row[15]
+        if confirmed_at and isinstance(confirmed_at, datetime) and confirmed_at.tzinfo is None:
+            confirmed_at = confirmed_at.replace(tzinfo=timezone.utc)
+        
+        activated_at = row[16]
+        if activated_at and isinstance(activated_at, datetime) and activated_at.tzinfo is None:
+            activated_at = activated_at.replace(tzinfo=timezone.utc)
+        
+        returned_at = row[17]
+        if returned_at and isinstance(returned_at, datetime) and returned_at.tzinfo is None:
+            returned_at = returned_at.replace(tzinfo=timezone.utc)
+        
+        completed_at = row[18]
+        if completed_at and isinstance(completed_at, datetime) and completed_at.tzinfo is None:
+            completed_at = completed_at.replace(tzinfo=timezone.utc)
+        
+        return Order(
+            id=row[0],
+            order_id=row[1],
+            student_name=row[2],
+            email=row[3],
+            phone=row[4],
+            package_id=row[5],
+            selected_items=selected_items,
+            rental_start_date=row[7],
+            rental_end_date=row[8],
+            total_amount=row[9],
+            deposit=row[10],
+            fulfillment_method=row[11],
+            status=OrderStatus(row[12]),
+            created_at=created_at,
+            updated_at=updated_at,
+            confirmed_at=confirmed_at,
+            activated_at=activated_at,
+            returned_at=returned_at,
+            completed_at=completed_at,
+            hold_id=row[19],
+            payment_id=row[20],
+            damaged=damaged,
+            damaged_items=damaged_items,
+        )

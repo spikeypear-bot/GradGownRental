@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import com.inventory_service.inventory_service.dto.DailyAvailabilityDto;
 import com.inventory_service.inventory_service.dto.DamageAndQtyDto;
 import com.inventory_service.inventory_service.dto.ItemAndDamageIdDto;
-import com.inventory_service.inventory_service.dto.InventoryDto;
 import com.inventory_service.inventory_service.dto.ModelIdAndQtyAndDateDto;
 import com.inventory_service.inventory_service.dto.PackageWithPriceDto;
 import com.inventory_service.inventory_service.dto.PackageWithStyleAndInventoryDto;
@@ -29,7 +28,6 @@ import com.inventory_service.inventory_service.exception.ModelNotFoundException;
 import com.inventory_service.inventory_service.exception.PackageNotFoundException;
 import com.inventory_service.inventory_service.response.InventoryResponse;
 import com.inventory_service.inventory_service.service.GetService;
-import com.inventory_service.inventory_service.service.InventoryService;
 import com.inventory_service.inventory_service.service.PostService;
 
 @RestController
@@ -37,12 +35,10 @@ import com.inventory_service.inventory_service.service.PostService;
 public class InventoryController {
     private final GetService getService;
     private final PostService postService;
-    private final InventoryService inventoryService;
 
-    public InventoryController(GetService getService, PostService postService, InventoryService inventoryService) {
+    public InventoryController(GetService getService,PostService postService) {
         this.getService = getService;
-        this.postService = postService;
-        this.inventoryService = inventoryService;
+        this.postService=postService;
     }
 
     @GetMapping("/availability")
@@ -77,17 +73,6 @@ public class InventoryController {
             
 
 
-    }
-
-    @GetMapping("/models/{modelId}")
-    public InventoryResponse<InventoryDto> getModelDetails(@PathVariable String modelId) {
-        try {
-            return new InventoryResponse<InventoryDto>(200, "success", inventoryService.getByModelId(modelId));
-        } catch (ModelNotFoundException e) {
-            return new InventoryResponse<InventoryDto>(404, e.getMessage(), null);
-        } catch (RuntimeException e) {
-            return new InventoryResponse<InventoryDto>(400, e.getMessage(), null);
-        }
     }
 
     @GetMapping("/packages/all")
@@ -129,6 +114,19 @@ public class InventoryController {
             getService.getStockOverview(targetDate)
         );
     }
+
+    @GetMapping("/{packageId}")
+    public InventoryResponse<PackageWithStyleAndInventoryDto> getPackageWithStyleAndInventory(@PathVariable int packageId){
+        InventoryResponse<PackageWithStyleAndInventoryDto> res;
+        try {
+            PackageWithStyleAndInventoryDto packageWithStyleAndInventoryDto = getService.getPackageWithStyleAndInventory(packageId);
+            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(200, "success", packageWithStyleAndInventoryDto);
+        } catch (PackageNotFoundException e) {
+            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(400, e.getMessage(), null);
+        }
+        return res;
+    }
+    
 
     @PostMapping("/softlock")
     public InventoryResponse<SoftHoldDto> softHold(@RequestBody List<ModelIdAndQtyAndDateDto>items){
@@ -301,19 +299,9 @@ public class InventoryController {
 
     }
 
-    // This must be LAST because it matches any path pattern
-    @GetMapping("/{packageId}")
-    public InventoryResponse<PackageWithStyleAndInventoryDto> getPackageWithStyleAndInventory(@PathVariable int packageId){
-        InventoryResponse<PackageWithStyleAndInventoryDto> res;
-        try {
-            PackageWithStyleAndInventoryDto packageWithStyleAndInventoryDto = getService.getPackageWithStyleAndInventory(packageId);
-            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(200, "success", packageWithStyleAndInventoryDto);
-        } catch (PackageNotFoundException e) {
-            res= new InventoryResponse<PackageWithStyleAndInventoryDto>(400, e.getMessage(), null);
-        }
-        return res;
-    }
+    
+    
+    
 
     
 }
-

@@ -44,16 +44,8 @@
           class="nav-item"
           :class="{ active: isActive('/admin/returns') }"
         >
-          <i class="bi bi-arrow-return-left"></i>
+          <i class="bi bi-arrow-clockwise"></i>
           <span>Process Return</span>
-        </RouterLink>
-        <RouterLink
-          to="/admin/check-damage"
-          class="nav-item"
-          :class="{ active: isActive('/admin/check-damage') }"
-        >
-          <i class="bi bi-exclamation-triangle"></i>
-          <span>Check Damage</span>
         </RouterLink>
         <RouterLink
           to="/admin/repair"

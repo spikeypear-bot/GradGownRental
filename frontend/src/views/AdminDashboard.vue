@@ -49,38 +49,32 @@
           <table class="table align-middle orders-table mb-0">
             <thead>
               <tr>
-                <th>Order ID</th>
+                <th>Order</th>
                 <th>Student</th>
                 <th>Fulfillment</th>
                 <th>Rental Date</th>
                 <th>Return Date</th>
                 <th>Total</th>
                 <th>Status</th>
-                <th>Email</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in filteredOrders" :key="order.order_id">
-                <td class="fw-semibold">{{ order.order_id }}</td>
+              <tr v-for="order in filteredOrders" :key="order.orderID">
+                <td class="fw-semibold">{{ order.orderID }}</td>
                 <td>
                   <span class="student-cell">
-                    <span class="fw-semibold text-dark">{{ order.student_name || 'Student' }}</span>
+                    <span class="fw-semibold text-dark">{{ order.CustomerName || 'Student' }}</span>
                     <span class="student-divider">|</span>
-                    <span class="text-muted">{{ order.email || '-' }}</span>
+                    <span class="text-muted">{{ order.CustomerEmail || '-' }}</span>
                   </span>
                 </td>
                 <td>{{ order.fulfillment_method || '-' }}</td>
                 <td>{{ formatDate(order.rental_start_date) }}</td>
                 <td>{{ formatDate(order.rental_end_date) }}</td>
-                <td>SGD ${{ Number(order.total_amount || 0).toFixed(2) }}</td>
+                <td>SGD ${{ Number(order.TotalAmount || 0).toFixed(2) }}</td>
                 <td>
                   <span :class="['status-chip', statusClass(order.status)]">
                     {{ order.status || '-' }}
-                  </span>
-                </td>
-                <td>
-                  <span :class="['status-chip', emailStatusClass(order.email_status)]">
-                    {{ order.email_status || 'CONFIRMATION' }}
                   </span>
                 </td>
               </tr>
@@ -116,7 +110,7 @@ const filteredOrders = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return orders.value
 
-  return orders.value.filter(order => order.order_id?.toLowerCase().includes(query))
+  return orders.value.filter(order => order.orderID?.toLowerCase().includes(query))
 })
 
 const emptyStateMessage = computed(() => {
@@ -152,21 +146,6 @@ const statusClass = (status) => {
     case 'ACTIVE':
     default:
       return 'status-active'
-  }
-}
-
-const emailStatusClass = (emailStatus) => {
-  switch (emailStatus) {
-    case 'CONFIRMATION':
-      return 'status-confirmed'
-    case 'COLLECTION':
-      return 'status-active'
-    case 'RETURN':
-      return 'status-damaged'
-    case 'DEPOSIT':
-      return 'status-completed'
-    default:
-      return 'status-confirmed'
   }
 }
 

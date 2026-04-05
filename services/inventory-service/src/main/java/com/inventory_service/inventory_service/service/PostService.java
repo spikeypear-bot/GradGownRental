@@ -229,7 +229,7 @@ public class PostService {
             for(int i=0;i<7;i++){
                 
                 LocalDate curr=chosenDate.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto = getOrCreateQuantityTrack(itemDto.getModelId(), curr);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
                 int a= inventoryQuantityTrackDto.getReservedQty();
                 inventoryQuantityTrackDto.setReservedQty(a-item.getQty());
                 int b= inventoryQuantityTrackDto.getRentedQty();
@@ -245,36 +245,6 @@ public class PostService {
 
     }
     
-    /**
-     * Get or create an InventoryQuantityTrackDto for a given model and date.
-     * If the record doesn't exist, it creates one with default values.
-     */
-    private InventoryQuantityTrackDto getOrCreateQuantityTrack(String modelId, LocalDate date) throws ModelNotFoundException {
-        InventoryQuantityTrackDto dto = inventoryQuantityTrackService.getInventoryQuantityTrackByDate(modelId, date);
-        if (dto == null) {
-            // Create a new record with defaults
-            InventoryDto itemDto = inventoryService.getByModelId(modelId);
-            Inventory inventory = inventoryMapper.inventoryDtoToInventory(itemDto);
-            
-            // Create and save the entity directly
-            InventoryQuantityTrack track = new InventoryQuantityTrack(
-                date,
-                inventory,
-                itemDto.getTotalQty() - 10, // available = total minus backup
-                0, // reserved
-                0, // rented
-                0, // wash
-                10  // backup
-            );
-            inventoryQuantityTrackRepository.save(track);
-            
-            // Convert back to DTO for consistency
-            dto = inventoryQuantityTrackMapper.inventoryQuantityTrackToInventoryQuantityTrackDto(track);
-        }
-        return dto;
-    }
-
-
     @Transactional
     public void washItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         
@@ -287,7 +257,7 @@ public class PostService {
             for(int i=0;i<remainingDays;i++){
                 
                 LocalDate curr=today.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto = getOrCreateQuantityTrack(itemDto.getModelId(), curr);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
                 int a= inventoryQuantityTrackDto.getRentedQty();
                 inventoryQuantityTrackDto.setRentedQty(a-item.getQty());
                 int b= inventoryQuantityTrackDto.getWashQty();
@@ -317,7 +287,7 @@ public class PostService {
             for(int i=0;i<remainingDays;i++){
 
                 LocalDate curr=today.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto = getOrCreateQuantityTrack(itemDto.getModelId(), curr);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
                 int rentedQty= inventoryQuantityTrackDto.getRentedQty();
                 inventoryQuantityTrackDto.setRentedQty(rentedQty-item.getQty());
                 

@@ -139,9 +139,7 @@ const filteredStockRows = computed(() => {
 const loadStockOverview = async () => {
   errorMessage.value = ''
   try {
-    // Use today's date to show current stock
-    const today = new Date()
-    stockOverview.value = await inventoryService.getStockOverview(today)
+    stockOverview.value = await inventoryService.getStockOverview(new Date())
   } catch (error) {
     console.error('Error loading stock overview:', error)
     errorMessage.value = error.message || 'Unable to load stock overview right now.'
