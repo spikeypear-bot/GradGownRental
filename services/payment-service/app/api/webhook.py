@@ -11,7 +11,7 @@ import stripe
 logger = logging.getLogger("payment").getChild("webhook")
 # logger.setLevel("DEBUG")
 
-webhook = Blueprint("webhook", __name__)
+webhook = Blueprint("webhook", __name__, url_prefix="/api/payment")
 
 # Handle exceptions
 @webhook.errorhandler(HTTPException)

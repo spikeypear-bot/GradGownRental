@@ -152,7 +152,7 @@ services:
     environment:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
-    entrypoint: ["stripe", "listen", "-f", "host.docker.internal:3000/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
+    entrypoint: ["stripe", "listen", "-f", "payment-service:3000/api/payment/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
     networks:
       - app-network
     healthcheck:
