@@ -3,7 +3,7 @@
     <div class="container py-4">
       <div class="page-header">
         <h2 class="fw-bold mb-2">Admin Team</h2>
-        <p class="text-muted mb-0">Process returns and record any damage.</p>
+        <p class="text-muted mb-0">Mark gowns as returned.</p>
         <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. All active orders are available for return inspection immediately.</p>
       </div>
 
@@ -65,83 +65,33 @@
           </button>
         </div>
 
-        <form @submit.prevent="submitReturn">
-          <div class="mb-4">
-            <label class="section-label">Damage Status</label>
-            <div class="choice-grid">
-              <label class="choice-card">
-                <input v-model="damageSelection" type="radio" value="NO_DAMAGE" />
-                <div>
-                  <span>No damage</span>
-                  <small>Complete the return without a repair report.</small>
-                </div>
-              </label>
-              <label class="choice-card">
-                <input v-model="damageSelection" type="radio" value="HAS_DAMAGE" />
-                <div>
-                  <span>Damage found</span>
-                  <small>Send the order into repair with evidence attached.</small>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div v-if="hasDamage" class="damage-section">
-            <div class="mb-4">
-              <label class="section-label">Damaged Items</label>
-              <div class="damage-checklist">
-                <label v-for="item in damageOptions" :key="item.key" class="damage-option">
-                  <input
-                    v-model="damagedComponents"
-                    type="checkbox"
-                    :value="item.key"
-                  />
-                  <span>{{ item.label }}</span>
-                </label>
+        <div class="return-confirmation">
+          <div class="confirmation-box">
+            <i class="bi bi-check2-circle"></i>
+            <h5>Confirm Return</h5>
+            <p class="text-muted mb-4">Mark this order as returned. Damage inspection will be done in the Check Damage section.</p>
+            
+            <div class="item-list mb-4">
+              <h6 class="text-muted">Items returned:</h6>
+              <div v-for="item in selectedOrder.selected_items" :key="item.modelId" class="item-row">
+                <span>{{ item.modelId }}</span>
+                <span class="qty-badge">{{ item.qty }}</span>
               </div>
             </div>
 
-            <div class="mb-4">
-              <label for="damageReport" class="section-label">Damage Description</label>
-              <textarea
-                id="damageReport"
-                v-model="damageReport"
-                class="form-control"
-                rows="4"
-                placeholder="Describe the damage clearly for the repair team..."
-                :required="hasDamage"
-              ></textarea>
-            </div>
-
-            <div class="mb-4">
-              <label for="damagePhotos" class="section-label">Attach Evidence</label>
-              <input
-                id="damagePhotos"
-                type="file"
-                class="form-control"
-                accept="image/*"
-                multiple
-                :required="hasDamage"
-                @change="handleDamageImages"
-              />
-              <small class="text-muted">Upload one or more photos when damage is reported.</small>
-              <div v-if="damageImages.length" class="upload-list mt-2">
-                <div v-for="image in damageImages" :key="image.name + image.size" class="upload-pill">
-                  {{ image.name }}
-                </div>
-              </div>
-            </div>
+            <button 
+              @click="submitReturn" 
+              class="btn btn-return w-100" 
+              :disabled="isSubmitting"
+            >
+              <span v-if="!isSubmitting">Confirm Return</span>
+              <span v-else>
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Processing...
+              </span>
+            </button>
           </div>
-
-          <button type="submit" class="btn btn-return w-100" :disabled="isSubmitting">
-            <span v-if="!isSubmitting">Submit Return</span>
-            <span v-else>
-              <span class="spinner-border spinner-border-sm me-2"></span>
-              Processing...
-            </span>
-          </button>
-        </form>
-
+        </div>
       </div>
     </div>
   </div>
@@ -152,22 +102,11 @@ import { computed, onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
 import { isDemoMode } from '../config/demoMode'
-import { readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
-
-const damageOptions = [
-  { key: 'gown', label: 'Gown' },
-  { key: 'hood', label: 'Hood' },
-  { key: 'mortarboard', label: 'Mortarboard' }
-]
 
 const orders = ref([])
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 const selectedOrder = ref(null)
-const damageSelection = ref('NO_DAMAGE')
-const damagedComponents = ref([])
-const damageReport = ref('')
-const damageImages = ref([])
 const successMessage = ref('')
 const errorMessage = ref('')
 
@@ -196,9 +135,15 @@ const todayLabel = computed(() => {
   }
 })
 
-const returnQueue = computed(() =>
-  orders.value.filter(order => isDemoMode || formatDateKey(order.rental_end_date) === todayKey.value)
-)
+const returnQueue = computed(() => {
+  if (isDemoMode) {
+    // In demo mode, show all ACTIVE orders due for return
+    return orders.value
+  }
+  // In production, show only ACTIVE orders where rental_end_date <= today
+  const today = formatDateKey(new Date())
+  return orders.value.filter(order => formatDateKey(order.rental_end_date) <= today)
+})
 
 const hasDamage = computed(() => damageSelection.value === 'HAS_DAMAGE')
 
@@ -234,25 +179,11 @@ const loadActiveReturns = async () => {
 
 const startInspection = (order) => {
   selectedOrder.value = order
-  damageSelection.value = 'NO_DAMAGE'
-  damagedComponents.value = []
-  damageReport.value = ''
-  damageImages.value = []
   errorMessage.value = ''
 }
 
 const resetInspection = () => {
   selectedOrder.value = null
-  damageSelection.value = 'NO_DAMAGE'
-  damagedComponents.value = []
-  damageReport.value = ''
-  damageImages.value = []
-  const damagePhotos = document.getElementById('damagePhotos')
-  if (damagePhotos) damagePhotos.value = ''
-}
-
-const handleDamageImages = (event) => {
-  damageImages.value = Array.from(event.target.files || [])
 }
 
 const submitReturn = async () => {
@@ -264,61 +195,23 @@ const submitReturn = async () => {
     return
   }
 
-  if (hasDamage.value && damagedComponents.value.length === 0) {
-    errorMessage.value = 'Please select at least one damaged item.'
-    return
-  }
-
-  if (hasDamage.value && !damageReport.value.trim()) {
-    errorMessage.value = 'Please add a damage description.'
-    return
-  }
-
-  if (hasDamage.value && damageImages.value.length === 0) {
-    errorMessage.value = 'Please upload at least one damage photo.'
-    return
-  }
-
   isSubmitting.value = true
 
   try {
-    const damageImagesPayload = await Promise.all(
-      damageImages.value.map(async (file) => ({
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data_url: await readFileAsDataUrl(file)
-      }))
-    )
-
+    // Simple return without damage form - just mark as returned
     await AdminService.processReturn({
       order_id: selectedOrder.value.orderID,
       selected_packages: (Array.isArray(selectedOrder.value.selected_items) ? selectedOrder.value.selected_items : []).map(item => ({
         ...item,
         chosenDate: item.chosenDate || selectedOrder.value.rental_start_date
       })),
-      damage_report: hasDamage.value ? damageReport.value.trim() : '',
-      damaged_components: hasDamage.value ? damagedComponents.value : [],
-      damage_images: hasDamage.value ? damageImagesPayload : []
+      damage_report: '',
+      damaged_components: [],
+      damage_images: [],
+      has_damage: false  // Mark as not damaged initially
     })
 
-    const allSelected = Array.isArray(selectedOrder.value.selected_items)
-      ? selectedOrder.value.selected_items
-      : []
-    const damagedSet = new Set(hasDamage.value ? damagedComponents.value : [])
-    const damagedPackages = allSelected.filter(item => damagedSet.has(getComponentKeyForItem(item)))
-    const cleanPackages = allSelected.filter(item => !damagedSet.has(getComponentKeyForItem(item)))
-    const detailsMap = readMaintenanceDetails()
-    detailsMap[selectedOrder.value.orderID] = {
-      allSelected,
-      damagedPackages,
-      cleanPackages,
-      damagedStage: damagedPackages.length ? 'repair' : null,
-      cleanStage: cleanPackages.length ? 'wash' : null,
-    }
-    writeMaintenanceDetails(detailsMap)
-
-    successMessage.value = `Return processed for order ${selectedOrder.value.orderID}.`
+    successMessage.value = `Return confirmed for order ${selectedOrder.value.orderID}. Proceed to Check Damage section.`
     orders.value = orders.value.filter(order => order.orderID !== selectedOrder.value.orderID)
     resetInspection()
 

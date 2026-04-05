@@ -204,13 +204,13 @@ class AdminService {
 
   /**
    * Process return-repair action from queue page.
-   * Existing saga only supports:
-   * - processReturn()
-   * - transitionToWash()
-   * - maintenanceComplete()
-   * So this method routes to what already exists.
+   * Routes to appropriate saga endpoint based on action.
    */
   async processReturnRepair(orderId, action) {
+    if (action === 'repair') {
+      return this.transitionToRepair(orderId)
+    }
+
     if (action === 'wash') {
       return this.transitionToWash(orderId)
     }
@@ -220,6 +220,35 @@ class AdminService {
     }
 
     throw new Error('Invalid repair action')
+  }
+
+  /**
+   * Transition items to repair (mark as damaged)
+   * @param {string} orderId - The order ID
+   * @returns {Promise<Object>}
+   */
+  async transitionToRepair(orderId, selectedPackages = null) {
+    try {
+      const response = await fetch(`${RETURN_API_BASE_URL}/transition-to-repair`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          ...(selectedPackages ? { selected_packages: selectedPackages } : {}),
+        })
+      })
+
+      if (!response.ok) {
+        await this.parseError(response, 'Failed to transition to repair')
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error transitioning to repair:', error)
+      throw this.formatFetchError(error, 'Unable to send items to repair.')
+    }
   }
 
   /**

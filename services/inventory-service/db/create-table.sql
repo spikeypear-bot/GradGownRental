@@ -1012,3 +1012,26 @@ INSERT INTO Inventory (model_id, style_id, size, total_qty) VALUES
 ('5200063',63,'M',250),
 ('5300063',63,'L',250),
 ('5400063',63,'XL',250);
+
+-- Initialize InventoryQuantityTrack for all items for dates from today through 90 days
+-- This ensures that when items are reserved/rented, the tracking records exist
+INSERT INTO InventoryQuantityTrack (date, model_id, available_qty, reserved_qty, rented_qty, wash_qty, backup_qty)
+SELECT 
+  generated_date,
+  model_id,
+  COALESCE(inv.total_qty, 0) - 10 AS available_qty,  -- total minus default 10 backup
+  0 AS reserved_qty,
+  0 AS rented_qty,
+  0 AS wash_qty,
+  10 AS backup_qty
+FROM (
+  SELECT DISTINCT 
+    model_id
+  FROM Inventory
+) AS inv_list
+CROSS JOIN (
+  SELECT CURRENT_DATE + (SERIES) AS generated_date
+  FROM generate_series(0, 90) AS SERIES
+) AS dates
+LEFT JOIN Inventory inv ON inv_list.model_id = inv.model_id
+ON CONFLICT (date, model_id) DO NOTHING;

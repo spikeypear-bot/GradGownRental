@@ -55,6 +55,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/admin/check-damage',
+      name: 'admin-check-damage',
+      component: () => import('../views/ReturnsQueuePage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin/repair',
       name: 'admin-repair',
       component: () => import('../views/RepairPage.vue'),

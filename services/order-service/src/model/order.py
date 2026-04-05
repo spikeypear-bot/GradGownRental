@@ -41,10 +41,10 @@ class Order:
     
     # --- Package & selected items ---
     # package_id: which graduation package (e.g., NUS Engineering)
-    # selected_items: list of {modelId, qty} dicts
+    # selected_items: list of items with {modelId, qty, size, itemType, itemName, ...}
     # model_id encodes both STYLE and SIZE (e.g., "0100020" = M Blue Gown)
     package_id: int
-    selected_items: list                    # e.g., [{modelId: "0000024", qty: 1}, ...]
+    selected_items: list                    # e.g., [{modelId: "0000024", qty: 1, size: "XS", ...}, ...]
     
     # --- Rental dates ---
     rental_start_date: str                  # ISO format: "2026-05-15"
@@ -78,6 +78,11 @@ class Order:
     # --- Damage tracking ---
     damaged: Optional[bool] = None
     damaged_items: list = field(default_factory=list)  # List of {modelId, qty} dicts
+    
+    # --- Email reminder tracking ---
+    email_status: str = "CONFIRMATION"  # CONFIRMATION, COLLECTION, RETURN, DEPOSIT
+    collection_reminder_sent: bool = False  # Prevent duplicate collection reminders
+    return_reminder_sent: bool = False  # Prevent duplicate return reminders
     
     # --- Database ID ---
     id: Optional[int] = None
@@ -118,4 +123,7 @@ class Order:
             "payment_id": self.payment_id,
             "damaged": self.damaged,
             "damaged_items": self.damaged_items,
+            "email_status": self.email_status,
+            "collection_reminder_sent": self.collection_reminder_sent,
+            "return_reminder_sent": self.return_reminder_sent,
         }

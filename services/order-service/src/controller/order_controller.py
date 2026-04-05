@@ -179,6 +179,39 @@ def return_order(order_id: str):
         return jsonify({"error": "Internal server error"}), 500
 
 
+@order_bp.put("/<string:order_id>/damage")
+def set_damaged_items(order_id: str):
+    """
+    Update the damaged_items list for an order.
+    Used by Return Order Saga when damage assessment is completed.
+    
+    Request body:
+      damaged_items: list of {modelId, qty} objects identifying damaged items
+    """
+    service = current_app.extensions["order_service"]
+    
+    try:
+        data = request.get_json() or {}
+        damaged_items = data.get("damaged_items", [])
+        
+        # Get current order to validate
+        order = service.get_order(order_id)
+        
+        # Update only the damaged_items field
+        # Determine if damaged based on whether we have items in the list
+        has_damage = bool(damaged_items and len(damaged_items) > 0)
+        service._repo.set_damage(order_id, has_damage, damaged_items=damaged_items)
+        
+        # Fetch and return updated order
+        updated_order = service.get_order(order_id)
+        return jsonify(updated_order.to_dict()), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error setting damaged items: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 @order_bp.get("/status/<string:status>")
 def get_orders_by_status(status: str):
     """Fetch all orders with a given status."""

@@ -2,39 +2,59 @@
   <div class="team-page">
     <div class="container py-4">
       <div class="page-header">
-        <h2 class="fw-bold mb-2">Repair Team</h2>
-        <p class="text-muted mb-0">Mark repaired orders so they move into washing.</p>
+        <h2 class="fw-bold mb-2">Repair</h2>
+        <p class="text-muted mb-0">Items undergoing repair (1-day maintenance window). Status updates automatically.</p>
       </div>
 
       <div class="team-card">
         <div v-if="isLoading" class="text-center py-5">
           <div class="spinner-border" role="status"></div>
-          <p class="mt-3 text-muted">Loading repair queue...</p>
+          <p class="mt-3 text-muted">Loading items in repair...</p>
         </div>
 
         <div v-else-if="repairQueue.length === 0" class="empty-state">
           <i class="bi bi-tools"></i>
-          <p>No orders are currently under repair.</p>
+          <p>No items currently in repair.</p>
         </div>
 
-        <div v-else class="queue-list">
-          <div v-for="item in repairQueue" :key="item.id" class="queue-item">
-            <div class="item-info">
-              <span class="item-id">{{ item.itemId }}</span>
-              <p class="item-title mb-0">{{ item.gownName }}</p>
-            </div>
-            <button
-              @click="markRepairComplete(item)"
-              class="btn btn-sm btn-repair"
-              :disabled="processingId === item.itemId"
-            >
-              <span v-if="processingId !== item.itemId">Mark As Repaired</span>
-              <span v-else>
-                <span class="spinner-border spinner-border-sm me-1"></span>
-                Updating...
-              </span>
-            </button>
+        <div v-else class="queue-table">
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Model ID</th>
+                  <th>Item Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in repairQueue" :key="item.modelId">
+                  <td class="fw-semibold">{{ item.modelId }}</td>
+                  <td>{{ item.itemName }}</td>
+                  <td class="text-uppercase text-muted">{{ item.itemType }}</td>
+                  <td>{{ item.size }}</td>
+                  <td><span class="badge bg-warning">IN REPAIR</span></td>
+                  <td>
+                    <div class="progress" style="height: 20px;">
+                      <div class="progress-bar bg-warning" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </div>
+      </div>
+
+      <div class="info-banner mt-4">
+        <i class="bi bi-info-circle me-2"></i>
+        <div>
+          <strong>Automatic Processing:</strong> Items automatically transition through repair (1 day) → washing (3 days) → available inventory.
+          <br/>
+          <strong>Backup Coverage:</strong> Backup stock automatically allocated while items are in maintenance.
         </div>
       </div>
     </div>
@@ -44,11 +64,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import AdminService from '../services/admin'
-import { loadMaintenanceBuckets, readMaintenanceDetails, writeMaintenanceDetails } from '../services/admin/maintenance'
+import { loadMaintenanceBuckets } from '../services/admin/maintenance'
 
 const repairQueue = ref([])
 const isLoading = ref(false)
-const processingId = ref(null)
 
 const loadData = async () => {
   isLoading.value = true
@@ -63,27 +82,12 @@ const loadData = async () => {
   }
 }
 
-const markRepairComplete = async (item) => {
-  processingId.value = item.itemId
-  try {
-    await AdminService.completeRepair(item.itemId, item?.selectedPackages || null)
-    const detailsMap = readMaintenanceDetails()
-    const entry = { ...(detailsMap[item.itemId] || {}) }
-    if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'wash'
-    }
-    detailsMap[item.itemId] = entry
-    writeMaintenanceDetails(detailsMap)
-    await loadData()
-  } catch (error) {
-    console.error('Error completing repair:', error)
-    alert('Failed to send item to laundry: ' + error.message)
-  } finally {
-    processingId.value = null
-  }
-}
-
-onMounted(loadData)
+// Auto-refresh every 30 seconds to show progress
+onMounted(() => {
+  loadData()
+  const interval = setInterval(loadData, 30000)
+  return () => clearInterval(interval)
+})
 </script>
 
 <style scoped>
@@ -96,6 +100,72 @@ onMounted(loadData)
 .container {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.team-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #7c7467;
+}
+
+.empty-state i {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #d8a61c;
+}
+
+.queue-table {
+  overflow-x: auto;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table thead th {
+  background-color: #fbf7ef;
+  color: #7c7467;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e9e2d6;
+  padding: 1rem;
+}
+
+.table tbody td {
+  padding: 1rem;
+  border-bottom: 1px solid #e9e2d6;
+}
+
+.progress {
+  background-color: #e9e2d6;
+}
+
+.info-banner {
+  background-color: #fef9f0;
+  border: 1px solid #f0e8d8;
+  border-radius: 12px;
+  padding: 1rem;
+  color: #6c6459;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.info-banner i {
+  color: #d8a61c;
 }
 
 .page-header {

@@ -1,93 +1,84 @@
 <template>
   <div class="returns-queue-container">
-    <div class="container py-4">
-      <div class="mb-4">
-        <h2 class="fw-bold mb-2">Returns Queue</h2>
-        <p class="text-muted">Gowns returned by customers awaiting inspection and processing</p>
-        <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. Returned damaged orders remain visible for easier walkthroughs.</p>
-      </div>
+    <div class="container-fluid py-4">
+      <div class="content-wrapper">
+        <div class="mb-4">
+          <h2 class="fw-bold mb-2">Check Damage</h2>
+          <p class="text-muted">Orders returned by customers awaiting damage inspection</p>
+          <p v-if="isDemoMode" class="text-warning mb-0 small">Demo mode is on. Returned items are immediately available for damage inspection.</p>
+        </div>
 
-      <!-- Filters and Actions -->
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <div class="search-box">
-            <i class="bi bi-search"></i>
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              class="form-control" 
-              placeholder="Search by customer name or order ID"
-            />
+        <!-- Filters and Actions -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="search-box">
+              <i class="bi bi-search"></i>
+              <input 
+                v-model="searchQuery" 
+                type="text" 
+                class="form-control" 
+                placeholder="Search by customer name or order ID"
+              />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <button @click="refreshOrders" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
           </div>
         </div>
-        <div class="col-md-6">
-          <button @click="refreshOrders" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-          </button>
-        </div>
-      </div>
 
-      <!-- Loading State -->
-      <div v-if="isLoading" class="text-center py-5">
-        <div class="spinner-border" role="status">
-          <span class="visually-hidden">Loading...</span>
+        <!-- Loading State -->
+        <div v-if="isLoading" class="text-center py-5">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 text-muted">Loading damage inspection queue...</p>
         </div>
-        <p class="mt-3 text-muted">Loading returns queue...</p>
-      </div>
 
-      <!-- Orders Table -->
-      <div v-else class="orders-card">
-        <div v-if="filteredOrders.length === 0" class="text-center py-5">
-          <i class="bi bi-inbox" style="font-size: 3rem; color: #d8a61c;"></i>
-          <p class="mt-3 text-muted">No returned items pending processing</p>
-        </div>
-        <div v-else class="table-responsive">
-          <table class="table table-hover">
+        <!-- Orders Table -->
+        <div v-else class="orders-card">
+          <div v-if="filteredItems.length === 0" class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #d8a61c;"></i>
+            <p class="mt-3 text-muted">No returned items pending damage inspection</p>
+          </div>
+          <div v-else class="table-responsive">
+            <table class="table table-hover">
             <thead>
               <tr>
                 <th>Order ID</th>
                 <th>Customer</th>
-                <th>Gown</th>
+                <th>Model ID</th>
+                <th>Type</th>
+                <th>Size</th>
                 <th>Returned Date</th>
-                <th>Damage Status</th>
-                <th>Issue</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in filteredOrders" :key="order.orderID">
+              <tr v-for="item in filteredItems" :key="item.id">
                 <td>
-                  <span class="badge bg-light text-dark">{{ order.orderID }}</span>
+                  <span class="badge bg-light text-dark">{{ item.orderID }}</span>
                 </td>
                 <td>
                   <div class="customer-info">
-                    <p class="mb-0 fw-500">{{ order.CustomerName }}</p>
-                    <small class="text-muted">{{ order.CustomerEmail }}</small>
+                    <p class="mb-0 fw-500">{{ item.customerName }}</p>
+                    <small class="text-muted">{{ item.customerEmail }}</small>
                   </div>
                 </td>
                 <td>
-                  <span class="gown-name">{{ order.GownName }}</span>
+                  <span class="model-id">{{ item.modelId }}</span>
                 </td>
-                <td>{{ formatDate(order.returned_at) }}</td>
-                <td>
-                  <span :class="['badge', getDamageClass(order.damage_status)]">
-                    {{ getDamageLabel(order.damage_status) }}
-                  </span>
-                </td>
-                <td>
-                  <span v-if="order.damage_to_item" class="damage-note">
-                    <i class="bi bi-exclamation-circle"></i>
-                    {{ order.damage_to_item }}
-                  </span>
-                  <span v-else class="text-muted">No damage noted</span>
-                </td>
+                <td class="text-uppercase text-muted">{{ item.itemType }}</td>
+                <td>{{ item.size }}</td>
+                <td>{{ formatDate(item.returnedDate) }}</td>
                 <td>
                   <button 
-                    @click="processRepair(order.orderID)"
+                    @click="processRepair(item.orderID, item)"
                     class="btn btn-sm btn-primary"
-                    :disabled="processingId === order.orderID"
+                    :disabled="processingId === item.orderID"
                   >
-                    <span v-if="processingId !== order.orderID">
+                    <span v-if="processingId !== item.orderID">
                       <i class="bi bi-tools"></i> Process
                     </span>
                     <span v-else>
@@ -129,7 +120,7 @@
             <button 
               @click="submitRepair" 
               class="btn btn-primary"
-              :disabled="!repairAction || !isProcessing"
+              :disabled="!repairAction || isProcessing"
             >
               <span v-if="!isProcessing">Process</span>
               <span v-else>
@@ -139,6 +130,7 @@
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -150,22 +142,25 @@ import AdminService from '../services/admin'
 import { isDemoMode } from '../config/demoMode'
 
 const orders = ref([])
+const items = ref([])
 const searchQuery = ref('')
 const isLoading = ref(false)
 const showModal = ref(false)
 const selectedOrderId = ref(null)
+const selectedItem = ref(null)
 const processingId = ref(null)
 const isProcessing = ref(false)
 const repairAction = ref('')
 const repairNotes = ref('')
 
-const filteredOrders = computed(() => {
-  return orders.value.filter(order => {
+const filteredItems = computed(() => {
+  return items.value.filter(item => {
     const query = searchQuery.value.toLowerCase()
     return (
-      order.orderID.toLowerCase().includes(query) ||
-      order.CustomerName.toLowerCase().includes(query) ||
-      order.CustomerEmail.toLowerCase().includes(query)
+      item.orderID.toLowerCase().includes(query) ||
+      item.customerName.toLowerCase().includes(query) ||
+      item.customerEmail.toLowerCase().includes(query) ||
+      item.modelId.toLowerCase().includes(query)
     )
   })
 })
@@ -213,16 +208,87 @@ const getDamageLabel = (status) => {
   }
 }
 
+// Fetch item details from inventory service (fallback if not in order)
+async function fetchItemDetails(modelId) {
+  try {
+    const inventoryUrl = import.meta.env.VITE_INVENTORY_API_BASE_URL || 'http://localhost:8080'
+    const response = await fetch(`${inventoryUrl}/api/inventory/models/${modelId}`)
+    if (response.ok) {
+      const result = await response.json()
+      if (result && result.data) {
+        // Successfully fetched from inventory
+        return {
+          modelId: result.data.modelId || modelId,
+          itemName: result.data.style?.itemName || 'Unknown Item',
+          itemType: result.data.style?.itemType || 'Gown',
+          size: result.data.size || 'Unknown Size',
+          totalQty: result.data.totalQty
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`Failed to fetch item details for ${modelId}:`, error)
+  }
+  // Fallback for missing data
+  return {
+    modelId,
+    itemName: 'Unknown Item',
+    itemType: 'Gown',
+    size: 'Unknown Size'
+  }
+}
+
 const loadReturnsQueue = async () => {
   isLoading.value = true
   try {
     const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    const response = await fetch(`${orderApiUrl}/orders/status/RETURNED_DAMAGED`)
+    // Fetch RETURNED orders (items that have been marked as returned, awaiting damage inspection)
+    const response = await fetch(`${orderApiUrl}/orders/status/RETURNED`)
     if (response.ok) {
-      orders.value = await response.json()
+      let data = await response.json()
+      
+      // Convert orders to items (one row per item)
+      const expandedItems = []
+      for (const order of data) {
+        const orderID = order.order_id || order.orderID
+        const customerName = order.student_name || order.CustomerName
+        const customerEmail = order.email || order.CustomerEmail
+        const returnedDate = order.returned_at || new Date().toISOString()
+        const selectedItems = order.selected_items || []
+
+        // Fetch details for all items in this order
+        for (const item of selectedItems) {
+          // Use size from order if available, otherwise fetch from inventory
+          let size = item.size || ''
+          let itemName = item.itemName || ''
+          let itemType = item.itemType || ''
+          
+          // If size not in order, fetch from inventory
+          if (!size) {
+            const details = await fetchItemDetails(item.modelId)
+            size = details.size
+            itemName = details.itemName
+            itemType = details.itemType
+          }
+          
+          expandedItems.push({
+            id: `${orderID}-${item.modelId}`, // Unique key for the row
+            orderID,
+            customerName,
+            customerEmail,
+            modelId: item.modelId,
+            itemName: itemName,
+            itemType: itemType,
+            size: size,
+            qty: item.qty || 1,
+            returnedDate
+          })
+        }
+      }
+      items.value = expandedItems
     }
   } catch (error) {
-    console.error('Error loading returns queue:', error)
+    console.error('Error loading damage inspection queue:', error)
   } finally {
     isLoading.value = false
   }
@@ -232,8 +298,9 @@ const refreshOrders = () => {
   loadReturnsQueue()
 }
 
-const processRepair = (orderId) => {
+const processRepair = (orderId, item) => {
   selectedOrderId.value = orderId
+  selectedItem.value = item
   repairAction.value = ''
   repairNotes.value = ''
   showModal.value = true
@@ -242,6 +309,7 @@ const processRepair = (orderId) => {
 const closeModal = () => {
   showModal.value = false
   selectedOrderId.value = null
+  selectedItem.value = null
   repairAction.value = ''
   repairNotes.value = ''
 }
@@ -251,7 +319,8 @@ const submitRepair = async () => {
   processingId.value = selectedOrderId.value
   try {
     await AdminService.processReturnRepair(selectedOrderId.value, repairAction.value, repairNotes.value)
-    orders.value = orders.value.filter(order => order.orderID !== selectedOrderId.value)
+    // Remove the processed item from the list
+    items.value = items.value.filter(item => item.id !== selectedItem.value.id)
     closeModal()
   } catch (error) {
     console.error('Error processing return:', error)
@@ -272,6 +341,12 @@ onMounted(() => {
   min-height: 100vh;
   background-color: #fbf7ef;
   padding-bottom: 3rem;
+}
+
+.content-wrapper {
+  padding: 0 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .search-box {
@@ -316,6 +391,9 @@ onMounted(() => {
   border-radius: 20px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.table-responsive {
   overflow-x: auto;
 }
 
@@ -360,6 +438,12 @@ onMounted(() => {
 
 .customer-info p {
   font-size: 0.95rem;
+}
+
+.model-id {
+  color: #d8a61c;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
 }
 
 .gown-name {
