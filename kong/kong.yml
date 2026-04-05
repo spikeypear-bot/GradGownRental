@@ -5,6 +5,25 @@ _transform: true
 # Kong Declarative Configuration
 # =============================================================================
 
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+      preflight_continue: false
+      max_age: 3600
+
 services:
 
   # ---------------------------------------------------------------------------
@@ -23,11 +42,6 @@ services:
         paths: [/errors]
         strip_path: false
 
-      - name: error-create
-        methods: [POST]
-        paths: [/errors]
-        strip_path: false
-
   # ---------------------------------------------------------------------------
   # Logistics Service  (internal port 5004, host-mapped 5006)
   # ---------------------------------------------------------------------------
@@ -38,16 +52,6 @@ services:
         methods: [GET]
         paths: [/logistics-service/health]
         strip_path: true
-
-      - name: logistics-order-paid
-        methods: [POST]
-        paths: [/logistics/events/order-paid]
-        strip_path: false
-
-      - name: logistics-update-shipment-status
-        methods: [PUT]
-        paths: ["~/logistics/(?<shipment_id>[^/]+)/status$"]
-        strip_path: false
 
       - name: logistics-get-shipment
         methods: [GET]
@@ -81,9 +85,19 @@ services:
         paths: [/order-service/health]
         strip_path: true
 
-      - name: order-create
+      - name: order-update-status
+        methods: [PUT]
+        paths: ["~/orders/(?<order_id>[^/]+)/status$"]
+        strip_path: false
+
+      - name: order-activate
         methods: [POST]
-        paths: [/orders]
+        paths: ["~/orders/(?<order_id>[^/]+)/activate$"]
+        strip_path: false
+
+      - name: order-return
+        methods: [POST]
+        paths: ["~/orders/(?<order_id>[^/]+)/return$"]
         strip_path: false
 
       - name: order-list-by-status
@@ -101,20 +115,6 @@ services:
         paths: ["~/orders/(?<order_id>[^/]+)$"]
         strip_path: false
 
-      - name: order-update-status
-        methods: [PUT]
-        paths: ["~/orders/(?<order_id>[^/]+)/status$"]
-        strip_path: false
-
-      - name: order-activate
-        methods: [POST]
-        paths: ["~/orders/(?<order_id>[^/]+)/activate$"]
-        strip_path: false
-
-      - name: order-return
-        methods: [POST]
-        paths: ["~/orders/(?<order_id>[^/]+)/return$"]
-        strip_path: false
 
   # ---------------------------------------------------------------------------
   # Payment Service  (port 3000)
@@ -132,25 +132,6 @@ services:
         paths: [/api/payment/checkout]
         strip_path: false
 
-      - name: payment-authorise
-        methods: [POST]
-        paths: [/api/payment/payments]
-        strip_path: false
-
-      - name: payment-refund
-        methods: [POST]
-        paths: [/api/payment/payments/refunds]
-        strip_path: false
-
-      - name: payment-webhook
-        methods: [POST]
-        paths: [/api/payment/webhook]
-        strip_path: false
-
-      - name: payment-test
-        methods: [GET]
-        paths: [/api/payment/test]
-        strip_path: false
 
   # ---------------------------------------------------------------------------
   # Inventory Service  (port 8080)
@@ -178,19 +159,9 @@ services:
         paths: ["~/api/inventory/catalogue$"]
         strip_path: false
 
-      - name: inventory-service_collectitems_put
-        methods: [PUT]
-        paths: ["~/api/inventory/collectitems$"]
-        strip_path: false
-
-      - name: inventory-service_damageitems_post
+      - name: inventory-service_soft-hold_post
         methods: [POST]
-        paths: ["~/api/inventory/damageitems$"]
-        strip_path: false
-
-      - name: inventory-service_maintenance-request_put
-        methods: [PUT]
-        paths: ["~/api/inventory/maintenance/request$"]
+        paths: ["~/api/inventory/soft-hold$"]
         strip_path: false
 
       - name: inventory-service_packages-all_get
@@ -203,34 +174,24 @@ services:
         paths: ["~/api/inventory/packages$"]
         strip_path: false
 
-      - name: inventory-service_repairitems_post
-        methods: [POST]
-        paths: ["~/api/inventory/repairitems$"]
-        strip_path: false
-
       - name: inventory-service_reserveitems_post
         methods: [POST]
         paths: ["~/api/inventory/reserveitems$"]
         strip_path: false
 
-      - name: inventory-service_soft-hold_post
+      - name: inventory-service_collectitems_post
         methods: [POST]
-        paths: ["~/api/inventory/soft-hold$"]
+        paths: ["~/api/inventory/collectitems$"]
         strip_path: false
 
-      - name: inventory-service_softlock_post
+      - name: inventory-service_washitems_post
         methods: [POST]
-        paths: ["~/api/inventory/softlock$"]
-        strip_path: false
-
-      - name: inventory-service_stock-transition_put
-        methods: [PUT]
-        paths: ["~/api/inventory/stock/transition$"]
-        strip_path: false
-
-      - name: inventory-service_washitems_put
-        methods: [PUT]
         paths: ["~/api/inventory/washitems$"]
+        strip_path: false
+
+      - name: inventory-service_stock-overview_get
+        methods: [GET]
+        paths: ["~/api/inventory/stock-overview$"]
         strip_path: false
 
       - name: inventory-service_packageid_get

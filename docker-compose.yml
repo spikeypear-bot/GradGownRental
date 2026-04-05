@@ -1,3 +1,12 @@
+x-saga-env: &saga-env
+  ORDER_SERVICE_URL: http://order-service:8081
+  INVENTORY_SERVICE_URL: http://inventory-service:8080
+  ERROR_SERVICE_URL: http://error-service:5002
+  PAYMENT_SERVICE_URL: http://payment-service:3000
+  LOGISTICS_SERVICE_URL: http://logistics-service:5004
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+
+
 services:
   # =========================================================================
   # Frontend
@@ -28,9 +37,9 @@ services:
     image: apache/kafka:latest
     hostname: kafka
     container_name: kafka
-    ports:
-      - "9092:9092"       # host access
-      - "29092:29092"     # internal container access
+    # ports:
+    #   - "9092:9092"       # host access
+    #   - "29092:29092"     # internal container access
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -120,8 +129,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     networks:
       - app-network
     restart: on-failure
@@ -185,8 +194,8 @@ services:
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
-    ports:
-      - "5001:5001"
+    # ports:
+    #   - "5001:5001"
     networks:
       - app-network
     restart: on-failure
@@ -196,8 +205,8 @@ services:
     build:
       context: ./services/error-service
     container_name: error-service
-    ports:
-      - "5002:5002"
+    # ports:
+    #   - "5002:5002"
     networks:
       - app-network
     restart: on-failure
@@ -237,108 +246,8 @@ services:
       DB_USER: ${ORDER_DB_USER}
       DB_PASSWORD: ${ORDER_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-    ports:
-      - "8081:8081"
-    networks:
-      - app-network
-    restart: on-failure
-
-  # ── Logistics Service ────────────────────────────────────────────────────
-  logistics-service:
-    build:
-      context: ./services/logistics-service
-    container_name: logistics-service
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-    ports:
-      - "5006:5004"
-    networks:
-      - app-network
-    restart: on-failure
-
-  # =========================================================================
-  # SAGA ORCHESTRATORS
-  # =========================================================================
-  place-order-saga:
-    build:
-      context: ./sagas/place-order-saga
-    container_name: place-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      PAYMENT_SERVICE_URL: http://payment-service:3000
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5003:5003"
-    networks:
-      - app-network
-    restart: on-failure
-
-  fulfill-order-saga:
-    build:
-      context: ./sagas/fulfill-order-saga
-    container_name: fulfill-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      logistics-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      LOGISTICS_SERVICE_URL: http://logistics-service:5004
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5004:5004"
-    networks:
-      - app-network
-    restart: on-failure
-
-  return-order-saga:
-    build:
-      context: ./sagas/return-order-saga
-    container_name: return-order-saga
-    depends_on:
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      error-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      ORDER_SERVICE_URL: http://order-service:8081
-      PAYMENT_SERVICE_URL: http://payment-service:3000
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      ERROR_SERVICE_URL: http://error-service:5002
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    ports:
-      - "5005:5005"
+    # ports:
+    #   - "8081:8081"
     networks:
       - app-network
     restart: on-failure
@@ -362,6 +271,98 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Logistics Service ────────────────────────────────────────────────────
+  logistics-service:
+    build:
+      context: ./services/logistics-service
+    container_name: logistics-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    # ports:
+    #   - "5006:5004"
+    networks:
+      - app-network
+    restart: on-failure
+
+  # =========================================================================
+  # SAGA ORCHESTRATORS
+  # =========================================================================
+  place-order-saga:
+    build:
+      context: ./sagas/place-order-saga
+    container_name: place-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5003:5003"
+    networks:
+      - app-network
+    restart: on-failure
+
+  fulfill-order-saga:
+    build:
+      context: ./sagas/fulfill-order-saga
+    container_name: fulfill-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      logistics-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5004:5004"
+    networks:
+      - app-network
+    restart: on-failure
+
+  return-order-saga:
+    build:
+      context: ./sagas/return-order-saga
+    container_name: return-order-saga
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      error-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *saga-env
+    # ports:
+    #   - "5005:5005"
+    networks:
+      - app-network
+    restart: on-failure
+
+  # =========================================================================
+  # KONG
+  # =========================================================================
 
   kong-db:
     container_name: kong-db

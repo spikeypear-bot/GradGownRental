@@ -1,5 +1,5 @@
-const SAGA_API_BASE_URL = import.meta.env.VITE_SAGA_API_BASE_URL || 'http://localhost:5003'
-const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+const SAGA_API_BASE_URL = import.meta.env.VITE_SAGA_API_BASE_URL || 'http://localhost:8000'
+const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8000'
 
 async function requestJson(url, options = {}) {
   try {

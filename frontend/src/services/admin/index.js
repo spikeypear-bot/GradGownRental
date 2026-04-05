@@ -7,12 +7,12 @@ const withPathSuffix = (baseUrl, suffix) => {
 }
 
 const FULFILLMENT_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:5004',
+  import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:8000',
   '/fulfillment'
 )
 
 const RETURN_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:5005',
+  import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:8000',
   '/returns'
 )
 
@@ -150,7 +150,7 @@ class AdminService {
    * body: { status: "CONFIRMED" }
    */
   async confirmOrder(orderId) {
-    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8000'
     try {
       const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PUT',
@@ -180,7 +180,7 @@ class AdminService {
    * body: { status: "RETURNED_PENDING_INSPECTION" }
    */
   async markForReturn(orderId) {
-    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8000'
     try {
       const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PUT',

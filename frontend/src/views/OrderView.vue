@@ -36,7 +36,7 @@ const reviewError = ref('')
 const paymentError = ref('')
 const stripeError = ref('')
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
-const PAYMENT_API_BASE_URL = import.meta.env.VITE_PAYMENT_API_BASE_URL || 'http://localhost:3000'
+const PAYMENT_API_BASE_URL = import.meta.env.VITE_PAYMENT_API_BASE_URL || 'http://localhost:8000/api/payment'
 
 let stripe = null
 let elements = null

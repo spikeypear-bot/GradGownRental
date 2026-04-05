@@ -1,4 +1,4 @@
-const LOGISTICS_API_BASE_URL = import.meta.env.VITE_LOGISTICS_API_BASE_URL || 'http://localhost:5006'
+const LOGISTICS_API_BASE_URL = import.meta.env.VITE_LOGISTICS_API_BASE_URL || 'http://localhost:8000'
 
 function formatFetchError(error, fallbackMessage) {
   if (error instanceof TypeError) {
