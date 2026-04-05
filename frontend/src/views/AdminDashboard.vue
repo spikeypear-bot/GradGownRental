@@ -90,7 +90,10 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
 
-const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+const orderApiUrl =
+  import.meta.env.VITE_ORDER_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:8000'
 const backendStatuses = ['CONFIRMED', 'ACTIVE', 'RETURNED_DAMAGED', 'COMPLETED']
 const orderStatuses = [
   { value: 'ALL', label: 'All' },

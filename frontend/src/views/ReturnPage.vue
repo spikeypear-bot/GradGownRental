@@ -222,7 +222,10 @@ const loadActiveReturns = async () => {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const orderApiUrl =
+      import.meta.env.VITE_ORDER_API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
+      'http://localhost:8000'
     orders.value = await fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
   } catch (error) {
     console.error('Error loading active returns:', error)

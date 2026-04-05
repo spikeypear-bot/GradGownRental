@@ -179,7 +179,10 @@ const getDaysRemainingClass = (endDate) => {
 const loadActiveOrders = async () => {
   isLoading.value = true
   try {
-    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const orderApiUrl =
+      import.meta.env.VITE_ORDER_API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
+      'http://localhost:8000'
     const response = await fetch(`${orderApiUrl}/orders/status/ACTIVE`)
     if (response.ok) {
       orders.value = await response.json()
