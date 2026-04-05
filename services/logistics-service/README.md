@@ -1,21 +1,26 @@
 BASE_URL = https://personal-fssbnhif.outsystemscloud.com/Logistics/rest/Logistics
 (use this followed by the endpoint url)
 
-# Kafka wrapper in (Scenario 1)
-POST /logistics/events/order-paid
+# Kafka ingress
 
-## Expected request body structure
+`logistics-service` consumes `OrderPaid` from Kafka and forwards it to OutSystems:
+
+Kafka `OrderPaid` -> OutSystems `POST /logistics/events/order-paid`
+
+## Expected Kafka payload
 {
   "order_id": "string",
   "fulfillment_method": "DELIVERY or PICKUP",
-  "scheduled_datetime": "YYYY-MM-DDTHH:MM:SS"
+  "fulfillment_date": "YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS"
 }
 
 
-# Fulfill an Order Saga (Scenario 3)
+# Fulfill Order Saga proxy (Scenario 3)
 PUT /logistics/{shipment_id}/status
 
-## Expected request body structure
+This local HTTP endpoint remains only as a thin proxy for `fulfill-order-saga`.
+
+## Expected request body
 {
   "tracking_status": "COLLECTED or DELIVERED"
 }

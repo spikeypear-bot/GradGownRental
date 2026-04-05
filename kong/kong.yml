@@ -23,6 +23,11 @@ services:
         paths: [/errors]
         strip_path: false
 
+      - name: error-create
+        methods: [POST, OPTIONS]
+        paths: [/errors]
+        strip_path: false
+
   # ---------------------------------------------------------------------------
   # Logistics Service  (internal port 5004, host-mapped 5006)
   # ---------------------------------------------------------------------------
@@ -37,6 +42,16 @@ services:
       - name: logistics-get-shipment
         methods: [GET, OPTIONS]
         paths: ["~/logistics/(?<shipment_id>[^/]+)$"]
+        strip_path: false
+
+      - name: logistics-order-paid
+        methods: [POST, OPTIONS]
+        paths: [/logistics/events/order-paid]
+        strip_path: false
+
+      - name: logistics-update-status
+        methods: [PUT, OPTIONS]
+        paths: ["~/logistics/(?<shipment_id>[^/]+)/status$"]
         strip_path: false
 
   # ---------------------------------------------------------------------------
@@ -81,6 +96,16 @@ services:
         paths: ["~/orders/(?<order_id>[^/]+)$"]
         strip_path: false
 
+      - name: order-create
+        methods: [POST, OPTIONS]
+        paths: [/orders]
+        strip_path: false
+
+      - name: order-update-status
+        methods: [PUT, OPTIONS]
+        paths: ["~/orders/(?<order_id>[^/]+)/status$"]
+        strip_path: false
+
 
   # ---------------------------------------------------------------------------
   # Payment Service  (port 3000)
@@ -96,6 +121,16 @@ services:
       - name: payment-checkout
         methods: [POST, OPTIONS]
         paths: [/api/payment/checkout]
+        strip_path: false
+
+      - name: payment-create
+        methods: [POST, OPTIONS]
+        paths: [/api/payment/payments]
+        strip_path: false
+
+      - name: payment-webhook
+        methods: [POST]
+        paths: [/api/payment/webhook]
         strip_path: false
 
 
@@ -128,6 +163,16 @@ services:
       - name: inventory-service_soft-hold_post
         methods: [POST, OPTIONS]
         paths: ["~/api/inventory/soft-hold$"]
+        strip_path: false
+
+      - name: inventory-service_stock-transition_put
+        methods: [PUT, OPTIONS]
+        paths: ["~/api/inventory/stock/transition$"]
+        strip_path: false
+
+      - name: inventory-service_maintenance-request_put
+        methods: [PUT, OPTIONS]
+        paths: ["~/api/inventory/maintenance/request$"]
         strip_path: false
 
       - name: inventory-service_packages-all_get

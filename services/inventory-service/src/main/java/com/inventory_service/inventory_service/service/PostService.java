@@ -212,6 +212,23 @@ public class PostService {
         );
     }
 
+    private InventoryQuantityTrackDto requireExistingTrack(String modelId, LocalDate targetDate, String transition)
+        throws ModelNotFoundException {
+        InventoryQuantityTrackDto trackDto =
+            inventoryQuantityTrackService.getInventoryQuantityTrackByDate(modelId, targetDate);
+        if (trackDto == null) {
+            throw new RuntimeException(
+                String.format(
+                    "Cannot apply %s for modelId=%s on date=%s because no inventory track exists.",
+                    transition,
+                    modelId,
+                    targetDate
+                )
+            );
+        }
+        return trackDto;
+    }
+
     private int getRemainingWindowDays(LocalDate chosenDate) {
         LocalDate today = LocalDate.now();
         if (today.isBefore(chosenDate)) {
@@ -219,6 +236,11 @@ public class PostService {
         }
         long daysDiff = ChronoUnit.DAYS.between(chosenDate, today);
         return Math.max(7 - (int) daysDiff, 0);
+    }
+
+    private LocalDate getTransitionStartDate(LocalDate chosenDate) {
+        LocalDate today = LocalDate.now();
+        return today.isAfter(chosenDate) ? today : chosenDate;
     }
     @Transactional
     public void collectItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
@@ -229,8 +251,20 @@ public class PostService {
             for(int i=0;i<7;i++){
                 
                 LocalDate curr=chosenDate.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto =
+                    requireExistingTrack(itemDto.getModelId(), curr, "RESERVED_TO_RENTED");
                 int a= inventoryQuantityTrackDto.getReservedQty();
+                if (a < item.getQty()) {
+                    throw new RuntimeException(
+                        String.format(
+                            "Cannot apply RESERVED_TO_RENTED for modelId=%s on date=%s because reserved_qty=%d is less than requested qty=%d.",
+                            itemDto.getModelId(),
+                            curr,
+                            a,
+                            item.getQty()
+                        )
+                    );
+                }
                 inventoryQuantityTrackDto.setReservedQty(a-item.getQty());
                 int b= inventoryQuantityTrackDto.getRentedQty();
                 inventoryQuantityTrackDto.setRentedQty(b+item.getQty());
@@ -249,16 +283,28 @@ public class PostService {
     public void washItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         
         for(ModelIdAndQtyAndDateDto item:items){
-            LocalDate today=LocalDate.now();
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
             int remainingDays = getRemainingWindowDays(item.getChosenDate());
 
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
 
             for(int i=0;i<remainingDays;i++){
                 
-                LocalDate curr=today.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
+                LocalDate curr=startDate.plusDays(i);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto =
+                    requireExistingTrack(itemDto.getModelId(), curr, "RENTED_TO_WASH");
                 int a= inventoryQuantityTrackDto.getRentedQty();
+                if (a < item.getQty()) {
+                    throw new RuntimeException(
+                        String.format(
+                            "Cannot apply RENTED_TO_WASH for modelId=%s on date=%s because rented_qty=%d is less than requested qty=%d.",
+                            itemDto.getModelId(),
+                            curr,
+                            a,
+                            item.getQty()
+                        )
+                    );
+                }
                 inventoryQuantityTrackDto.setRentedQty(a-item.getQty());
                 int b= inventoryQuantityTrackDto.getWashQty();
                 inventoryQuantityTrackDto.setWashQty(b+item.getQty());
@@ -279,16 +325,28 @@ public class PostService {
         
         
         for(ModelIdAndQtyAndDateDto item:items){
-            LocalDate today=LocalDate.now();
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
             int remainingDays = getRemainingWindowDays(item.getChosenDate());
             Integer damageId= damageLogService.createDamage(item.getModelId(),item.getQty(),null);
             itemAndDamageIdDtos.add(new ItemAndDamageIdDto(damageId,item));
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
             for(int i=0;i<remainingDays;i++){
 
-                LocalDate curr=today.plusDays(i);
-                InventoryQuantityTrackDto inventoryQuantityTrackDto=inventoryQuantityTrackService.getInventoryQuantityTrackByDate(itemDto.getModelId(), curr);
+                LocalDate curr=startDate.plusDays(i);
+                InventoryQuantityTrackDto inventoryQuantityTrackDto =
+                    requireExistingTrack(itemDto.getModelId(), curr, "RENTED_TO_DAMAGED");
                 int rentedQty= inventoryQuantityTrackDto.getRentedQty();
+                if (rentedQty < item.getQty()) {
+                    throw new RuntimeException(
+                        String.format(
+                            "Cannot apply RENTED_TO_DAMAGED for modelId=%s on date=%s because rented_qty=%d is less than requested qty=%d.",
+                            itemDto.getModelId(),
+                            curr,
+                            rentedQty,
+                            item.getQty()
+                        )
+                    );
+                }
                 inventoryQuantityTrackDto.setRentedQty(rentedQty-item.getQty());
                 
                 inventoryQuantityTrackRepository.save(inventoryQuantityTrackMapper.inventoryQuantityTrackDtoToInventoryQuantityTrack(inventoryQuantityTrackDto));
@@ -313,10 +371,10 @@ public class PostService {
     @Transactional
     public void moveRepairToWash(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         for (ModelIdAndQtyAndDateDto item : items) {
-            LocalDate today = LocalDate.now();
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
             int remainingDays = getRemainingWindowDays(item.getChosenDate());
             for (int i = 0; i < remainingDays; i++) {
-                LocalDate targetDate = today.plusDays(i);
+                LocalDate targetDate = startDate.plusDays(i);
                 applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
                     trackDto.setWashQty(trackDto.getWashQty() + item.getQty());
                 });
@@ -328,10 +386,10 @@ public class PostService {
     @Transactional
     public void moveWashToAvailable(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         for (ModelIdAndQtyAndDateDto item : items) {
-            LocalDate today = LocalDate.now();
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
             int remainingDays = getRemainingWindowDays(item.getChosenDate());
             for (int i = 0; i < remainingDays; i++) {
-                LocalDate targetDate = today.plusDays(i);
+                LocalDate targetDate = startDate.plusDays(i);
                 applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
                     trackDto.setWashQty(Math.max(trackDto.getWashQty() - item.getQty(), 0));
                 });

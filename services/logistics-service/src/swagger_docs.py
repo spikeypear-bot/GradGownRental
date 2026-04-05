@@ -6,7 +6,7 @@ LOGISTICS_OPENAPI_SPEC = {
     "info": {
         "title": "Logistics Service API",
         "version": "1.0.0",
-        "description": "Track shipment creation and status changes for gown fulfillment.",
+        "description": "Kafka-to-OutSystems adapter for gown fulfillment logistics.",
     },
     "paths": {
         "/health": {
@@ -26,31 +26,16 @@ LOGISTICS_OPENAPI_SPEC = {
         },
         "/logistics/events/order-paid": {
             "post": {
-                "summary": "Create a shipment after payment",
-                "requestBody": {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": {"$ref": "#/components/schemas/OrderPaidEvent"}
-                        }
-                    },
-                },
+                "summary": "Deprecated local HTTP wrapper",
+                "description": "Order-paid ingress now comes from Kafka rather than direct HTTP.",
                 "responses": {
-                    "201": {
-                        "description": "Shipment created",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Shipment"}
-                            }
-                        },
-                    },
-                    "400": {"description": "Missing order_id"},
+                    "410": {"description": "Ingress moved to Kafka consumer"},
                 },
             }
         },
         "/logistics/{shipment_id}/status": {
             "put": {
-                "summary": "Update shipment status",
+                "summary": "Proxy shipment status update to OutSystems",
                 "parameters": [
                     {
                         "name": "shipment_id",
@@ -69,78 +54,32 @@ LOGISTICS_OPENAPI_SPEC = {
                 },
                 "responses": {
                     "200": {
-                        "description": "Shipment updated",
+                        "description": "OutSystems shipment updated",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Shipment"}
+                                "schema": {"type": "object"}
                             }
                         },
                     },
-                    "400": {"description": "Invalid status"},
-                },
-            }
-        },
-        "/logistics/{shipment_id}": {
-            "get": {
-                "summary": "Get a shipment by ID",
-                "parameters": [
-                    {
-                        "name": "shipment_id",
-                        "in": "path",
-                        "required": True,
-                        "schema": {"type": "string"},
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Shipment found",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Shipment"}
-                            }
-                        },
-                    },
-                    "404": {"description": "Shipment not found"},
+                    "400": {"description": "Invalid status or shipment_id"},
+                    "502": {"description": "Failed to reach OutSystems"},
                 },
             }
         },
     },
     "components": {
         "schemas": {
-            "OrderPaidEvent": {
-                "type": "object",
-                "properties": {
-                    "shipment_id": {"type": "string"},
-                    "order_id": {"type": "string"},
-                    "fulfillment_method": {"type": "string"},
-                    "scheduled_datetime": {"type": "string", "format": "date-time"},
-                },
-                "required": ["order_id"],
-            },
             "UpdateShipmentStatusRequest": {
                 "type": "object",
                 "properties": {
                     "order_id": {"type": "string"},
-                    "fulfillment_method": {"type": "string"},
-                    "scheduled_datetime": {"type": "string", "format": "date-time"},
                     "tracking_status": {
                         "type": "string",
                         "enum": ["SCHEDULED", "COLLECTED", "DELIVERED"],
                     },
                 },
                 "required": ["tracking_status"],
-            },
-            "Shipment": {
-                "type": "object",
-                "properties": {
-                    "shipment_id": {"type": "string"},
-                    "order_id": {"type": "string"},
-                    "fulfillment_method": {"type": "string"},
-                    "tracking_status": {"type": "string"},
-                    "scheduled_datetime": {"type": "string", "format": "date-time"},
-                    "updated_at": {"type": "string", "format": "date-time"},
-                },
-            },
+            }
         }
     },
 }
