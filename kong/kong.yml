@@ -151,3 +151,152 @@ services:
         methods: [GET]
         paths: [/test]
         strip_path: false
+
+  # ---------------------------------------------------------------------------
+  # Inventory Service  (port 8080)
+  # ---------------------------------------------------------------------------
+  - name: inventory-service
+    url: http://inventory-service:8080
+    routes:
+      - name: inventory-service-health
+        methods: [GET]
+        paths: [/inventory-service/health]
+        strip_path: true
+
+      - name: inventory-service_availability90_get
+        methods: [GET]
+        paths: ["~/api/inventory/availability90$"]
+        strip_path: false
+
+      - name: inventory-service_availability_get
+        methods: [GET]
+        paths: ["~/api/inventory/availability$"]
+        strip_path: false
+
+      - name: inventory-service_catalogue_get
+        methods: [GET]
+        paths: ["~/api/inventory/catalogue$"]
+        strip_path: false
+
+      - name: inventory-service_collectitems_put
+        methods: [PUT]
+        paths: ["~/api/inventory/collectitems$"]
+        strip_path: false
+
+      - name: inventory-service_damageitems_post
+        methods: [POST]
+        paths: ["~/api/inventory/damageitems$"]
+        strip_path: false
+
+      - name: inventory-service_maintenance-request_put
+        methods: [PUT]
+        paths: ["~/api/inventory/maintenance/request$"]
+        strip_path: false
+
+      - name: inventory-service_packages-all_get
+        methods: [GET]
+        paths: ["~/api/inventory/packages/all$"]
+        strip_path: false
+
+      - name: inventory-service_packages_get
+        methods: [GET]
+        paths: ["~/api/inventory/packages$"]
+        strip_path: false
+
+      - name: inventory-service_repairitems_post
+        methods: [POST]
+        paths: ["~/api/inventory/repairitems$"]
+        strip_path: false
+
+      - name: inventory-service_reserveitems_post
+        methods: [POST]
+        paths: ["~/api/inventory/reserveitems$"]
+        strip_path: false
+
+      - name: inventory-service_soft-hold_post
+        methods: [POST]
+        paths: ["~/api/inventory/soft-hold$"]
+        strip_path: false
+
+      - name: inventory-service_softlock_post
+        methods: [POST]
+        paths: ["~/api/inventory/softlock$"]
+        strip_path: false
+
+      - name: inventory-service_stock-transition_put
+        methods: [PUT]
+        paths: ["~/api/inventory/stock/transition$"]
+        strip_path: false
+
+      - name: inventory-service_washitems_put
+        methods: [PUT]
+        paths: ["~/api/inventory/washitems$"]
+        strip_path: false
+
+      - name: inventory-service_packageid_get
+        methods: [GET]
+        paths: ["~/api/inventory/(?<packageid>[^#?/]+)$"]
+        strip_path: false
+
+  # ---------------------------------------------------------------------------
+  # Place Order Saga  (port 5003)
+  # ---------------------------------------------------------------------------
+  - name: place-order-saga
+    url: http://place-order-saga:5003
+    routes:
+      - name: place-order-saga-health
+        methods: [GET]
+        paths: [/place-order-saga/health]
+        strip_path: true
+
+      - name: place-order-saga-create
+        methods: [POST]
+        paths: [/orders/create]
+        strip_path: false
+
+      - name: place-order-saga-submit-payment
+        methods: [POST]
+        paths: [/submit-payment]
+        strip_path: false
+
+  # ---------------------------------------------------------------------------
+  # Fulfill Order Saga  (port 5004)
+  # ---------------------------------------------------------------------------
+  - name: fulfill-order-saga
+    url: http://fulfill-order-saga:5004
+    routes:
+      - name: fulfill-order-saga-health
+        methods: [GET]
+        paths: [/fulfill-order-saga/health]
+        strip_path: true
+
+      - name: fulfill-order-saga-activate
+        methods: [POST]
+        paths: [/fulfillment/activate]
+        strip_path: false
+
+  # ---------------------------------------------------------------------------
+  # Return Order Saga  (port 5005)
+  # ---------------------------------------------------------------------------
+  - name: return-order-saga
+    url: http://return-order-saga:5005
+    routes:
+      - name: return-order-saga-health
+        methods: [GET]
+        paths: [/return-order-saga/health]
+        strip_path: true
+
+      - name: return-order-saga-process
+        methods: [POST]
+        paths: [/returns/process]
+        strip_path: false
+
+      - name: return-order-saga-transition-to-wash
+        methods: [PUT]
+        paths: [/returns/transition-to-wash]
+        strip_path: false
+
+      - name: return-order-saga-maintenance-complete
+        methods: [PUT]
+        paths: [/returns/maintenance-complete]
+        strip_path: false
