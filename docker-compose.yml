@@ -15,7 +15,7 @@ services:
       VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
     ports:
       - 5173:5173
-      
+
 
 
 
@@ -152,7 +152,7 @@ services:
     environment:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_ENDPOINT_SECRET: ${STRIPE_ENDPOINT_SECRET}
-    entrypoint: ["stripe", "listen", "-f", "payment-service:3000/api/payment/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
+    entrypoint: ["stripe", "listen", "--forward-to", "http://payment-service:3000/api/payment/webhook", "--api-key", "${STRIPE_SECRET_KEY}"]
     networks:
       - app-network
     healthcheck:
@@ -419,6 +419,25 @@ services:
         condition: service_completed_successfully
       kong-db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  kong-config:
+    container_name: kong-config
+    image: kong/deck:latest
+    volumes:
+      - ./kong/kong.yml:/kong.yml:ro
+    command: gateway sync --kong-addr http://kong:8001 /kong.yml
+    networks:
+      - app-network
+    depends_on:
+      kong:
+        condition: service_healthy
+    restart: on-failure
 
 # =============================================================================
 # VOLUMES
