@@ -7,12 +7,12 @@ const withPathSuffix = (baseUrl, suffix) => {
 }
 
 const FULFILLMENT_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:8000',
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   '/fulfillment'
 )
 
 const RETURN_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:8000',
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   '/returns'
 )
 

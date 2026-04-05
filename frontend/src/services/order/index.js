@@ -1,5 +1,4 @@
-const SAGA_API_BASE_URL = import.meta.env.VITE_SAGA_API_BASE_URL || 'http://localhost:8000'
-const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 async function requestJson(url, options = {}) {
   try {
@@ -31,25 +30,25 @@ async function requestJson(url, options = {}) {
 
 class OrderService {
   async createOrder(payload) {
-    return requestJson(`${SAGA_API_BASE_URL}/orders/create`, {
+    return requestJson(`${API_BASE_URL}/orders/create`, {
       method: 'POST',
       body: JSON.stringify(payload)
     })
   }
 
   async submitPayment(payload) {
-    return requestJson(`${SAGA_API_BASE_URL}/submit-payment`, {
+    return requestJson(`${API_BASE_URL}/submit-payment`, {
       method: 'POST',
       body: JSON.stringify(payload)
     })
   }
 
   async getOrder(orderId) {
-    return requestJson(`${ORDER_API_BASE_URL}/orders/${orderId}`)
+    return requestJson(`${API_BASE_URL}/orders/${orderId}`)
   }
 
   async getOrdersByEmail(email) {
-    return requestJson(`${ORDER_API_BASE_URL}/orders/by-email/${encodeURIComponent(email)}`)
+    return requestJson(`${API_BASE_URL}/orders/by-email/${encodeURIComponent(email)}`)
   }
 }
 
