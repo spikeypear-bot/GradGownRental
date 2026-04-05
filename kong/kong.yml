@@ -124,32 +124,32 @@ services:
     routes:
       - name: payment-service-health
         methods: [GET]
-        paths: [/payment-service/health]
-        strip_path: true
+        paths: [/api/payment/health]
+        strip_path: false
 
       - name: payment-checkout
         methods: [POST]
-        paths: [/checkout]
+        paths: [/api/payment/checkout]
         strip_path: false
 
       - name: payment-authorise
         methods: [POST]
-        paths: [/payments]
+        paths: [/api/payment/payments]
         strip_path: false
 
       - name: payment-refund
         methods: [POST]
-        paths: [/payments/refunds]
+        paths: [/api/payment/payments/refunds]
         strip_path: false
 
       - name: payment-webhook
         methods: [POST]
-        paths: [/webhook]
+        paths: [/api/payment/webhook]
         strip_path: false
 
       - name: payment-test
         methods: [GET]
-        paths: [/test]
+        paths: [/api/payment/test]
         strip_path: false
 
   # ---------------------------------------------------------------------------
