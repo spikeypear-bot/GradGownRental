@@ -36,7 +36,6 @@ const reviewError = ref('')
 const paymentError = ref('')
 const stripeError = ref('')
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
-const PAYMENT_API_BASE_URL = import.meta.env.VITE_PAYMENT_API_BASE_URL || 'http://localhost:3000'
 
 let stripe = null
 let elements = null
@@ -44,6 +43,7 @@ let cardElement = null
 
 const holdId = ref('')
 const orderId = ref('')
+const checkoutClientSecret = ref('')
 
 const packageLoading = ref(false)
 const packageError = ref('')
@@ -461,6 +461,7 @@ const goToReview = async () => {
     })
 
     orderId.value = orderInit.order_id
+    checkoutClientSecret.value = orderInit.client_secret || ''
     currentStep.value = 4
   } catch (err) {
     reviewError.value = err.message || 'Failed to prepare checkout. Please try again.'
@@ -481,15 +482,9 @@ const confirmPayment = async () => {
       throw new Error('Stripe is not ready. Please check publishable key.')
     }
 
-    const intentResponse = await fetch(`${PAYMENT_API_BASE_URL}/checkout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: Number(totalCharge.value.toFixed(2)) }),
-    })
-    const intentPayload = await intentResponse.json()
-    const clientSecret = intentPayload?.client_secret
-    if (!intentResponse.ok || !clientSecret) {
-      throw new Error(intentPayload?.error || 'Failed to create payment intent.')
+    const clientSecret = checkoutClientSecret.value
+    if (!clientSecret) {
+      throw new Error('Payment session expired. Please go back and try again.')
     }
 
     const billingName = `${contact.value.firstName} ${contact.value.lastName}`.trim()

@@ -7,12 +7,12 @@ const withPathSuffix = (baseUrl, suffix) => {
 }
 
 const FULFILLMENT_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_FULFILLMENT_API_BASE_URL || 'http://localhost:5004',
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   '/fulfillment'
 )
 
 const RETURN_API_BASE_URL = withPathSuffix(
-  import.meta.env.VITE_RETURN_API_BASE_URL || 'http://localhost:5005',
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   '/returns'
 )
 
@@ -150,25 +150,8 @@ class AdminService {
    * body: { status: "CONFIRMED" }
    */
   async confirmOrder(orderId) {
-    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    try {
-      const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'CONFIRMED' }),
-      })
-
-      if (!response.ok) {
-        await this.parseError(response, 'Failed to confirm order')
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error confirming order:', error)
-      throw this.formatFetchError(error, 'Unable to confirm the order.')
-    }
+    // Per Scenario 3: order confirmation flows through the fulfillment saga
+    return this.activateFulfillment(orderId)
   }
 
   /**
@@ -180,26 +163,8 @@ class AdminService {
    * body: { status: "RETURNED_PENDING_INSPECTION" }
    */
   async markForReturn(orderId) {
-    const ORDER_API_BASE_URL = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
-    try {
-      const response = await fetch(`${ORDER_API_BASE_URL}/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'RETURNED_PENDING_INSPECTION' }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: Failed to mark for return`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error marking order for return:', error)
-      throw this.formatFetchError(error, 'Unable to mark the order for return.')
-    }
+    // Per Scenario 4: return initiation flows through the return saga
+    return this.processReturn({ order_id: orderId })
   }
 
   /**

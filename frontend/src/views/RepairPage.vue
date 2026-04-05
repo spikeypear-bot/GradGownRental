@@ -53,7 +53,10 @@ const processingId = ref(null)
 const loadData = async () => {
   isLoading.value = true
   try {
-    const orderApiUrl = import.meta.env.VITE_ORDER_API_BASE_URL || 'http://localhost:8081'
+    const orderApiUrl =
+      import.meta.env.VITE_ORDER_API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
+      'http://localhost:8000'
     const buckets = await loadMaintenanceBuckets(orderApiUrl)
     repairQueue.value = buckets.repairQueue
   } catch (error) {
