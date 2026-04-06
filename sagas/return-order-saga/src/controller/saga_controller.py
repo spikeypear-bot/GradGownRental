@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request
 
-from model.return_order_context import COMPONENT_DAMAGE_RATES, ReturnOrderContext
+from model.return_order_context import COMPONENT_DAMAGE_VALUES, ReturnOrderContext
 
 saga_bp = Blueprint("return_saga", __name__)
 
@@ -31,7 +31,7 @@ def _normalize_components(raw_components: list) -> list:
     valid_components = []
     for component in raw_components or []:
         normalized = str(component).strip().lower()
-        if normalized in COMPONENT_DAMAGE_RATES and normalized not in valid_components:
+        if normalized in COMPONENT_DAMAGE_VALUES and normalized not in valid_components:
             valid_components.append(normalized)
     return valid_components
 
@@ -77,9 +77,8 @@ def _parse_complete_order_flag(raw_value) -> bool:
     return str(raw_value).strip().lower() not in {"false", "0", "no"}
 
 
-def _calculate_damage_fee(original_deposit: float, damaged_components: list) -> float:
-    deduction_rate = sum(COMPONENT_DAMAGE_RATES[component] for component in damaged_components)
-    return round(original_deposit * deduction_rate, 2)
+def _calculate_damage_fee(damaged_components: list) -> float:
+    return round(sum(COMPONENT_DAMAGE_VALUES[component] for component in damaged_components), 2)
 
 
 @saga_bp.post("/returns/process")
@@ -101,7 +100,7 @@ def process_return():
         damaged_packages, clean_packages = _partition_items_by_damage(items, damaged_components)
         damage_fee = body.get("damage_fee")
         if damage_fee is None:
-            damage_fee = _calculate_damage_fee(original_deposit, damaged_components)
+            damage_fee = _calculate_damage_fee(damaged_components)
         else:
             damage_fee = float(damage_fee)
         payment_id = body.get("payment_id") or order.get("payment_id")
