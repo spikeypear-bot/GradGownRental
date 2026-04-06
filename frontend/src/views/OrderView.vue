@@ -50,6 +50,9 @@ const packageError = ref('')
 const packageDetail = ref(null)
 const cartCheckoutItems = ref([])
 const cartPackageDetails = ref([])
+const availabilityLoading = ref(false)
+const availabilityError = ref('')
+const availableModelIds = ref(null)
 
 const contact = ref({
   firstName: '',
@@ -125,6 +128,75 @@ const sizeOptions = computed(() => {
     }))
 })
 
+function sortSizes(models) {
+  const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+  return [...models].sort((a, b) => {
+    const ai = sortOrder.indexOf(a.size)
+    const bi = sortOrder.indexOf(b.size)
+    if (ai === -1 && bi === -1) return a.size.localeCompare(b.size)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+}
+
+function isModelAvailable(modelId) {
+  if (availableModelIds.value === null) return true
+  return availableModelIds.value.has(modelId)
+}
+
+async function refreshAvailabilityForSelectedDate() {
+  if (isCartCheckout.value || !selectedFullDate.value || !sizeOptions.value.length) {
+    availableModelIds.value = null
+    availabilityError.value = ''
+    return
+  }
+
+  availabilityLoading.value = true
+  availabilityError.value = ''
+
+  try {
+    const isoDate = fulfillmentDateISO.value
+    const results = await Promise.all(
+      sizeOptions.value.flatMap(item =>
+        item.models.map(model => inventoryService.checkAvailability({
+          hatModelId: item.itemType === 'hat' ? model.modelId : '',
+          hoodModelId: item.itemType === 'hood' ? model.modelId : '',
+          gownModelId: item.itemType === 'gown' ? model.modelId : '',
+        }, isoDate))
+      )
+    )
+
+    availableModelIds.value = new Set(
+      results
+        .flatMap(result => result.components || [])
+        .filter(component => Number(component.availableQty || 0) > 0)
+        .map(component => component.modelId)
+    )
+
+    const nextSelections = { ...selectedSizes.value }
+    sizeOptions.value.forEach(item => {
+      const currentModelId = nextSelections[item.itemType]
+      if (currentModelId && availableModelIds.value.has(currentModelId)) {
+        return
+      }
+
+      const firstAvailable = sortSizes(item.models).find(model =>
+        availableModelIds.value.has(model.modelId)
+      )
+
+      nextSelections[item.itemType] = firstAvailable?.modelId || ''
+    })
+    selectedSizes.value = nextSelections
+  } catch (error) {
+    console.error('Failed to refresh live availability:', error)
+    availableModelIds.value = null
+    availabilityError.value = 'Could not check live availability right now.'
+  } finally {
+    availabilityLoading.value = false
+  }
+}
+
 function applyPreselectedSelections() {
   if (!preselectedModels.value.length) return
   const nextSelections = { ...selectedSizes.value }
@@ -139,15 +211,9 @@ function applyPreselectedSelections() {
 // When packageDetail loads, default selectedSizes to first size of each item
 watch(sizeOptions, (options) => {
   if (!options.length) { selectedSizes.value = {}; return }
-  const sortOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
   const defaults = {}
   options.forEach(item => {
-    const sorted = [...item.models].sort((a, b) => {
-      const ai = sortOrder.indexOf(a.size), bi = sortOrder.indexOf(b.size)
-      if (ai === -1 && bi === -1) return a.size.localeCompare(b.size)
-      if (ai === -1) return 1; if (bi === -1) return -1
-      return ai - bi
-    })
+    const sorted = sortSizes(item.models)
     if (sorted[0] && !selectedSizes.value[item.itemType]) {
       defaults[item.itemType] = sorted[0].modelId
     }
@@ -170,6 +236,10 @@ maxDate.setHours(0, 0, 0, 0)
 
 const viewDate = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const selectedFullDate = ref(null)
+
+watch([selectedFullDate, sizeOptions], async () => {
+  await refreshAvailabilityForSelectedDate()
+})
 
 const fulfillmentDateISO = computed(() => {
   if (!selectedFullDate.value) return ''
@@ -260,7 +330,9 @@ const canProceedStep1 = computed(() => {
     )
   }
   const allSizesChosen = sizeOptions.value.length > 0 &&
-    sizeOptions.value.every(item => Boolean(selectedSizes.value[item.itemType]))
+    sizeOptions.value.every(
+      item => Boolean(selectedSizes.value[item.itemType]) && isModelAvailable(selectedSizes.value[item.itemType])
+    )
   return Boolean(
     packageDetail.value &&
     selectedFullDate.value &&
@@ -364,7 +436,7 @@ onMounted(async () => {
           1,
         )
       }
-      currentStep.value = 2
+      currentStep.value = 1
     }
 
     if (isCartCheckout.value) {
@@ -717,6 +789,12 @@ function formatDate(date) {
                   <h5 class="fw-bold text-dark mb-4">
                     {{ isCartCheckout ? 'Selected Sizes' : 'Select Size' }}
                   </h5>
+                  <div v-if="!isCartCheckout && availabilityLoading" class="text-secondary small mb-3">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Checking live availability...
+                  </div>
+                  <div v-if="!isCartCheckout && availabilityError" class="alert alert-warning py-2 small mb-3">
+                    {{ availabilityError }}
+                  </div>
                   <div v-if="!isCartCheckout" class="d-flex flex-column gap-4">
                     <div v-for="item in sizeOptions" :key="item.itemType">
                       <p class="text-secondary small fw-bold mb-2 text-uppercase" style="letter-spacing: 1px;">
@@ -724,13 +802,18 @@ function formatDate(date) {
                       </p>
                       <div class="d-flex gap-2 flex-wrap">
                         <button
-                          v-for="model in item.models"
+                          v-for="model in sortSizes(item.models)"
                           :key="model.modelId"
                           class="btn size-btn fw-bold"
-                          :class="selectedSizes[item.itemType] === model.modelId ? 'active' : ''"
-                          @click="selectedSizes[item.itemType] = model.modelId"
+                          :class="{
+                            active: selectedSizes[item.itemType] === model.modelId,
+                            unavailable: !isModelAvailable(model.modelId),
+                          }"
+                          :disabled="!isModelAvailable(model.modelId)"
+                          @click="isModelAvailable(model.modelId) && (selectedSizes[item.itemType] = model.modelId)"
                         >
                           {{ model.size }}
+                          <span v-if="!isModelAvailable(model.modelId)" class="ms-1 small">x</span>
                         </button>
                       </div>
                     </div>
@@ -1298,6 +1381,13 @@ function formatDate(date) {
   border-color: #d8a61c;
   background-color: #fdfaf5;
   color: #d8a61c;
+}
+
+.size-btn.unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #d3cec3;
+  color: #8f8b83;
 }
 
 .fulfillment-card {

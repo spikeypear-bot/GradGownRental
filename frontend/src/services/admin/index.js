@@ -1,5 +1,7 @@
 // Admin Service API Client
 // Handles all admin operations: fulfillment and returns
+import { clearCached, readCached, writeCached } from '../cache.js'
+import { clearAdminOrderCaches } from './helpers.js'
 
 const withPathSuffix = (baseUrl, suffix) => {
   const normalizedBase = String(baseUrl || '').replace(/\/+$/, '')
@@ -15,6 +17,17 @@ const RETURN_API_BASE_URL = withPathSuffix(
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   '/returns'
 )
+
+const INVENTORY_API_BASE_URL = withPathSuffix(
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  '/api/inventory'
+)
+
+const LOGISTICS_API_BASE_URL = withPathSuffix(
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  '/logistics'
+)
+const SHIPMENT_TTL_MS = 15 * 1000
 
 class AdminService {
   formatFetchError(error, fallbackMessage) {
@@ -48,10 +61,38 @@ class AdminService {
         await this.parseError(response, 'Failed to activate fulfillment')
       }
 
+      clearAdminOrderCaches()
+      clearCached(`logistics:shipment:${orderId}`)
       return await response.json()
     } catch (error) {
       console.error('Error activating fulfillment:', error)
       throw this.formatFetchError(error, 'Unable to activate fulfillment.')
+    }
+  }
+
+  async getShipmentForOrder(orderId) {
+    try {
+      const cacheKey = `logistics:shipment:${orderId}`
+      const cached = readCached(cacheKey, SHIPMENT_TTL_MS)
+      if (cached !== null) {
+        return cached
+      }
+
+      const response = await fetch(`${LOGISTICS_API_BASE_URL}/order/${encodeURIComponent(orderId)}`)
+
+      if (response.status === 404) {
+        writeCached(cacheKey, null)
+        return null
+      }
+
+      if (!response.ok) {
+        await this.parseError(response, 'Failed to load shipment details')
+      }
+
+      return writeCached(cacheKey, await response.json())
+    } catch (error) {
+      console.error('Error loading shipment details:', error)
+      throw this.formatFetchError(error, 'Unable to load shipment details.')
     }
   }
 
@@ -74,6 +115,8 @@ class AdminService {
         await this.parseError(response, 'Failed to process return')
       }
 
+      clearAdminOrderCaches()
+      clearCached(`logistics:shipment:${returnData?.order_id || ''}`)
       return await response.json()
     } catch (error) {
       console.error('Error processing return:', error)
@@ -103,6 +146,8 @@ class AdminService {
         await this.parseError(response, 'Failed to transition to wash')
       }
 
+      clearAdminOrderCaches()
+      clearCached(`logistics:shipment:${orderId}`)
       return await response.json()
     } catch (error) {
       console.error('Error transitioning to wash:', error)
@@ -135,6 +180,8 @@ class AdminService {
         await this.parseError(response, 'Failed to complete maintenance')
       }
 
+      clearAdminOrderCaches()
+      clearCached(`logistics:shipment:${orderId}`)
       return await response.json()
     } catch (error) {
       console.error('Error completing maintenance:', error)
@@ -203,6 +250,48 @@ class AdminService {
    */
   async completeWash(orderId, selectedPackages = null, options = {}) {
     return this.maintenanceComplete(orderId, selectedPackages, options)
+  }
+
+  async useBackupStock(order) {
+    const selectedItems = Array.isArray(order?.selected_items) ? order.selected_items : []
+    const chosenDate = order?.rental_start_date
+
+    if (!selectedItems.length || !chosenDate) {
+      throw new Error('This order is missing item or date details needed to activate backup stock.')
+    }
+
+    const items = selectedItems.map(item => ({
+      modelId: item.modelId,
+      qty: Number(item.qty || 1),
+      chosenDate: item.chosenDate || chosenDate,
+    }))
+
+    if (items.some(item => !item.modelId || !item.chosenDate || item.qty <= 0)) {
+      throw new Error('This order has incomplete item data, so backup stock could not be activated.')
+    }
+
+    try {
+      const response = await fetch(`${INVENTORY_API_BASE_URL}/stock/transition`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transition: 'USE_BACKUP_FOR_FULFILLMENT',
+          orderId: order.orderID || order.order_id,
+          items,
+        })
+      })
+
+      if (!response.ok) {
+        await this.parseError(response, 'Failed to activate backup stock')
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error activating backup stock:', error)
+      throw this.formatFetchError(error, 'Unable to activate backup stock.')
+    }
   }
 
   /**

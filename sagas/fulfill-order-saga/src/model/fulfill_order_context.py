@@ -15,7 +15,7 @@ class SagaStatus(str, Enum):
 @dataclass
 class FulfillOrderContext:
     order_id: str
-    shipment_id: str
+    shipment_id: Optional[str]
     tracking_status: str
     selected_packages: list
     chosen_date: str

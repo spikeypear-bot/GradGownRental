@@ -21,10 +21,15 @@ class NotificationStatus(str, Enum):
 
 
 class NotificationEvent(str, Enum):
-    # Scenario 2a — scheduled reminders
+    # Canonical 4-stage labels (requested lifecycle)
+    CONFIRMATION = "CONFIRMATION"
+    COLLECTION = "COLLECTION"
+    RETURN = "RETURN"
+    DEPOSIT = "DEPOSIT"
+
+    # Backward-compatible aliases currently used by topics/events
     PICKUP_REMINDER = "pickup_reminder"
     RETURN_REMINDER = "return_reminder"
-    # Scenario 2b — post-action (event-driven)
     ORDER_CONFIRMED = "OrderConfirmed"
     ORDER_ACTIVATED = "OrderActivated"
     RETURN_PROCESSED = "ReturnProcessed"

@@ -294,7 +294,7 @@ const submitReturn = async () => {
       }))
     )
 
-    await AdminService.processReturn({
+    const result = await AdminService.processReturn({
       order_id: selectedOrder.value.orderID,
       selected_packages: (Array.isArray(selectedOrder.value.selected_items) ? selectedOrder.value.selected_items : []).map(item => ({
         ...item,
@@ -309,15 +309,30 @@ const submitReturn = async () => {
       ? selectedOrder.value.selected_items
       : []
     const damagedSet = new Set(hasDamage.value ? damagedComponents.value : [])
-    const damagedPackages = allSelected.filter(item => damagedSet.has(getComponentKeyForItem(item)))
+    const sagaDamagedPackages = Array.isArray(result?.damaged_packages) ? result.damaged_packages : []
+    const damagedPackages = sagaDamagedPackages.length
+      ? sagaDamagedPackages
+      : allSelected.filter(item => damagedSet.has(getComponentKeyForItem(item)))
     const cleanPackages = allSelected.filter(item => !damagedSet.has(getComponentKeyForItem(item)))
+    const damagedItemStages = Object.fromEntries(
+      damagedPackages.map(item => [
+        item.damageId ? `damage-${item.damageId}` : [item.modelId, item.qty || 1, item.chosenDate || ''].join(':'),
+        'repair'
+      ])
+    )
+    const cleanItemStages = Object.fromEntries(
+      cleanPackages.map(item => [
+        [item.modelId, item.qty || 1, item.chosenDate || ''].join(':'),
+        'wash'
+      ])
+    )
     const detailsMap = readMaintenanceDetails()
     detailsMap[selectedOrder.value.orderID] = {
       allSelected,
       damagedPackages,
       cleanPackages,
-      damagedStage: damagedPackages.length ? 'repair' : null,
-      cleanStage: cleanPackages.length ? 'wash' : null,
+      damagedItemStages,
+      cleanItemStages,
     }
     writeMaintenanceDetails(detailsMap)
 

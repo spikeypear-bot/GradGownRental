@@ -68,6 +68,16 @@ Swagger/OpenAPI docs are available per service after startup.
 - Improved return-order saga handling for split clean versus damaged package processing and maintenance progression.
 - Updated inventory availability and stock overview behavior so default backup stock is treated as a buffer and damaged quantities come from the damage log.
 
+## Today's Changes
+
+- Fixed damaged-return handling so damage logs stay item-specific through return, repair, and wash, with `orderId` captured on each damage log and `damageId` preserved across the saga/frontend flow.
+- Updated checkout so fulfillment selection happens in `OrderView`, live size availability reflects active soft holds, and unavailable sizes are disabled instead of looking selectable.
+- Added manual emergency backup stock activation for fulfillment via `USE_BACKUP_FOR_FULFILLMENT` in inventory-service and the admin fulfillment UI.
+- Integrated admin fulfillment with logistics shipment data from OutSystems so the page can show shipment ID, scheduled time, and tracking status by `order_id`.
+- Changed logistics-service reads to prefer OutSystems as the source of truth, with the in-memory shipment cache kept only as a locked fallback helper.
+- Added lightweight frontend caching for repeated read-heavy admin, order, inventory, and shipment lookups to reduce repeated Kong/API calls.
+- Renamed the customer tracking terminal step from `Processed` to `Closed` and aligned order completion so orders only move to `COMPLETED` after return maintenance is actually finished.
+
 ## Notes
 
 - Inventory schema changes now treat `backup_qty` with a default value of `10`.

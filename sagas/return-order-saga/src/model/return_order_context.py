@@ -52,5 +52,6 @@ class ReturnOrderContext:
             "original_deposit": f"{self.original_deposit:.2f}",
             "refundable_amount": f"{self.refundable_amount:.2f}",
             "damaged_components": self.damaged_components,
+            "damaged_packages": self.metadata.get("damaged_packages", self.damaged_packages),
             "status": self.status.value,
         }

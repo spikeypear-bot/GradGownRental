@@ -66,6 +66,66 @@ LOGISTICS_OPENAPI_SPEC = {
                 },
             }
         },
+        "/logistics/order/{order_id}": {
+            "get": {
+                "summary": "Fetch full shipment by order ID",
+                "parameters": [
+                    {
+                        "name": "order_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shipment found in OutSystems",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        },
+                    },
+                    "404": {"description": "Shipment not found for order"},
+                    "502": {"description": "Failed to reach OutSystems"},
+                },
+            }
+        },
+        "/logistics/order/{order_id}/shipment-id": {
+            "get": {
+                "summary": "Resolve shipment ID by order ID",
+                "parameters": [
+                    {
+                        "name": "order_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shipment ID resolved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "order_id": {"type": "string"},
+                                        "shipment_id": {"type": "string"},
+                                        "source": {
+                                            "type": "string",
+                                            "enum": ["outsystems", "cache"],
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "404": {"description": "Shipment not found for order"},
+                    "502": {"description": "Failed to reach OutSystems"},
+                },
+            }
+        },
     },
     "components": {
         "schemas": {

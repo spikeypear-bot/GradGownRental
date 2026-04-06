@@ -3,7 +3,7 @@ OrderService — orchestrates order creation, state transitions, and business lo
 """
 
 import logging
-from datetime import datetime, date, timezone
+from datetime import date
 
 from ..model.order import Order, OrderStatus
 from ..repository.order_repository import OrderRepository
@@ -70,15 +70,24 @@ class OrderService:
         except KeyError as exc:
             raise ValueError(f"Invalid status: {status}") from exc
 
-        # Validate: DELIVERY orders must have rental_start_date at least 24 hours in future
-        if fulfillment_method == "DELIVERY":
-            start_date = datetime.fromisoformat(rental_start_date).date()
-            today = date.today()
-            days_until_rental = (start_date - today).days
-            
-            if days_until_rental <= 0:
+        normalized_fulfillment_method = str(fulfillment_method or "").upper()
+        if normalized_fulfillment_method not in {"COLLECTION", "DELIVERY"}:
+            raise ValueError(
+                "fulfillment_method must be either 'COLLECTION' or 'DELIVERY'"
+            )
+
+        # Validate: DELIVERY orders must be at least next-day.
+        # Frontend sends a date-only string (YYYY-MM-DD), so compare dates directly
+        # instead of mixing naive datetimes with timezone-aware timestamps.
+        if normalized_fulfillment_method == "DELIVERY":
+            try:
+                rental_start = date.fromisoformat(str(rental_start_date))
+            except ValueError as exc:
+                raise ValueError("rental_start_date must be a valid ISO date (YYYY-MM-DD)") from exc
+
+            if rental_start <= date.today():
                 raise ValueError(
-                    "DELIVERY orders require rental_start_date to be at least 24 hours in the future. "
+                    "DELIVERY orders require rental_start_date to be after today. "
                     "For same-day rentals, please use COLLECTION fulfillment method."
                 )
         
@@ -96,7 +105,7 @@ class OrderService:
             rental_end_date=rental_end_date,
             total_amount=total_amount,
             deposit=deposit,
-            fulfillment_method=fulfillment_method,
+            fulfillment_method=normalized_fulfillment_method,
             status=initial_status,
             hold_id=hold_id,
             payment_id=payment_id,
@@ -142,10 +151,14 @@ class OrderService:
 
     def process_return(self, order_id: str, damaged_items: list = None) -> Order:
         """
-        Mark order as RETURNED (gown received back).
+        Mark order as returned after physical handback.
         
         Validates that damaged items are a subset of selected items with valid quantities.
         Stores damaged items for inventory tracking.
+
+        This direct service method should not close the order immediately. The order
+        only becomes COMPLETED once the downstream maintenance flow confirms the
+        return is fully resolved.
         
         :param order_id: order identifier
         :param damaged_items: list of dicts indicating which items are damaged
@@ -163,15 +176,18 @@ class OrderService:
         
         # Determine if items are damaged
         damaged = bool(damaged_items and len(damaged_items) > 0)
+        next_status = OrderStatus.RETURNED_DAMAGED if damaged else OrderStatus.RETURNED
         
         # Update status and damage flag
-        self._repo.update_status(order_id, OrderStatus.RETURNED)
+        self._repo.update_status(order_id, next_status)
         self._repo.set_damage(order_id, damaged, damaged_items=damaged_items or [])
-        logger.info(f"Order {order_id} marked as returned (damaged={damaged}, items={damaged_items})")
-        
-        # Mark as completed
-        self._repo.update_status(order_id, OrderStatus.COMPLETED)
-        logger.info(f"Order {order_id} completed")
+        logger.info(
+            "Order %s marked as %s (damaged=%s, items=%s)",
+            order_id,
+            next_status.value,
+            damaged,
+            damaged_items,
+        )
         
         return self._repo.find_by_order_id(order_id)
     

@@ -17,6 +17,7 @@ Activation Logic:
 """
 
 import logging
+from datetime import date
 from flask import Blueprint, request, jsonify, current_app
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,8 @@ def create_order():
             payment_id=data.get("payment_id"),
             status=data.get("status", "PENDING"),
         )
+
+        _publish_immediate_collection_reminder_if_needed(order)
         return jsonify(order.to_dict()), 201
     except ValueError as e:
         logger.error(f"Validation error creating order: {e}")
@@ -71,6 +74,66 @@ def create_order():
     except Exception as e:
         logger.error(f"Error creating order: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+def _publish_immediate_collection_reminder_if_needed(order) -> None:
+    """Publish pickup_reminder immediately for same-day confirmed COLLECTION orders."""
+    try:
+        if (order.fulfillment_method or "").upper() != "COLLECTION":
+            return
+        if (order.status.value if hasattr(order.status, "value") else str(order.status)).upper() != "CONFIRMED":
+            return
+
+        rental_start = str(order.rental_start_date or "")[:10]
+        today = date.today().isoformat()
+        if rental_start != today:
+            return
+
+        publisher = current_app.extensions.get("reminder_publisher")
+        if publisher is None:
+            logger.warning("Immediate pickup reminder skipped | reason=publisher_unavailable | order_id=%s", order.order_id)
+            return
+
+        payload = {
+            "order_id": order.order_id,
+            "student_name": order.student_name,
+            "phone": order.phone,
+            "email": order.email,
+            "fulfillment_date": str(order.rental_start_date) if order.rental_start_date else None,
+            "return_date": str(order.rental_end_date) if order.rental_end_date else None,
+            "fulfillment_method": order.fulfillment_method,
+        }
+        publisher.publish_pickup_reminder(payload)
+        logger.info("Immediate same-day pickup reminder published | order_id=%s", order.order_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to publish immediate same-day pickup reminder | order_id=%s | error=%s", order.order_id, exc)
+
+
+def _publish_order_paid_if_needed(order) -> None:
+    """Publish OrderPaid event when order is confirmed (payment successful)."""
+    try:
+        if (order.status.value if hasattr(order.status, "value") else str(order.status)).upper() != "CONFIRMED":
+            return
+
+        publisher = current_app.extensions.get("reminder_publisher")
+        if publisher is None:
+            logger.warning("OrderPaid event skipped | reason=publisher_unavailable | order_id=%s", order.order_id)
+            return
+
+        payload = {
+            "order_id": order.order_id,
+            "student_name": order.student_name,
+            "phone": order.phone,
+            "email": order.email,
+            "fulfillment_method": order.fulfillment_method,
+            "fulfillment_date": str(order.rental_start_date) if order.rental_start_date else None,
+            "return_date": str(order.rental_end_date) if order.rental_end_date else None,
+            "total_amount": str(order.total_amount),
+        }
+        publisher.publish_order_paid(payload)
+        logger.info("OrderPaid event published | order_id=%s", order.order_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to publish OrderPaid event | order_id=%s | error=%s", order.order_id, exc)
 
 
 @order_bp.put("/<string:order_id>/status")
@@ -89,6 +152,12 @@ def update_order_status(order_id: str):
             status=status,
             payment_id=data.get("payment_id"),
         )
+        
+        # Publish OrderPaid event when order is confirmed (payment successful)
+        if (status.upper() == "CONFIRMED"):
+            _publish_order_paid_if_needed(order)
+        
+        _publish_immediate_collection_reminder_if_needed(order)
         return jsonify(order.to_dict()), 200
     except ValueError as e:
         message = str(e)

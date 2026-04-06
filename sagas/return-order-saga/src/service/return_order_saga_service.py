@@ -21,6 +21,7 @@ class ReturnOrderSagaService:
                 or context.damage_report.strip()
                 or context.damage_images
             )
+            damaged_packages_with_ids = context.damaged_packages
 
             # Step 2
             self._orders.update_status(
@@ -31,7 +32,15 @@ class ReturnOrderSagaService:
 
             # Step 3
             if has_damage and context.damaged_packages:
-                self._inventory.transition("RENTED_TO_DAMAGED", context.damaged_packages)
+                inventory_result = self._inventory.transition(
+                    "RENTED_TO_DAMAGED",
+                    context.damaged_packages,
+                    {"orderId": context.order_id},
+                )
+                damaged_packages_with_ids = self._merge_damage_ids(
+                    context.damaged_packages,
+                    inventory_result.get("data"),
+                )
             if context.clean_packages:
                 self._inventory.transition("RENTED_TO_WASH", context.clean_packages)
             if not has_damage and not context.clean_packages:
@@ -53,12 +62,16 @@ class ReturnOrderSagaService:
                 "phone": context.phone,
                 "email": context.email,
                 "refund_amount": f"{context.refundable_amount:.2f}",
+                "original_deposit": f"{context.original_deposit:.2f}",
+                "damage_fee": f"{context.damage_fee:.2f}",
+                "has_damage": has_damage,
             })
 
             # Step 9
             if has_damage:
-                self._inventory.transition("DAMAGED_TO_REPAIR", context.damaged_packages or context.selected_packages)
+                self._inventory.transition("DAMAGED_TO_REPAIR", damaged_packages_with_ids or context.selected_packages)
                 context.status = SagaStatus.MAINTENANCE_REQUESTED
+            context.metadata["damaged_packages"] = damaged_packages_with_ids
             context.metadata["damage_report"] = context.damage_report
             context.metadata["damage_images_count"] = len(context.damage_images)
             context.metadata["has_damage"] = has_damage
@@ -94,3 +107,35 @@ class ReturnOrderSagaService:
         except Exception as exc:
             self._errors.log_error(SAGA_NAME, "maintenance_complete", context.order_id, str(exc))
             raise
+
+    @staticmethod
+    def _merge_damage_ids(damaged_packages: list, created_damage_logs: list | None) -> list:
+        if not isinstance(created_damage_logs, list) or not created_damage_logs:
+            return damaged_packages
+
+        damage_id_by_key = {}
+        for entry in created_damage_logs:
+            if not isinstance(entry, dict):
+                continue
+            item = entry.get("modelIdAndQtyAndDateDto") or {}
+            damage_id = entry.get("damageId")
+            key = (
+                item.get("modelId"),
+                int(item.get("qty", 0) or 0),
+                item.get("chosenDate"),
+            )
+            if key[0] and damage_id is not None:
+                damage_id_by_key[key] = damage_id
+
+        merged = []
+        for item in damaged_packages:
+            key = (
+                item.get("modelId"),
+                int(item.get("qty", 0) or 0),
+                item.get("chosenDate"),
+            )
+            merged.append({
+                **item,
+                **({"damageId": damage_id_by_key[key]} if key in damage_id_by_key else {}),
+            })
+        return merged

@@ -172,9 +172,10 @@ public class InventoryController {
     // - RESERVED_TO_RENTED (requires items)
     // - RENTED_TO_WASH (requires items)
     @PutMapping("/stock/transition")
-    public ResponseEntity<InventoryResponse<String>> transitionStock(@RequestBody Map<String, Object> payload){
+    public ResponseEntity<InventoryResponse<?>> transitionStock(@RequestBody Map<String, Object> payload){
         try {
             String transition = String.valueOf(payload.getOrDefault("transition", ""));
+            String orderId = payload.get("orderId") != null ? String.valueOf(payload.get("orderId")) : null;
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rawItems = (List<Map<String, Object>>) payload.get("items");
             List<ModelIdAndQtyAndDateDto> items = rawItems == null
@@ -205,14 +206,27 @@ public class InventoryController {
                         new InventoryResponse<String>(200, "Success: moved rented -> wash", null)
                     );
                 case "REPAIR_TO_WASH":
-                    postService.moveRepairToWash(items);
+                    List<DamageAndQtyDto> repairedDamageLogs = rawItems == null
+                        ? List.of()
+                        : rawItems.stream()
+                            .filter(item -> item.get("damageId") != null)
+                            .map(item -> new DamageAndQtyDto(
+                                Integer.parseInt(String.valueOf(item.get("damageId"))),
+                                Integer.parseInt(String.valueOf(item.getOrDefault("qty", 1)))
+                            ))
+                            .toList();
+                    if (repairedDamageLogs.isEmpty()) {
+                        postService.moveRepairToWash(items);
+                    } else {
+                        postService.moveRepairToWash(items, repairedDamageLogs);
+                    }
                     return ResponseEntity.ok(
                         new InventoryResponse<String>(200, "Success: moved repair -> wash", null)
                     );
                 case "RENTED_TO_DAMAGED":
-                    postService.damageItems(items);
+                    List<ItemAndDamageIdDto> damageLogs = postService.damageItems(items, orderId);
                     return ResponseEntity.ok(
-                        new InventoryResponse<String>(200, "Success: moved rented -> damaged", null)
+                        new InventoryResponse<List<ItemAndDamageIdDto>>(200, "Success: moved rented -> damaged", damageLogs)
                     );
                 case "DAMAGED_TO_REPAIR":
                     postService.moveDamagedToRepair(items);
@@ -223,6 +237,11 @@ public class InventoryController {
                     postService.moveWashToAvailable(items);
                     return ResponseEntity.ok(
                         new InventoryResponse<String>(200, "Success: moved wash -> available", null)
+                    );
+                case "USE_BACKUP_FOR_FULFILLMENT":
+                    postService.useBackupForFulfillment(items);
+                    return ResponseEntity.ok(
+                        new InventoryResponse<String>(200, "Success: backup stock activated for fulfillment", null)
                     );
                 default:
                     return ResponseEntity.badRequest().body(
@@ -238,7 +257,7 @@ public class InventoryController {
 
     // Scenario contract alias: PUT /inventory/maintenance/request
     @PutMapping("/maintenance/request")
-    public ResponseEntity<InventoryResponse<String>> maintenanceRequest(@RequestBody Map<String, Object> payload){
+    public ResponseEntity<InventoryResponse<?>> maintenanceRequest(@RequestBody Map<String, Object> payload){
         payload.put("transition", "DAMAGED_TO_REPAIR");
         return transitionStock(payload);
     }

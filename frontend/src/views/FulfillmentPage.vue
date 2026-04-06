@@ -44,6 +44,10 @@
                 <div class="order-info">
                   <span class="order-id">{{ order.orderID }}</span>
                   <p class="customer-name mb-0">{{ order.CustomerName }}</p>
+                  <span :class="shipmentPillClass(order)">
+                    {{ getShipmentTrackingStatus(order, 'NOT COLLECTED') }}
+                  </span>
+                  <p class="shipment-meta mb-0">{{ getShipmentSummary(order) }}</p>
                 </div>
                 <button
                   class="btn btn-sm btn-collected"
@@ -82,6 +86,10 @@
                 <div class="order-info">
                   <span class="order-id">{{ order.orderID }}</span>
                   <p class="customer-name mb-0">{{ order.CustomerName }}</p>
+                  <span :class="shipmentPillClass(order)">
+                    {{ getShipmentTrackingStatus(order, 'SCHEDULED') }}
+                  </span>
+                  <p class="shipment-meta mb-0">{{ getShipmentSummary(order) }}</p>
                 </div>
                 <button
                   class="btn btn-sm btn-delivered"
@@ -102,6 +110,86 @@
         </div>
       </div>
 
+      <div v-if="!isLoading" class="row g-4 mt-1">
+        <div class="col-12">
+          <div class="fulfillment-card">
+            <h5 class="mb-3 fw-bold">Future Delivery Overview (Confirmed / Scheduled)</h5>
+
+            <div v-if="futureDeliveryOverview.length === 0" class="empty-state">
+              <i class="bi bi-calendar-check"></i>
+              <p>No upcoming delivery orders.</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Rental Start</th>
+                    <th>Order Status</th>
+                    <th>Tracking Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="order in futureDeliveryOverview" :key="`future-${order.orderID}`">
+                    <td class="fw-semibold">{{ order.orderID }}</td>
+                    <td>{{ order.CustomerName || '-' }}</td>
+                    <td>{{ formatDate(order.rental_start_date) }}</td>
+                    <td><span class="tracking-pill tracking-confirmed">{{ order.status }}</span></td>
+                    <td>
+                      <span :class="shipmentPillClass(order)">
+                        {{ getShipmentTrackingStatus(order, 'SCHEDULED') }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!isLoading" class="row g-4 mt-1">
+        <div class="col-12">
+          <div class="fulfillment-card">
+            <h5 class="mb-3 fw-bold">Tracking for {{ activeDateLabel }}</h5>
+
+            <div v-if="todayTrackingRows.length === 0" class="empty-state">
+              <i class="bi bi-list-check"></i>
+              <p>No tracked collection/delivery updates for today yet.</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Fulfillment</th>
+                    <th>Order Status</th>
+                    <th>Tracking Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in todayTrackingRows" :key="`track-${row.orderID}`">
+                    <td class="fw-semibold">{{ row.orderID }}</td>
+                    <td>{{ row.CustomerName || '-' }}</td>
+                    <td>{{ row.fulfillment_method || '-' }}</td>
+                    <td><span class="tracking-pill tracking-active">{{ row.status || 'ACTIVE' }}</span></td>
+                    <td>
+                      <span :class="shipmentPillClass(row)">
+                        {{ getShipmentTrackingStatus(row, row.fulfillment_method === 'DELIVERY' ? 'DELIVERED' : 'COLLECTED') }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Confirmation Modal -->
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
@@ -114,6 +202,39 @@
             {{ modalType === 'COLLECTION' ? 'collected' : 'delivered' }}?
             This will move the order to Active Rentals.
           </p>
+          <div v-if="selectedOrder" class="shipment-panel">
+            <div class="shipment-header">Shipment Details</div>
+            <p class="shipment-line mb-1">
+              <strong>ID:</strong> {{ getShipmentId(selectedOrder) }}
+            </p>
+            <p class="shipment-line mb-1">
+              <strong>Status:</strong> {{ getShipmentTrackingStatus(selectedOrder, 'PENDING SYNC') }}
+            </p>
+            <p class="shipment-line mb-0">
+              <strong>Scheduled:</strong> {{ formatDateTime(getShipmentScheduledDate(selectedOrder)) }}
+            </p>
+          </div>
+          <div class="backup-panel">
+            <div>
+              <div class="backup-title">Emergency Backup Stock</div>
+              <p class="backup-copy mb-0">
+                Use this only if unexpected damage or shortage means we still need to fulfill this confirmed order.
+              </p>
+            </div>
+            <button
+              class="btn btn-outline-warning"
+              @click="activateBackupStock"
+              :disabled="isBackupProcessing || backupActivatedOrderIds[selectedOrder?.orderID]"
+            >
+              <span v-if="!isBackupProcessing">
+                {{ backupActivatedOrderIds[selectedOrder?.orderID] ? 'Backup Activated' : 'Use Backup Stock' }}
+              </span>
+              <span v-else>
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Applying...
+              </span>
+            </button>
+          </div>
           <div class="d-flex gap-2 justify-content-end mt-4">
             <button @click="closeModal" class="btn btn-secondary">Cancel</button>
             <button
@@ -141,7 +262,8 @@ import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
 import { isDemoMode } from '../config/demoMode'
 
-const orders = ref([])
+const confirmedOrders = ref([])
+const activeOrders = ref([])
 const isLoading = ref(false)
 const processingId = ref(null)
 const isProcessing = ref(false)
@@ -150,6 +272,9 @@ const selectedOrder = ref(null)
 const modalType = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
+const isBackupProcessing = ref(false)
+const backupActivatedOrderIds = ref({})
+const shipmentsByOrder = ref({})
 
 function formatDateKey(dateInput) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -161,13 +286,90 @@ function formatDateKey(dateInput) {
   return formatter.format(new Date(dateInput))
 }
 
+function formatDate(value) {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(parsed)
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Not synced yet'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return String(value)
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(parsed)
+}
+
+function normalizeShipment(rawShipment, orderId) {
+  if (!rawShipment || typeof rawShipment !== 'object') return null
+  return {
+    order_id: rawShipment.order_id || orderId,
+    shipment_id: rawShipment.shipment_id ?? null,
+    fulfillment_method: rawShipment.fulfillment_method || null,
+    tracking_status: rawShipment.tracking_status || null,
+    scheduled_datetime: rawShipment.scheduled_datetime || null,
+    created_at: rawShipment.created_at || null,
+  }
+}
+
+function getShipmentForOrder(orderId) {
+  return shipmentsByOrder.value[orderId] || null
+}
+
+function getShipmentTrackingStatus(order, fallback = 'PENDING SYNC') {
+  return getShipmentForOrder(order.orderID)?.tracking_status || fallback
+}
+
+function getShipmentId(order) {
+  const shipmentId = getShipmentForOrder(order.orderID)?.shipment_id
+  return shipmentId == null ? 'Not synced yet' : `#${shipmentId}`
+}
+
+function getShipmentScheduledDate(order) {
+  return getShipmentForOrder(order.orderID)?.scheduled_datetime || order.rental_start_date
+}
+
+function getShipmentSummary(order) {
+  const shipment = getShipmentForOrder(order.orderID)
+  if (!shipment) {
+    return 'Waiting for logistics sync'
+  }
+  const parts = []
+  if (shipment.shipment_id != null) {
+    parts.push(`Shipment #${shipment.shipment_id}`)
+  }
+  if (shipment.scheduled_datetime) {
+    parts.push(formatDateTime(shipment.scheduled_datetime))
+  }
+  return parts.join(' • ') || 'Shipment synced'
+}
+
+function shipmentPillClass(order) {
+  const status = getShipmentTrackingStatus(order, '').toUpperCase()
+  if (status === 'DELIVERED') return 'tracking-pill tracking-delivered'
+  if (status === 'COLLECTED') return 'tracking-pill tracking-collected'
+  return 'tracking-pill tracking-scheduled'
+}
+
 const filteredOrders = computed(() => {
   if (isDemoMode) {
-    return orders.value
+    return confirmedOrders.value
   }
 
   const targetDate = formatDateKey(new Date())
-  return orders.value
+  return confirmedOrders.value
     .filter(order => {
       if (!order.rental_start_date) return false
       return formatDateKey(order.rental_start_date) === targetDate
@@ -182,6 +384,34 @@ const filteredDelivery = computed(() =>
   filteredOrders.value.filter(o => o.fulfillment_method === 'DELIVERY')
 )
 
+const futureDeliveryOverview = computed(() => {
+  const todayKey = formatDateKey(new Date())
+
+  return confirmedOrders.value
+    .filter(order => order.fulfillment_method === 'DELIVERY')
+    .filter(order => {
+      if (!order.rental_start_date) return false
+      const startDateKey = formatDateKey(order.rental_start_date)
+      return isDemoMode ? true : startDateKey > todayKey
+    })
+    .sort((a, b) => new Date(a.rental_start_date) - new Date(b.rental_start_date))
+})
+
+const todayTrackingRows = computed(() => {
+  const targetDate = formatDateKey(new Date())
+
+  return activeOrders.value
+    .filter(order => {
+      if (!order.rental_start_date) return false
+      return isDemoMode ? true : formatDateKey(order.rental_start_date) === targetDate
+    })
+    .map(order => ({
+      ...order,
+      tracking_status: order.fulfillment_method === 'DELIVERY' ? 'DELIVERED' : 'COLLECTED'
+    }))
+    .sort((a, b) => String(a.orderID).localeCompare(String(b.orderID)))
+})
+
 const activeDateLabel = computed(() => {
   try {
     return new Intl.DateTimeFormat('en-US', {
@@ -195,17 +425,49 @@ const activeDateLabel = computed(() => {
   }
 })
 
-const loadConfirmedOrders = async () => {
+const fetchShipmentDetails = async (orders) => {
+  const orderIds = [...new Set(
+    (orders || [])
+      .map(order => order?.orderID)
+      .filter(Boolean)
+  )]
+
+  if (!orderIds.length) {
+    shipmentsByOrder.value = {}
+    return
+  }
+
+  const shipmentEntries = await Promise.all(orderIds.map(async (orderId) => {
+    try {
+      const shipment = await AdminService.getShipmentForOrder(orderId)
+      return [orderId, normalizeShipment(shipment, orderId)]
+    } catch (error) {
+      console.warn(`Unable to load shipment for ${orderId}:`, error)
+      return [orderId, null]
+    }
+  }))
+
+  shipmentsByOrder.value = Object.fromEntries(shipmentEntries)
+}
+
+const loadFulfillmentData = async () => {
   isLoading.value = true
   try {
     const orderApiUrl =
       import.meta.env.VITE_ORDER_API_BASE_URL ||
       import.meta.env.VITE_API_BASE_URL ||
       'http://localhost:8000'
-    orders.value = await fetchOrdersByStatus(orderApiUrl, 'CONFIRMED')
+    const [confirmed, active] = await Promise.all([
+      fetchOrdersByStatus(orderApiUrl, 'CONFIRMED'),
+      fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
+    ])
+
+    confirmedOrders.value = confirmed
+    activeOrders.value = active
+    await fetchShipmentDetails([...confirmed, ...active])
   } catch (error) {
     console.error('Error loading confirmed orders:', error)
-    errorMessage.value = 'Failed to load confirmed orders'
+    errorMessage.value = 'Failed to load fulfillment overview'
   } finally {
     isLoading.value = false
   }
@@ -232,7 +494,14 @@ const submitFulfillment = async () => {
   try {
     await AdminService.activateFulfillment(selectedOrder.value.orderID)
     successMessage.value = `Order ${selectedOrder.value.orderID} marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'} and moved to Active Rentals.`
-    orders.value = orders.value.filter(o => o.orderID !== selectedOrder.value.orderID)
+    const completedOrderId = selectedOrder.value.orderID
+    const movedOrder = confirmedOrders.value.find(o => o.orderID === completedOrderId)
+    confirmedOrders.value = confirmedOrders.value.filter(o => o.orderID !== completedOrderId)
+    await fetchShipmentDetails([...confirmedOrders.value, ...activeOrders.value])
+    if (movedOrder) {
+      activeOrders.value = [{ ...movedOrder, status: 'ACTIVE' }, ...activeOrders.value]
+    }
+    await fetchShipmentDetails([...confirmedOrders.value, ...activeOrders.value])
     closeModal()
     setTimeout(() => { successMessage.value = '' }, 4000)
   } catch (error) {
@@ -243,7 +512,31 @@ const submitFulfillment = async () => {
   }
 }
 
-onMounted(() => loadConfirmedOrders())
+const activateBackupStock = async () => {
+  if (!selectedOrder.value?.orderID || isBackupProcessing.value) {
+    return
+  }
+
+  isBackupProcessing.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  try {
+    await AdminService.useBackupStock(selectedOrder.value)
+    backupActivatedOrderIds.value = {
+      ...backupActivatedOrderIds.value,
+      [selectedOrder.value.orderID]: true,
+    }
+    successMessage.value = `Emergency backup stock activated for order ${selectedOrder.value.orderID}.`
+    setTimeout(() => { successMessage.value = '' }, 4000)
+  } catch (error) {
+    errorMessage.value = error.message || 'Failed to activate backup stock'
+  } finally {
+    isBackupProcessing.value = false
+  }
+}
+
+onMounted(() => loadFulfillmentData())
 </script>
 
 <style scoped>
@@ -327,6 +620,53 @@ onMounted(() => loadConfirmedOrders())
   text-overflow: ellipsis;
 }
 
+.shipment-meta {
+  margin-top: 0.35rem;
+  color: #8b8068;
+  font-size: 0.8rem;
+}
+
+.tracking-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
+}
+
+.tracking-scheduled {
+  background: #fff4de;
+  color: #b38310;
+}
+
+.tracking-not-collected {
+  background: #fdeaea;
+  color: #b74141;
+}
+
+.tracking-collected {
+  background: #e8f6ec;
+  color: #22804a;
+}
+
+.tracking-delivered {
+  background: #e9f2ff;
+  color: #2757a5;
+}
+
+.tracking-confirmed {
+  background: #f0f0f0;
+  color: #5f5f5f;
+}
+
+.tracking-active {
+  background: #e9f2ff;
+  color: #2757a5;
+}
+
 .btn-collected {
   background-color: #28a745;
   border-color: #28a745;
@@ -402,6 +742,46 @@ onMounted(() => loadConfirmedOrders())
   color: #555;
 }
 
+.backup-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #fff8e6;
+  border: 1px solid #f0dfb1;
+}
+
+.shipment-panel {
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #f9f7f2;
+  border: 1px solid #ece3d2;
+  margin-bottom: 1rem;
+}
+
+.shipment-header {
+  font-weight: 700;
+  color: #54422a;
+  margin-bottom: 0.5rem;
+}
+
+.shipment-line {
+  color: #5f5a50;
+  font-size: 0.92rem;
+}
+
+.backup-title {
+  font-weight: 700;
+  color: #7a5a00;
+}
+
+.backup-copy {
+  color: #7c6a3a;
+  font-size: 0.9rem;
+}
+
 .btn-secondary {
   background-color: #6c757d;
   border-color: #6c757d;
@@ -423,6 +803,10 @@ onMounted(() => loadConfirmedOrders())
   .btn-delivered {
     margin-left: 0;
     width: 100%;
+  }
+  .backup-panel {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

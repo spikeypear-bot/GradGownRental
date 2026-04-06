@@ -21,8 +21,7 @@ class FulfillOrderSagaService:
             context.status = SagaStatus.ORDER_ACTIVATED
 
             # Step 3
-            self._logistics.update_status(context.shipment_id, context.tracking_status, context.order_id)
-            context.status = SagaStatus.LOGISTICS_UPDATED
+            self._sync_logistics_tracking(context)
 
             # Step 4
             self._inventory.transition_reserved_to_rented(context.selected_packages)
@@ -45,3 +44,29 @@ class FulfillOrderSagaService:
             logger.error("[%s] failed | order_id=%s | error=%s", SAGA_NAME, context.order_id, exc)
             self._errors.log_error(SAGA_NAME, "activate_handover", context.order_id, str(exc))
             raise
+
+    def _sync_logistics_tracking(self, context: FulfillOrderContext) -> None:
+        shipment_id = context.shipment_id
+        if not shipment_id:
+            shipment_id = self._logistics.get_shipment_id_by_order(context.order_id)
+
+        if not shipment_id:
+            logger.warning(
+                "[%s] logistics sync skipped | order_id=%s | reason=shipment_id_unavailable",
+                SAGA_NAME,
+                context.order_id,
+            )
+            return
+
+        try:
+            self._logistics.update_status(shipment_id, context.tracking_status, context.order_id)
+            context.shipment_id = shipment_id
+            context.status = SagaStatus.LOGISTICS_UPDATED
+        except Exception as exc:
+            logger.warning(
+                "[%s] logistics update skipped | order_id=%s | shipment_id=%s | error=%s",
+                SAGA_NAME,
+                context.order_id,
+                shipment_id,
+                exc,
+            )

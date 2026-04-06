@@ -46,10 +46,10 @@ public class DamageLogService {
         return damageLogRepository.getActiveDamagedQty(modelId, targetDate);
     }
 
-    public Integer createDamage (String modelId, int qty, String reason) throws ModelNotFoundException{
+    public Integer createDamage (String modelId, int qty, String orderId, String reason) throws ModelNotFoundException{
         InventoryDto inventoryDto=inventoryService.getByModelId(modelId);
         Inventory inventory= inventoryMapper.inventoryDtoToInventory(inventoryDto);
-        DamageLogDto damageLogDto= new DamageLogDto(null,inventory , qty, reason , LocalDate.now(), null);
+        DamageLogDto damageLogDto= new DamageLogDto(null,inventory , qty, orderId, reason , LocalDate.now(), null);
         DamageLog damageLog=damageLogMapper.damageLogDtoToDamageLog(damageLogDto);
         damageLogRepository.save(damageLog);
         return damageLog.getDamageId();

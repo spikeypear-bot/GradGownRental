@@ -2,39 +2,73 @@
   <div class="team-page">
     <div class="container py-4">
       <div class="page-header">
-        <h2 class="fw-bold mb-2">Repair Team</h2>
-        <p class="text-muted mb-0">Mark repaired orders so they move into washing.</p>
+        <h2 class="fw-bold mb-2">Repair</h2>
+        <p class="text-muted mb-0">Items undergoing repair (1-day maintenance window). Status updates automatically.</p>
       </div>
 
       <div class="team-card">
         <div v-if="isLoading" class="text-center py-5">
           <div class="spinner-border" role="status"></div>
-          <p class="mt-3 text-muted">Loading repair queue...</p>
+          <p class="mt-3 text-muted">Loading items in repair...</p>
         </div>
 
         <div v-else-if="repairQueue.length === 0" class="empty-state">
           <i class="bi bi-tools"></i>
-          <p>No orders are currently under repair.</p>
+          <p>No items currently in repair.</p>
         </div>
 
-        <div v-else class="queue-list">
-          <div v-for="item in repairQueue" :key="item.id" class="queue-item">
-            <div class="item-info">
-              <span class="item-id">{{ item.itemId }}</span>
-              <p class="item-title mb-0">{{ item.gownName }}</p>
-            </div>
-            <button
-              @click="markRepairComplete(item)"
-              class="btn btn-sm btn-repair"
-              :disabled="processingId === item.itemId"
-            >
-              <span v-if="processingId !== item.itemId">Mark As Repaired</span>
-              <span v-else>
-                <span class="spinner-border spinner-border-sm me-1"></span>
-                Updating...
-              </span>
-            </button>
+        <div v-else class="queue-table">
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Model ID</th>
+                  <th>Item Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in repairQueue" :key="item.queueKey">
+                  <td class="fw-semibold">{{ item.modelId }}</td>
+                  <td>{{ item.itemName }}</td>
+                  <td class="text-uppercase text-muted">{{ item.itemType }}</td>
+                  <td>{{ item.size }}</td>
+                  <td><span class="badge bg-warning">IN REPAIR</span></td>
+                  <td>
+                    <div class="progress" style="height: 20px;">
+                      <div class="progress-bar bg-warning" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      @click="markRepairComplete(item)"
+                      class="btn btn-sm btn-repair"
+                      :disabled="processingId === item.queueKey"
+                    >
+                      <span v-if="processingId !== item.queueKey">Mark As Repaired</span>
+                      <span v-else>
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        Updating...
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </div>
+      </div>
+
+      <div class="info-banner mt-4">
+        <i class="bi bi-info-circle me-2"></i>
+        <div>
+          <strong>Automatic Processing:</strong> Items automatically transition through repair (1 day) → washing (3 days) → available inventory.
+          <br/>
+          <strong>Backup Coverage:</strong> Backup stock automatically allocated while items are in maintenance.
         </div>
       </div>
     </div>
@@ -67,15 +101,18 @@ const loadData = async () => {
 }
 
 const markRepairComplete = async (item) => {
-  processingId.value = item.itemId
+  processingId.value = item.queueKey
   try {
-    await AdminService.completeRepair(item.itemId, item?.selectedPackages || null)
+    await AdminService.completeRepair(item.orderId, item?.selectedPackages || null)
     const detailsMap = readMaintenanceDetails()
-    const entry = { ...(detailsMap[item.itemId] || {}) }
+    const entry = { ...(detailsMap[item.orderId] || {}) }
     if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'wash'
+      entry.damagedItemStages = {
+        ...(entry.damagedItemStages || {}),
+        [item.queueKey]: 'wash'
+      }
     }
-    detailsMap[item.itemId] = entry
+    detailsMap[item.orderId] = entry
     writeMaintenanceDetails(detailsMap)
     await loadData()
   } catch (error) {

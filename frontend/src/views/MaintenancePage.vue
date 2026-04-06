@@ -271,7 +271,10 @@ const markRepairComplete = async (item) => {
     const detailsMap = readMaintenanceDetails()
     const entry = { ...(detailsMap[item.itemId] || {}) }
     if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'wash'
+      entry.damagedItemStages = {
+        ...(entry.damagedItemStages || {}),
+        [item.queueKey]: 'wash'
+      }
     }
     detailsMap[item.itemId] = entry
     writeMaintenanceDetails(detailsMap)
@@ -291,12 +294,21 @@ const markWashComplete = async (item) => {
     const entry = { ...(detailsMap[item.itemId] || {}) }
 
     if (item.subsetKey === 'clean') {
-      entry.cleanStage = 'done'
+      entry.cleanItemStages = {
+        ...(entry.cleanItemStages || {}),
+        [item.queueKey]: 'done'
+      }
     } else if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'done'
+      entry.damagedItemStages = {
+        ...(entry.damagedItemStages || {}),
+        [item.queueKey]: 'done'
+      }
     }
 
-    const remainingStages = [entry.cleanStage, entry.damagedStage].filter(stage => stage && stage !== 'done')
+    const remainingStages = [
+      ...Object.values(entry.cleanItemStages || {}),
+      ...Object.values(entry.damagedItemStages || {})
+    ].filter(stage => stage && stage !== 'done')
     const completeOrder = remainingStages.length === 0
 
     await AdminService.completeWash(item.itemId, item?.selectedPackages || null, { completeOrder })

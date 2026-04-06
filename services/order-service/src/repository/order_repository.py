@@ -47,6 +47,8 @@ class OrderRepository:
 
     def save(self, order: Order) -> Order:
         """Insert a new order and return it with the generated id."""
+        confirmed_at_value = order.confirmed_at or order.created_at
+
         if order.id is not None:
             sql = """
                 INSERT INTO orders
@@ -72,7 +74,7 @@ class OrderRepository:
                 order.deposit,
                 order.fulfillment_method,
                 order.status.value,
-                order.confirmed_at,
+                confirmed_at_value,
                 order.created_at,
                 order.updated_at,
                 order.hold_id,
@@ -102,7 +104,7 @@ class OrderRepository:
                 order.deposit,
                 order.fulfillment_method,
                 order.status.value,
-                order.confirmed_at,
+                confirmed_at_value,
                 order.created_at,
                 order.updated_at,
                 order.hold_id,

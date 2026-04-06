@@ -36,12 +36,17 @@ services:
     routes:
       - name: logistics-service-health
         methods: [GET]
-        paths: [/logistics-service/health]
+        paths: [/logistics-service]
         strip_path: true
 
       - name: logistics-get-shipment
         methods: [GET, OPTIONS]
         paths: ["~/logistics/(?<shipment_id>[^/]+)$"]
+        strip_path: false
+
+      - name: logistics-get-shipment-by-order
+        methods: [GET, OPTIONS]
+        paths: ["~/logistics/order/(?<order_id>[^/]+)$"]
         strip_path: false
 
       - name: logistics-order-paid

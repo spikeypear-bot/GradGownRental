@@ -258,6 +258,27 @@ curl http://localhost:5001/notifications/TEST-001
 
 Expected response — two log entries (one SMS, one EMAIL), both with `"status": "SENT"`.
 
+### Option B — Publish both DEPOSIT outcomes quickly (full refund + damage deduction)
+
+Use the helper script in this repo:
+
+```bash
+cd services/notification-service
+python src/scripts/publish_return_processed_test_events.py \
+  --email eichawzin123@gmail.com \
+  --phone +6581234567
+```
+
+The script publishes **two** `ReturnProcessed` events:
+- full-refund case (`has_damage=false`)
+- damage-deduction case (`has_damage=true`)
+
+Then verify each generated order id via:
+
+```bash
+curl http://localhost:5001/notifications/<GENERATED_ORDER_ID>
+```
+
 ### Option B — Query the database directly
 
 ```bash

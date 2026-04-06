@@ -28,6 +28,9 @@ public class DamageLog {
     @Column(name ="quantity")
     private int quantity;
 
+    @Column(name = "order_id")
+    private String orderId;
+
     @Column (name = "reason")
     private String reason;
 
@@ -40,11 +43,12 @@ public class DamageLog {
     public DamageLog() {
     }
 
-    public DamageLog(Integer damageId, Inventory model, int quantity, String reason, LocalDate date,
+    public DamageLog(Integer damageId, Inventory model, int quantity, String orderId, String reason, LocalDate date,
             LocalDate dateRepaired) {
         this.damageId = damageId;
         this.model = model;
         this.quantity = quantity;
+        this.orderId = orderId;
         this.reason = reason;
         this.date = date;
         this.dateRepaired = dateRepaired;
@@ -72,6 +76,14 @@ public class DamageLog {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 
     public String getReason() {
