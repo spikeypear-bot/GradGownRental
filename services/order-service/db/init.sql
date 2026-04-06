@@ -1,11 +1,10 @@
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
-    order_id VARCHAR(255) UNIQUE NOT NULL,
+    order_id VARCHAR(36) UNIQUE NOT NULL,
 
     -- Student contact info (needed by Notification Service)
     student_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
 
     -- Package & selected items
     -- package_id: which graduation package was selected
@@ -58,15 +57,17 @@ CREATE INDEX idx_orders_student_email ON orders(email);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_rental_start_date ON orders(rental_start_date);
 
--- Add missing columns if they don't exist (for schema migration)
-ALTER TABLE orders
-ADD COLUMN IF NOT EXISTS deposit DECIMAL(10, 2) DEFAULT 0.00;
+-- Migration tracking table (also maintained by migrate.py at runtime).
+-- Pre-seeding it here marks all migrations that are already reflected in this
+-- init script as applied, so migrate.py skips them on a fresh deployment.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename   TEXT        PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-ALTER TABLE orders
-ADD COLUMN IF NOT EXISTS damaged_items JSONB DEFAULT '[]';
-
-ALTER TABLE orders
-ALTER COLUMN status SET DEFAULT 'PENDING';
-
-ALTER TABLE orders
-ALTER COLUMN confirmed_at DROP NOT NULL;
+INSERT INTO schema_migrations (filename) VALUES
+    ('20260322_add_damaged_column.sql'),
+    ('20260322_add_deposit_and_delivery_fee.sql'),
+    ('20260407_drop_phone_column.sql'),
+    ('20260407_change_order_id_to_uuid.sql')
+ON CONFLICT DO NOTHING;
