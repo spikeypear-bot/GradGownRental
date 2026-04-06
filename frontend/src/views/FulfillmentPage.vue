@@ -199,8 +199,7 @@
           <p class="text-muted">
             Mark order <strong>{{ selectedOrder?.orderID }}</strong> for
             <strong>{{ selectedOrder?.CustomerName }}</strong> as
-            {{ modalType === 'COLLECTION' ? 'collected' : 'delivered' }}?
-            This will move the order to Active Rentals.
+            {{ modalType === 'COLLECTION' ? 'collected' : 'delivered' }}
           </p>
           <div v-if="selectedOrder" class="shipment-panel">
             <div class="shipment-header">Shipment Details</div>
@@ -493,7 +492,7 @@ const submitFulfillment = async () => {
 
   try {
     await AdminService.activateFulfillment(selectedOrder.value.orderID)
-    successMessage.value = `Order ${selectedOrder.value.orderID} marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'} and moved to Active Rentals.`
+    successMessage.value = `Order ${selectedOrder.value.orderID} marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'}.`
     const completedOrderId = selectedOrder.value.orderID
     const movedOrder = confirmedOrders.value.find(o => o.orderID === completedOrderId)
     confirmedOrders.value = confirmedOrders.value.filter(o => o.orderID !== completedOrderId)
