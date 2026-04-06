@@ -96,7 +96,6 @@ def _publish_immediate_collection_reminder_if_needed(order) -> None:
         payload = {
             "order_id": order.order_id,
             "student_name": order.student_name,
-            "phone": order.phone,
             "email": order.email,
             "fulfillment_date": str(order.rental_start_date) if order.rental_start_date else None,
             "return_date": str(order.rental_end_date) if order.rental_end_date else None,
@@ -122,7 +121,6 @@ def _publish_order_paid_if_needed(order) -> None:
         payload = {
             "order_id": order.order_id,
             "student_name": order.student_name,
-            "phone": order.phone,
             "email": order.email,
             "fulfillment_method": order.fulfillment_method,
             "fulfillment_date": str(order.rental_start_date) if order.rental_start_date else None,
