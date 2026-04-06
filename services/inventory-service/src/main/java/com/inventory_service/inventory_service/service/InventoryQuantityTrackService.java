@@ -69,6 +69,7 @@ public class InventoryQuantityTrackService {
             int damagedQty = damageLogService.getDamagedQty(inventory.getModelId(), date);
             int repairQty = 0;
             int washQty = track != null ? track.getWashQty() : 0;
+
             int backupQty = resolveBackupQty(track != null ? track.getBackupQty() : null);
             int availableQty = Math.max(
                 inventory.getTotalQty() - reservedQty - rentedQty - damagedQty - repairQty - washQty - backupQty,

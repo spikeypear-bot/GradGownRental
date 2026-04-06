@@ -48,6 +48,30 @@ export function mapOrderToMaintenanceItem(order, stage, selectedPackages = [], s
   }
 }
 
+// Map individual items from packages into table rows with full details
+export function mapPackagesToTableItems(packages = []) {
+  return packages.flatMap(pkg => {
+    if (Array.isArray(pkg)) {
+      return pkg.map(item => ({
+        modelId: item.modelId,
+        itemName: item.itemName || 'Unknown Item',
+        itemType: item.itemType || 'unknown',
+        size: item.size || 'Unknown Size',
+        qty: item.qty || 1,
+        selectedPackages: [item]
+      }))
+    }
+    return [{
+      modelId: pkg.modelId,
+      itemName: pkg.itemName || 'Unknown Item',
+      itemType: pkg.itemType || 'unknown',
+      size: pkg.size || 'Unknown Size',
+      qty: pkg.qty || 1,
+      selectedPackages: [pkg]
+    }]
+  })
+}
+
 export async function loadMaintenanceBuckets(orderApiUrl) {
   const detailsMap = readMaintenanceDetails()
   const [returnedOrders, damagedOrders, completedOrders] = await Promise.all([
@@ -64,18 +88,14 @@ export async function loadMaintenanceBuckets(orderApiUrl) {
       if (!damagedPackages.length || damagedStage !== 'repair') {
         return []
       }
-      return [mapOrderToMaintenanceItem(order, 'repair', damagedPackages, 'damaged')]
+      // Expand packages to individual items
+      return mapPackagesToTableItems(damagedPackages).map(item => ({
+        ...item,
+        orderId: order.orderID,
+        subsetKey: 'damaged'
+      }))
     }),
     washQueue: [
-      ...returnedOrders.flatMap(order => {
-        const details = detailsMap[order.orderID] || {}
-        const cleanPackages = details.cleanPackages || details.allSelected || order.selected_items || []
-        const cleanStage = details.cleanStage || (cleanPackages.length ? 'wash' : null)
-        if (!cleanPackages.length || cleanStage !== 'wash') {
-          return []
-        }
-        return [mapOrderToMaintenanceItem(order, 'wash', cleanPackages, 'clean')]
-      }),
       ...damagedOrders.flatMap(order => {
         const details = detailsMap[order.orderID] || {}
         const entries = []
@@ -84,14 +104,38 @@ export async function loadMaintenanceBuckets(orderApiUrl) {
         const damagedPackages = details.damagedPackages || order.damaged_items || []
         const damagedStage = details.damagedStage || (damagedPackages.length ? 'repair' : null)
 
-        if (cleanPackages.length && cleanStage === 'wash') {
-          entries.push(mapOrderToMaintenanceItem(order, 'wash', cleanPackages, 'clean'))
-        }
+        // If damaged items exist and their stage is 'wash', they are in the wash queue.
         if (damagedPackages.length && damagedStage === 'wash') {
-          entries.push(mapOrderToMaintenanceItem(order, 'wash', damagedPackages, 'damaged'))
+          entries.push(...mapPackagesToTableItems(damagedPackages).map(item => ({
+            ...item,
+            orderId: order.orderID,
+            subsetKey: 'damaged'
+          })))
+        }
+        
+        // If clean items exist and their stage is 'wash', they are in the wash queue.
+        if (cleanPackages.length && cleanStage === 'wash') {
+          entries.push(...mapPackagesToTableItems(cleanPackages).map(item => ({
+            ...item,
+            orderId: order.orderID,
+            subsetKey: 'clean'
+          })))
         }
 
         return entries
+      }),
+      ...returnedOrders.flatMap(order => {
+        const details = detailsMap[order.orderID] || {}
+        const cleanPackages = details.cleanPackages || details.allSelected || order.selected_items || []
+        const cleanStage = details.cleanStage || (cleanPackages.length ? 'wash' : null)
+        if (!cleanPackages.length || cleanStage !== 'wash') {
+          return []
+        }
+        return mapPackagesToTableItems(cleanPackages).map(item => ({
+          ...item,
+          orderId: order.orderID,
+          subsetKey: 'clean'
+        }))
       }),
     ],
     completedQueue: completedOrders

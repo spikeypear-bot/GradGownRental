@@ -28,21 +28,19 @@ logger = logging.getLogger(__name__)
 # Placeholders are filled in by the service before dispatch.
 
 _SMS_TEMPLATES: dict[NotificationEvent, str] = {
-    NotificationEvent.ORDER_CONFIRMED:  "Hi {name}, your GradGown order #{order_id} is confirmed! "
-                                        "Collection/delivery is on {date}.",
-    NotificationEvent.ORDER_ACTIVATED:  "Hi {name}, your gown for order #{order_id} has been "
-                                        "collected/delivered. Enjoy your graduation!",
-    NotificationEvent.RETURN_PROCESSED: "Hi {name}, your return for order #{order_id} is complete. "
-                                        "Refund of ${refund_amount} will appear within 5-7 business days.",
-    NotificationEvent.PICKUP_REMINDER:  "Reminder: Your GradGown collection/delivery for order "
-                                        "#{order_id} is tomorrow. Please be available.",
-    NotificationEvent.RETURN_REMINDER:  "Reminder: Your GradGown return for order #{order_id} is "
-                                        "due tomorrow. Please prepare the gown.",
+    NotificationEvent.CONFIRMATION: "Hi {name}, your GradGown order #{order_id} is confirmed! "
+                                    "Collection/delivery is on {date}.",
+    NotificationEvent.COLLECTION:   "Reminder: Your GradGown collection for order #{order_id} is "
+                                    "scheduled for {date}. Please be available.",
+    NotificationEvent.RETURN:       "Reminder: Your GradGown return for order #{order_id} is due on "
+                                    "{return_date}. Please prepare the gown.",
+    NotificationEvent.DEPOSIT:      "Hi {name}, return for order #{order_id} is complete. "
+                                    "{deposit_summary}",
 }
 
 _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
     # (subject, html_body)
-    NotificationEvent.ORDER_CONFIRMED: (
+    NotificationEvent.CONFIRMATION: (
         "Your GradGown Order #{order_id} is Confirmed!",
         "<h2>Order Confirmed</h2><p>Hi {name},</p>"
         "<p>Your order <strong>#{order_id}</strong> has been confirmed.</p>"
@@ -51,35 +49,33 @@ _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
         "<p>Total charged: <strong>${amount}</strong></p>"
         "<p>Thank you for choosing GradGown Rental!</p>",
     ),
-    NotificationEvent.ORDER_ACTIVATED: (
-        "Your Gown is on its way! Order #{order_id}",
-        "<h2>Collection Complete</h2><p>Hi {name},</p>"
-        "<p>Your gown for order <strong>#{order_id}</strong> has been "
-        "collected/delivered successfully.</p>"
+    NotificationEvent.COLLECTION: (
+        "Reminder: Collection Scheduled for Order #{order_id}",
+        "<h2>Collection Reminder</h2><p>Hi {name},</p>"
+        "<p>Your gown collection for order <strong>#{order_id}</strong> is scheduled on "
+        "<strong>{date}</strong>.</p>"
+        "<p>Please bring your order details when collecting.</p>"
         "<h3>Gown Care Instructions</h3>"
         "<ul><li>Store in a cool, dry place.</li>"
         "<li>Do not machine wash — dry clean only.</li>"
         "<li>Return on or before <strong>{return_date}</strong>.</li></ul>",
     ),
-    NotificationEvent.RETURN_PROCESSED: (
-        "Return Complete — Refund Issued for Order #{order_id}",
+    NotificationEvent.DEPOSIT: (
+        "Return Complete — Deposit Update for Order #{order_id}",
         "<h2>Return Processed</h2><p>Hi {name},</p>"
         "<p>Your return for order <strong>#{order_id}</strong> has been processed.</p>"
-        "<p>Refund amount: <strong>${refund_amount}</strong><br>"
+        "<p>{deposit_summary}</p>"
+        "<p>Original deposit: <strong>${original_deposit}</strong><br>"
+        "Damage deduction: <strong>${damage_fee}</strong><br>"
+        "Refund amount: <strong>${refund_amount}</strong><br>"
         "Expected arrival: 5–7 business days.</p>"
         "<p>Thank you for using GradGown Rental!</p>",
     ),
-    NotificationEvent.PICKUP_REMINDER: (
-        "Reminder: GradGown Pickup/Delivery Tomorrow — Order #{order_id}",
-        "<h2>Pickup Reminder</h2><p>Hi {name},</p>"
-        "<p>This is a reminder that your gown collection/delivery for order "
-        "<strong>#{order_id}</strong> is scheduled for <strong>tomorrow</strong>.</p>",
-    ),
-    NotificationEvent.RETURN_REMINDER: (
-        "Reminder: GradGown Return Due Tomorrow — Order #{order_id}",
+    NotificationEvent.RETURN: (
+        "Reminder: GradGown Return Due Soon — Order #{order_id}",
         "<h2>Return Reminder</h2><p>Hi {name},</p>"
         "<p>This is a reminder that your gown return for order "
-        "<strong>#{order_id}</strong> is due <strong>tomorrow</strong>. "
+        "<strong>#{order_id}</strong> is due on <strong>{return_date}</strong>. "
         "Please ensure the gown is clean and packed.</p>",
     ),
 }
@@ -108,9 +104,10 @@ class NotificationService:
             "date": payload.get("fulfillment_date", "TBD"),
             "fulfillment_method": payload.get("fulfillment_method", "N/A"),
             "amount": payload.get("total_amount", "0.00"),
+            "return_date": payload.get("return_date", "TBD"),
         }
         self._dispatch(
-            event=NotificationEvent.ORDER_CONFIRMED,
+            event=NotificationEvent.CONFIRMATION,
             order_id=ctx["order_id"],
             phone=payload.get("phone"),
             email=payload.get("email"),
@@ -118,29 +115,39 @@ class NotificationService:
         )
 
     def handle_order_activated(self, payload: dict) -> None:
-        """Scenario 2b — fires after OrderActivated event."""
+        """Order activation does not emit one of the required four email stages."""
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
             "return_date": payload.get("return_date", "TBD"),
         }
-        self._dispatch(
-            event=NotificationEvent.ORDER_ACTIVATED,
-            order_id=ctx["order_id"],
-            phone=payload.get("phone"),
-            email=payload.get("email"),
-            ctx=ctx,
-        )
+        logger.info("Skipping OrderActivated notification for 4-stage lifecycle | order_id=%s", ctx["order_id"])
 
     def handle_return_processed(self, payload: dict) -> None:
         """Scenario 2b — fires after ReturnProcessed event."""
+        has_damage = bool(payload.get("has_damage"))
+        damage_fee = payload.get("damage_fee", "0.00")
+        refundable_amount = payload.get("refund_amount", "0.00")
+        original_deposit = payload.get("original_deposit", "0.00")
+
+        if has_damage:
+            deposit_summary = (
+                f"A damage deduction of ${damage_fee} was applied. "
+                f"Your refundable deposit is ${refundable_amount}."
+            )
+        else:
+            deposit_summary = f"Your full deposit refund of ${refundable_amount} is being processed."
+
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
-            "refund_amount": payload.get("refund_amount", "0.00"),
+            "refund_amount": refundable_amount,
+            "original_deposit": original_deposit,
+            "damage_fee": damage_fee,
+            "deposit_summary": deposit_summary,
         }
         self._dispatch(
-            event=NotificationEvent.RETURN_PROCESSED,
+            event=NotificationEvent.DEPOSIT,
             order_id=ctx["order_id"],
             phone=payload.get("phone"),
             email=payload.get("email"),
@@ -152,9 +159,11 @@ class NotificationService:
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
+            "date": payload.get("fulfillment_date", "tomorrow"),
+            "return_date": payload.get("return_date", "TBD"),
         }
         self._dispatch(
-            event=NotificationEvent.PICKUP_REMINDER,
+            event=NotificationEvent.COLLECTION,
             order_id=ctx["order_id"],
             phone=payload.get("phone"),
             email=payload.get("email"),
@@ -166,9 +175,10 @@ class NotificationService:
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
+            "return_date": payload.get("return_date", "tomorrow"),
         }
         self._dispatch(
-            event=NotificationEvent.RETURN_REMINDER,
+            event=NotificationEvent.RETURN,
             order_id=ctx["order_id"],
             phone=payload.get("phone"),
             email=payload.get("email"),

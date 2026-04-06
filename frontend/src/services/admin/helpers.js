@@ -31,9 +31,30 @@ function formatFetchError(error, fallbackMessage) {
   return error instanceof Error ? error : new Error(fallbackMessage)
 }
 
+function resolveBrowserSafeBaseUrl(baseUrl) {
+  if (typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  }
+
+  if (baseUrl.includes('localhost:8081')) {
+    return baseUrl.replace('localhost:8081', 'localhost:8000')
+  }
+
+  if (baseUrl.includes('localhost:5001')) {
+    return baseUrl.replace('localhost:5001', 'localhost:8000')
+  }
+
+  return baseUrl
+}
+
+function resolveBrowserSafeOrderApiUrl(orderApiUrl) {
+  return resolveBrowserSafeBaseUrl(orderApiUrl)
+}
+
 export async function fetchOrdersByStatus(orderApiUrl, status) {
   try {
-    const response = await fetch(`${orderApiUrl}/orders/status/${encodeURIComponent(status)}`)
+    const safeBaseUrl = resolveBrowserSafeOrderApiUrl(orderApiUrl)
+    const response = await fetch(`${safeBaseUrl}/orders/status/${encodeURIComponent(status)}`)
     if (!response.ok) {
       throw new Error(`Failed to fetch ${status} orders`)
     }
@@ -41,5 +62,56 @@ export async function fetchOrdersByStatus(orderApiUrl, status) {
     return Array.isArray(data) ? data.map(normalizeOrder) : []
   } catch (error) {
     throw formatFetchError(error, `Unable to load ${status.toLowerCase()} orders.`)
+  }
+}
+
+export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
+  if (!orderId) return 'NOT SENT'
+
+  const safeBaseUrl = resolveBrowserSafeBaseUrl(
+    notificationApiUrl ||
+      import.meta.env.VITE_NOTIFICATION_API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
+      'http://localhost:8000'
+  )
+
+  try {
+    const response = await fetch(`${safeBaseUrl}/notifications/${encodeURIComponent(orderId)}`)
+    if (!response.ok) {
+      return 'UNKNOWN'
+    }
+
+    const logs = await response.json()
+    if (!Array.isArray(logs) || logs.length === 0) {
+      return 'NOT SENT'
+    }
+
+    const emailLogs = logs.filter(log => log?.channel === 'EMAIL')
+    if (!emailLogs.length) {
+      return 'NOT SENT'
+    }
+
+    const latest = emailLogs.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0))[0]
+    const rawEventType = String(latest?.event_type || '').toUpperCase()
+    const rawStatus = String(latest?.status || '').toUpperCase()
+
+    const stageByEventType = {
+      CONFIRMATION: 'CONFIRMATION',
+      COLLECTION: 'COLLECTION',
+      RETURN: 'RETURN',
+      DEPOSIT: 'DEPOSIT',
+      ORDERCONFIRMED: 'CONFIRMATION',
+      PICKUP_REMINDER: 'COLLECTION',
+      RETURN_REMINDER: 'RETURN',
+      RETURNPROCESSED: 'DEPOSIT'
+    }
+
+    const stage = stageByEventType[rawEventType] || 'UNKNOWN'
+    if (stage === 'UNKNOWN') {
+      return rawStatus || 'UNKNOWN'
+    }
+    return rawStatus === 'SENT' ? stage : `${stage} (${rawStatus || 'UNKNOWN'})`
+  } catch {
+    return 'UNKNOWN'
   }
 }

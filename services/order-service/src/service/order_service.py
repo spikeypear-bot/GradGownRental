@@ -72,11 +72,14 @@ class OrderService:
 
         # Validate: DELIVERY orders must have rental_start_date at least 24 hours in future
         if fulfillment_method == "DELIVERY":
-            start_date = datetime.fromisoformat(rental_start_date).date()
-            today = date.today()
-            days_until_rental = (start_date - today).days
+            # The fromisoformat() method parses the full ISO 8601 format, including timezone.
+            # We need to make sure we have a timezone-aware datetime object for today
+            # to ensure the comparison is correct.
+            start_datetime = datetime.fromisoformat(rental_start_date)
+            now_utc = datetime.now(timezone.utc)
             
-            if days_until_rental <= 0:
+            # Check if the rental starts less than 24 hours from now
+            if (start_datetime - now_utc).total_seconds() < 24 * 3600:
                 raise ValueError(
                     "DELIVERY orders require rental_start_date to be at least 24 hours in the future. "
                     "For same-day rentals, please use COLLECTION fulfillment method."

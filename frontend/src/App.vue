@@ -1,6 +1,6 @@
 <script setup>
 import { RouterView, useRouter } from 'vue-router'
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import Header from './components/Header.vue'
 import AdminSidebar from './components/AdminSidebar.vue'
 import AuthService from './services/auth'
@@ -11,6 +11,20 @@ const isAdminLoggedIn = ref(false)
 const checkAdminAuth = () => {
   isAdminLoggedIn.value = AuthService.isAuthenticated()
 }
+
+// Show sidebar only if logged in AND on admin route
+const isAdminRoute = computed(() => {
+  return router.currentRoute.value.path.startsWith('/admin')
+})
+
+const showAdminSidebar = computed(() => {
+  return isAdminLoggedIn.value && isAdminRoute.value
+})
+
+// Show header on non-admin routes (home, inventory, order, etc.) or when not logged in
+const showHeader = computed(() => {
+  return !isAdminRoute.value || !isAdminLoggedIn.value
+})
 
 onMounted(() => {
   checkAdminAuth()
@@ -24,15 +38,12 @@ watch(
     checkAdminAuth()
   }
 )
-
-// We can intercept nav changes and explicitly clear keep-alive cache by forcing an unmount, or 
-// use a dynamic key on the router view
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'admin-layout': isAdminLoggedIn }">
-    <AdminSidebar v-if="isAdminLoggedIn" />
-    <Header v-if="!isAdminLoggedIn" class="app-header"/>
+  <div class="app-shell" :class="{ 'admin-layout': showAdminSidebar }">
+    <AdminSidebar v-if="showAdminSidebar" />
+    <Header v-if="showHeader" class="app-header"/>
     <main class="app-main">
       <router-view v-slot="{ Component, route }">
         <keep-alive :include="['inventory']">

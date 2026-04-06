@@ -60,10 +60,16 @@ onBeforeUnmount(() => {
               <i class="bi bi-search"></i> Track My Order
             </RouterLink>
           </li>
+          <li class="nav-item">
+            <RouterLink v-if="!isAdminLoggedIn" class="nav-link fw-bold text-admin" to="/admin/login">Admin Login</RouterLink>
+            <button v-else @click="handleLogout" class="nav-link fw-bold text-admin border-0 bg-transparent" style="cursor: pointer;">
+              Logout
+            </button>
+          </li>
         </ul>
 
-        <!-- Action Buttons -->
-        <div class="d-flex align-items-center gap-3 mt-3 mt-md-0">
+        <!-- Action Buttons (Desktop only) -->
+        <div class="d-flex align-items-center gap-3 mt-3 mt-md-0 d-none d-md-flex">
           <button v-if="isAdminLoggedIn" @click="handleLogout" class="btn btn-outline-danger rounded-pill px-4 fw-bold">
             Logout
           </button>

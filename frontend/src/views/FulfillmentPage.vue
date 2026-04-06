@@ -44,6 +44,7 @@
                 <div class="order-info">
                   <span class="order-id">{{ order.orderID }}</span>
                   <p class="customer-name mb-0">{{ order.CustomerName }}</p>
+                  <span class="tracking-pill tracking-not-collected">NOT COLLECTED</span>
                 </div>
                 <button
                   class="btn btn-sm btn-collected"
@@ -82,6 +83,7 @@
                 <div class="order-info">
                   <span class="order-id">{{ order.orderID }}</span>
                   <p class="customer-name mb-0">{{ order.CustomerName }}</p>
+                  <span class="tracking-pill tracking-scheduled">SCHEDULED</span>
                 </div>
                 <button
                   class="btn btn-sm btn-delivered"
@@ -97,6 +99,87 @@
                   </span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!isLoading" class="row g-4 mt-1">
+        <div class="col-12">
+          <div class="fulfillment-card">
+            <h5 class="mb-3 fw-bold">Future Delivery Overview (Confirmed / Scheduled)</h5>
+
+            <div v-if="futureDeliveryOverview.length === 0" class="empty-state">
+              <i class="bi bi-calendar-check"></i>
+              <p>No upcoming delivery orders.</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Rental Start</th>
+                    <th>Order Status</th>
+                    <th>Tracking Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="order in futureDeliveryOverview" :key="`future-${order.orderID}`">
+                    <td class="fw-semibold">{{ order.orderID }}</td>
+                    <td>{{ order.CustomerName || '-' }}</td>
+                    <td>{{ formatDate(order.rental_start_date) }}</td>
+                    <td><span class="tracking-pill tracking-confirmed">{{ order.status }}</span></td>
+                    <td><span class="tracking-pill tracking-scheduled">SCHEDULED</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!isLoading" class="row g-4 mt-1">
+        <div class="col-12">
+          <div class="fulfillment-card">
+            <h5 class="mb-3 fw-bold">Tracking for {{ activeDateLabel }}</h5>
+
+            <div v-if="todayTrackingRows.length === 0" class="empty-state">
+              <i class="bi bi-list-check"></i>
+              <p>No tracked collection/delivery updates for today yet.</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Fulfillment</th>
+                    <th>Order Status</th>
+                    <th>Tracking Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in todayTrackingRows" :key="`track-${row.orderID}`">
+                    <td class="fw-semibold">{{ row.orderID }}</td>
+                    <td>{{ row.CustomerName || '-' }}</td>
+                    <td>{{ row.fulfillment_method || '-' }}</td>
+                    <td><span class="tracking-pill tracking-active">{{ row.status || 'ACTIVE' }}</span></td>
+                    <td>
+                      <span
+                        :class="[
+                          'tracking-pill',
+                          row.tracking_status === 'DELIVERED' ? 'tracking-delivered' : 'tracking-collected'
+                        ]"
+                      >
+                        {{ row.tracking_status }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -141,7 +224,8 @@ import AdminService from '../services/admin'
 import { fetchOrdersByStatus } from '../services/admin/helpers'
 import { isDemoMode } from '../config/demoMode'
 
-const orders = ref([])
+const confirmedOrders = ref([])
+const activeOrders = ref([])
 const isLoading = ref(false)
 const processingId = ref(null)
 const isProcessing = ref(false)
@@ -163,11 +247,11 @@ function formatDateKey(dateInput) {
 
 const filteredOrders = computed(() => {
   if (isDemoMode) {
-    return orders.value
+    return confirmedOrders.value
   }
 
   const targetDate = formatDateKey(new Date())
-  return orders.value
+  return confirmedOrders.value
     .filter(order => {
       if (!order.rental_start_date) return false
       return formatDateKey(order.rental_start_date) === targetDate
@@ -182,6 +266,34 @@ const filteredDelivery = computed(() =>
   filteredOrders.value.filter(o => o.fulfillment_method === 'DELIVERY')
 )
 
+const futureDeliveryOverview = computed(() => {
+  const todayKey = formatDateKey(new Date())
+
+  return confirmedOrders.value
+    .filter(order => order.fulfillment_method === 'DELIVERY')
+    .filter(order => {
+      if (!order.rental_start_date) return false
+      const startDateKey = formatDateKey(order.rental_start_date)
+      return isDemoMode ? true : startDateKey > todayKey
+    })
+    .sort((a, b) => new Date(a.rental_start_date) - new Date(b.rental_start_date))
+})
+
+const todayTrackingRows = computed(() => {
+  const targetDate = formatDateKey(new Date())
+
+  return activeOrders.value
+    .filter(order => {
+      if (!order.rental_start_date) return false
+      return isDemoMode ? true : formatDateKey(order.rental_start_date) === targetDate
+    })
+    .map(order => ({
+      ...order,
+      tracking_status: order.fulfillment_method === 'DELIVERY' ? 'DELIVERED' : 'COLLECTED'
+    }))
+    .sort((a, b) => String(a.orderID).localeCompare(String(b.orderID)))
+})
+
 const activeDateLabel = computed(() => {
   try {
     return new Intl.DateTimeFormat('en-US', {
@@ -195,17 +307,23 @@ const activeDateLabel = computed(() => {
   }
 })
 
-const loadConfirmedOrders = async () => {
+const loadFulfillmentData = async () => {
   isLoading.value = true
   try {
     const orderApiUrl =
       import.meta.env.VITE_ORDER_API_BASE_URL ||
       import.meta.env.VITE_API_BASE_URL ||
       'http://localhost:8000'
-    orders.value = await fetchOrdersByStatus(orderApiUrl, 'CONFIRMED')
+    const [confirmed, active] = await Promise.all([
+      fetchOrdersByStatus(orderApiUrl, 'CONFIRMED'),
+      fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
+    ])
+
+    confirmedOrders.value = confirmed
+    activeOrders.value = active
   } catch (error) {
     console.error('Error loading confirmed orders:', error)
-    errorMessage.value = 'Failed to load confirmed orders'
+    errorMessage.value = 'Failed to load fulfillment overview'
   } finally {
     isLoading.value = false
   }
@@ -232,7 +350,12 @@ const submitFulfillment = async () => {
   try {
     await AdminService.activateFulfillment(selectedOrder.value.orderID)
     successMessage.value = `Order ${selectedOrder.value.orderID} marked as ${modalType.value === 'COLLECTION' ? 'collected' : 'delivered'} and moved to Active Rentals.`
-    orders.value = orders.value.filter(o => o.orderID !== selectedOrder.value.orderID)
+    const completedOrderId = selectedOrder.value.orderID
+    const movedOrder = confirmedOrders.value.find(o => o.orderID === completedOrderId)
+    confirmedOrders.value = confirmedOrders.value.filter(o => o.orderID !== completedOrderId)
+    if (movedOrder) {
+      activeOrders.value = [{ ...movedOrder, status: 'ACTIVE' }, ...activeOrders.value]
+    }
     closeModal()
     setTimeout(() => { successMessage.value = '' }, 4000)
   } catch (error) {
@@ -243,7 +366,7 @@ const submitFulfillment = async () => {
   }
 }
 
-onMounted(() => loadConfirmedOrders())
+onMounted(() => loadFulfillmentData())
 </script>
 
 <style scoped>
@@ -325,6 +448,47 @@ onMounted(() => loadConfirmedOrders())
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tracking-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
+}
+
+.tracking-scheduled {
+  background: #fff4de;
+  color: #b38310;
+}
+
+.tracking-not-collected {
+  background: #fdeaea;
+  color: #b74141;
+}
+
+.tracking-collected {
+  background: #e8f6ec;
+  color: #22804a;
+}
+
+.tracking-delivered {
+  background: #e9f2ff;
+  color: #2757a5;
+}
+
+.tracking-confirmed {
+  background: #f0f0f0;
+  color: #5f5f5f;
+}
+
+.tracking-active {
+  background: #e9f2ff;
+  color: #2757a5;
 }
 
 .btn-collected {

@@ -16,6 +16,7 @@ import com.inventory_service.inventory_service.repository.ItemHoldRepository;
 import jakarta.transaction.Transactional;
 
 @Service
+@Transactional
 public class ItemHoldService {
     private static final Duration HOLD_EXPIRY = Duration.ofMinutes(10);
 

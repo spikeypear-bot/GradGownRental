@@ -51,6 +51,7 @@
               <tr>
                 <th>Order</th>
                 <th>Student</th>
+                <th>Email Status</th>
                 <th>Fulfillment</th>
                 <th>Rental Date</th>
                 <th>Return Date</th>
@@ -66,6 +67,11 @@
                     <span class="fw-semibold text-dark">{{ order.CustomerName || 'Student' }}</span>
                     <span class="student-divider">|</span>
                     <span class="text-muted">{{ order.CustomerEmail || '-' }}</span>
+                  </span>
+                </td>
+                <td>
+                  <span :class="['status-chip', getEmailStatusClass(emailStatusMap[order.orderID])]">
+                    {{ emailStatusMap[order.orderID] || 'UNKNOWN' }}
                   </span>
                 </td>
                 <td>{{ order.fulfillment_method || '-' }}</td>
@@ -88,7 +94,7 @@
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
-import { fetchOrdersByStatus } from '../services/admin/helpers'
+import { fetchOrdersByStatus, fetchEmailStatusForOrder } from '../services/admin/helpers'
 
 const orderApiUrl =
   import.meta.env.VITE_ORDER_API_BASE_URL ||
@@ -104,6 +110,7 @@ const orderStatuses = [
 ]
 
 const orders = ref([])
+const emailStatusMap = ref({})
 const selectedStatus = ref('ALL')
 const searchQuery = ref('')
 const isLoading = ref(false)
@@ -152,6 +159,25 @@ const statusClass = (status) => {
   }
 }
 
+const getEmailStatusClass = (status) => {
+  const normalized = (status || '').toUpperCase()
+  if (normalized.startsWith('CONFIRMATION') || normalized.startsWith('COLLECTION') || normalized.startsWith('RETURN') || normalized.startsWith('DEPOSIT')) {
+    return normalized.includes('(FAILED)') ? 'status-damaged' : 'status-completed'
+  }
+
+  switch (normalized) {
+    case 'SENT':
+      return 'status-completed'
+    case 'FAILED':
+      return 'status-damaged'
+    case 'PENDING':
+      return 'status-confirmed'
+    case 'NOT SENT':
+    default:
+      return 'status-active'
+  }
+}
+
 const loadOrders = async () => {
   isLoading.value = true
   errorMessage.value = ''
@@ -179,6 +205,16 @@ const loadOrders = async () => {
     } else {
       orders.value = await fetchOrdersByStatus(orderApiUrl, selectedStatus.value)
     }
+
+    const statusPairs = await Promise.all(
+      orders.value.map(async (order) => {
+        const orderId = order?.orderID
+        const status = await fetchEmailStatusForOrder(orderId)
+        return [orderId, status]
+      })
+    )
+
+    emailStatusMap.value = Object.fromEntries(statusPairs.filter(([orderId]) => !!orderId))
   } catch (error) {
     console.error('Error loading orders:', error)
     errorMessage.value = error.message || 'Unable to load orders right now.'

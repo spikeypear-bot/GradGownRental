@@ -75,8 +75,9 @@ class OrderScheduler:
     def _publish_reminders_job(self):
         """
         Job function: publish reminder events for orders due in the next 24 hours.
-        - pickup_reminder for rental_start_date = tomorrow (PENDING/CONFIRMED)
-        - return_reminder for rental_end_date = tomorrow (ACTIVE/RETURNED_DAMAGED)
+                - pickup_reminder for COLLECTION orders with rental_start_date = tomorrow (PENDING/CONFIRMED)
+                    OR same-day start_date when order was created today
+                - return_reminder for rental_end_date = tomorrow (ACTIVE)
         """
         if self.publisher is None:
             logger.warning("Reminder publisher not configured; skipping reminder job")
@@ -91,12 +92,43 @@ class OrderScheduler:
             for order in pickup_orders:
                 if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
                     continue
+                if (order.fulfillment_method or "").upper() != "COLLECTION":
+                    continue
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
                     "phone": order.phone,
                     "email": order.email,
                     "fulfillment_date": order.rental_start_date,
+                    "return_date": order.rental_end_date,
+                    "fulfillment_method": order.fulfillment_method,
+                }
+                self.publisher.publish_pickup_reminder(payload)
+                pickup_count += 1
+
+            today_str = date.today().isoformat()
+            same_day_orders = self.order_service.get_orders_by_rental_date(today_str)
+            for order in same_day_orders:
+                if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
+                    continue
+                if (order.fulfillment_method or "").upper() != "COLLECTION":
+                    continue
+
+                created_iso = (
+                    order.created_at.date().isoformat()
+                    if hasattr(order.created_at, "date")
+                    else str(order.created_at)[:10]
+                )
+                if created_iso != today_str:
+                    continue
+
+                payload = {
+                    "order_id": order.order_id,
+                    "student_name": order.student_name,
+                    "phone": order.phone,
+                    "email": order.email,
+                    "fulfillment_date": order.rental_start_date,
+                    "return_date": order.rental_end_date,
                     "fulfillment_method": order.fulfillment_method,
                 }
                 self.publisher.publish_pickup_reminder(payload)
@@ -104,7 +136,7 @@ class OrderScheduler:
 
             return_count = 0
             for order in return_orders:
-                if order.status not in {OrderStatus.ACTIVE, OrderStatus.RETURNED_DAMAGED}:
+                if order.status != OrderStatus.ACTIVE:
                     continue
                 payload = {
                     "order_id": order.order_id,

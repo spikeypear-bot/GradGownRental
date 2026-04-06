@@ -53,6 +53,9 @@ class ReturnOrderSagaService:
                 "phone": context.phone,
                 "email": context.email,
                 "refund_amount": f"{context.refundable_amount:.2f}",
+                "original_deposit": f"{context.original_deposit:.2f}",
+                "damage_fee": f"{context.damage_fee:.2f}",
+                "has_damage": has_damage,
             })
 
             # Step 9

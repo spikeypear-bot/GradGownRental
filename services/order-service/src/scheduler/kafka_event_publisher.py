@@ -24,6 +24,9 @@ class KafkaEventPublisher:
         )
         logger.info("KafkaEventPublisher initialised | bootstrap=%s", bootstrap)
 
+    def publish_order_paid(self, payload: dict) -> None:
+        self._publish("OrderPaid", payload)
+
     def publish_pickup_reminder(self, payload: dict) -> None:
         self._publish("pickup_reminder", payload)
 

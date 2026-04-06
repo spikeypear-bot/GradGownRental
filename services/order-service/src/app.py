@@ -66,6 +66,7 @@ def create_app() -> Flask:
     publisher = KafkaEventPublisher()
     scheduler.init_app(app, service, publisher=publisher)
     app.extensions["scheduler"] = scheduler
+    app.extensions["reminder_publisher"] = publisher
 
     # ------------------------------------------------------------------
     # Blueprints

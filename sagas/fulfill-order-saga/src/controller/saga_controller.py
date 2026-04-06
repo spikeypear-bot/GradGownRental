@@ -34,7 +34,7 @@ def activate_fulfillment():
 
         ctx = FulfillOrderContext(
             order_id=order_id,
-            shipment_id=body.get("shipment_id") or order_id,
+            shipment_id=body.get("shipment_id"),
             tracking_status=body.get("tracking_status") or (
                 "DELIVERED" if order.get("fulfillment_method") == "DELIVERY" else "COLLECTED"
             ),
