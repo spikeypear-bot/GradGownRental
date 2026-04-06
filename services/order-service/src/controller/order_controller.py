@@ -40,7 +40,7 @@ def create_order():
     
     # Validate required fields
     required = [
-        "student_name", "email", "phone",
+        "student_name", "email",
         "selected_items", "rental_start_date",
         "rental_end_date", "total_amount", "fulfillment_method"
     ]
@@ -53,7 +53,6 @@ def create_order():
             order_id=data.get("order_id"),
             student_name=data["student_name"],
             email=data["email"],
-            phone=data["phone"],
             package_id=int(data.get("package_id", 0)),
             selected_items=data["selected_items"],
             rental_start_date=data["rental_start_date"],

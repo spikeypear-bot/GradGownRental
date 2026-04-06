@@ -41,7 +41,7 @@ def create_order():
 
     # Validate required fields
     required = ["hold_id", "selected_packages", "fulfillment_method",
-                "student_name", "phone", "email", "fulfillment_date",
+                "student_name", "email", "fulfillment_date",
                 "return_date", "total_amount"]
     missing = [f for f in required if f not in body]
     if missing:
@@ -54,7 +54,7 @@ def create_order():
         # payment_details not needed yet — provided in Phase 2
         payment_details={},
         student_name=body["student_name"],
-        phone=body["phone"],
+        phone=body.get("phone", ""),
         email=body["email"],
         fulfillment_date=body["fulfillment_date"],
         return_date=body["return_date"],
@@ -93,7 +93,7 @@ def submit_payment():
     body = request.get_json(force=True)
 
     required = ["order_id", "hold_id", "payment_details", "total_amount",
-                "student_name", "phone", "email", "fulfillment_method",
+                "student_name", "email", "fulfillment_method",
                 "fulfillment_date", "return_date", "selected_packages"]
     missing = [f for f in required if f not in body]
     if missing:
@@ -105,7 +105,7 @@ def submit_payment():
         fulfillment_method=body["fulfillment_method"],
         payment_details=body["payment_details"],
         student_name=body["student_name"],
-        phone=body["phone"],
+        phone=body.get("phone", ""),
         email=body["email"],
         fulfillment_date=body["fulfillment_date"],
         return_date=body["return_date"],

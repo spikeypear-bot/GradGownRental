@@ -563,7 +563,6 @@ const confirmPayment = async () => {
         billing_details: {
           name: billingName,
           email: contact.value.email.trim(),
-          phone: contact.value.phone.trim(),
         },
       },
     })
