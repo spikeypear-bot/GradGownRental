@@ -58,7 +58,6 @@ const contact = ref({
   firstName: '',
   lastName: '',
   email: '',
-  phone: '',
 })
 
 const preselectedModels = ref(parseSelectedModels(route.query.models))
@@ -345,8 +344,7 @@ const isContactValid = computed(() => {
   return (
     contact.value.firstName.trim() !== '' &&
     contact.value.lastName.trim() !== '' &&
-    /^\S+@\S+\.\S+$/.test(contact.value.email) &&
-    /^[+\d][\d\s-]{6,}$/.test(contact.value.phone.trim())
+    /^\S+@\S+\.\S+$/.test(contact.value.email)
   )
 })
 
@@ -524,7 +522,6 @@ const goToReview = async () => {
       selected_packages: selectedItemsForBooking.value,
       fulfillment_method: fulfillment.value === 'delivery' ? 'DELIVERY' : 'COLLECTION',
       student_name: studentName,
-      phone: contact.value.phone.trim(),
       email: contact.value.email.trim(),
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
@@ -592,7 +589,6 @@ const confirmPayment = async () => {
         client_secret: paymentIntent.client_secret,
       },
       student_name: studentName,
-      phone: contact.value.phone.trim(),
       email: contact.value.email.trim(),
       fulfillment_date: fulfillmentDateISO.value,
       return_date: returnDateISO.value,
@@ -1021,15 +1017,6 @@ function formatDate(date) {
                     class="form-control form-control-lg bg-light border-0 py-3"
                     placeholder="john.doe@example.com"
                     v-model="contact.email"
-                  />
-                </div>
-                <div class="col-12">
-                  <label class="form-label fw-bold text-dark mb-2">Phone Number</label>
-                  <input
-                    type="text"
-                    class="form-control form-control-lg bg-light border-0 py-3"
-                    placeholder="+65 9123 4567"
-                    v-model="contact.phone"
                   />
                 </div>
               </div>
