@@ -97,7 +97,6 @@ class OrderScheduler:
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
-                    "phone": order.phone,
                     "email": order.email,
                     "fulfillment_date": order.rental_start_date,
                     "return_date": order.rental_end_date,
@@ -125,7 +124,6 @@ class OrderScheduler:
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
-                    "phone": order.phone,
                     "email": order.email,
                     "fulfillment_date": order.rental_start_date,
                     "return_date": order.rental_end_date,
@@ -141,7 +139,6 @@ class OrderScheduler:
                 payload = {
                     "order_id": order.order_id,
                     "student_name": order.student_name,
-                    "phone": order.phone,
                     "email": order.email,
                     "return_date": order.rental_end_date,
                 }
