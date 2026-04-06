@@ -3,7 +3,7 @@ app.py — Flask application factory for notification-service.
 
 Wires together:
   • PostgreSQL connection → NotificationRepository
-  • TwilioAdapter + SendGridAdapter → NotificationService
+  • SendGridAdapter → NotificationService
   • NotificationConsumer (Kafka) — started as a background thread
   • Flask blueprints (NotificationController)
 """
@@ -16,7 +16,6 @@ from flask import Flask
 from flask_cors import CORS
 
 from adapters.sendgrid_adapter import SendGridAdapter
-from adapters.twilio_adapter import TwilioAdapter
 from consumer.notification_consumer import NotificationConsumer
 from controller.notification_controller import root_bp, notification_bp
 from repository.notification_repository import NotificationRepository
@@ -46,16 +45,15 @@ def create_app() -> Flask:
     )
 
     # ------------------------------------------------------------------
-    # Adapters (Anti-Corruption Layer)
+    # Adapter
     # ------------------------------------------------------------------
-    twilio = TwilioAdapter()
     sendgrid = SendGridAdapter()
 
     # ------------------------------------------------------------------
     # Service + Repository
     # ------------------------------------------------------------------
     repo = NotificationRepository(conn)
-    service = NotificationService(twilio=twilio, sendgrid=sendgrid, repo=repo)
+    service = NotificationService(sendgrid=sendgrid, repo=repo)
 
     # Expose repo via app.extensions so controllers can access it
     app.extensions["notification_repo"] = repo

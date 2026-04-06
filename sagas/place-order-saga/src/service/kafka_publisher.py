@@ -1,7 +1,7 @@
 """
 KafkaPublisher — thin wrapper around KafkaProducer for the saga.
 
-Events published (Scenario 1, steps 16):
+Events published by the checkout flow:
   • OrderPaid       → consumed by Logistics Service
   • OrderConfirmed  → consumed by Notification Service
 """
@@ -42,7 +42,7 @@ class KafkaPublisher:
     def publish_order_confirmed(self, context) -> None:
         """
         Publish OrderConfirmed event.
-        Consumed by: Notification Service (sends receipt SMS + email).
+        Consumed by: Notification Service (sends receipt email).
         """
         payload = {
             "order_id": context.order_id,

@@ -2,8 +2,7 @@
 
 Usage example:
   python src/scripts/publish_return_processed_test_events.py \
-    --email eichawzin123@gmail.com \
-    --phone +6581234567
+    --email eichawzin123@gmail.com
 """
 
 from __future__ import annotations
@@ -16,12 +15,11 @@ from datetime import datetime, timezone
 from kafka import KafkaProducer
 
 
-def _build_payloads(order_prefix: str, email: str, phone: str) -> list[dict]:
+def _build_payloads(order_prefix: str, email: str) -> list[dict]:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     base = {
         "student_name": "Email Stage Test",
         "email": email,
-        "phone": phone,
         "processed_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -49,7 +47,6 @@ def _build_payloads(order_prefix: str, email: str, phone: str) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Publish ReturnProcessed test events")
     parser.add_argument("--email", required=True, help="Recipient email for notification test")
-    parser.add_argument("--phone", required=True, help="Recipient phone for SMS test")
     parser.add_argument(
         "--order-prefix",
         default="TESTRET",
@@ -69,7 +66,7 @@ def main() -> None:
         retries=3,
     )
 
-    payloads = _build_payloads(args.order_prefix, args.email, args.phone)
+    payloads = _build_payloads(args.order_prefix, args.email)
     for payload in payloads:
         future = producer.send("ReturnProcessed", payload)
         meta = future.get(timeout=10)

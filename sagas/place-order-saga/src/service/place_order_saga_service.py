@@ -1,19 +1,17 @@
 """
 PlaceOrderSagaService — orchestrates the full "Place an Order" saga.
 
-Scenario 1 steps (from spec):
-  5.  Receive POST /orders/create from Gown Rental UI
-  6.  POST /orders        → Order Service    (initialise record)
-  7.  Receive order_id, status=PENDING
-  8.  Return order_id to UI
-  9.  Receive POST /submit-payment (order_id, payment_details)
-  10. POST /payments      → Payment Service  (authorise transaction)
-  11-12. Stripe via Payment Service adapter, returns payment_id
-  13. PUT /orders/{id}/status → Order Service  (CONFIRMED)
-  14. PUT /api/inventory/stock/transition → Inventory Service (soft-hold -> reserved)
-  15. Return order_summary to UI
-  16. Publish OrderPaid + OrderConfirmed to Kafka
-  E1. On any failure → POST /errors → Error Service
+Checkout flow implemented in code:
+  1.  Receive POST /orders/create from the UI.
+  2.  Create a PENDING order through Order Service.
+  3.  Create a Stripe PaymentIntent through Payment Service and return
+      order_id + client_secret to the UI.
+  4.  Receive POST /submit-payment after the frontend confirms payment.
+  5.  Verify the succeeded PaymentIntent through Payment Service.
+  6.  Mark the order as CONFIRMED.
+  7.  Transition held inventory into reserved stock.
+  8.  Return the order summary and publish Kafka events.
+  9.  Log failures through Error Service when any step fails.
 
 The two-phase split (create_order / submit_payment) matches the UI flow:
 the frontend first gets an order_id to anchor the session, then submits payment.
@@ -50,7 +48,7 @@ class PlaceOrderSagaService:
         self._publisher = publisher
 
     # ------------------------------------------------------------------
-    # Phase 1 — Scenario step 5-8
+    # Phase 1 — create the order and payment intent
     # Called by: POST /orders/create
     # Returns:   {"order_id": str}  (links frontend session to backend tx)
     # ------------------------------------------------------------------
@@ -98,7 +96,7 @@ class PlaceOrderSagaService:
             raise
 
     # ------------------------------------------------------------------
-    # Phase 2 — Scenario steps 9-16
+    # Phase 2 — verify payment and complete the order
     # Called by: POST /submit-payment
     # Returns:   order_summary dict
     # ------------------------------------------------------------------
