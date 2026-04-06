@@ -2,11 +2,11 @@
 NotificationConsumer — Kafka consumer that routes incoming events to NotificationService.
 
 Topics consumed:
-  • OrderConfirmed     → handle_order_confirmed   (Scenario 2b)
-  • OrderActivated     → handle_order_activated   (Scenario 2b)
-  • ReturnProcessed    → handle_return_processed  (Scenario 2b)
-  • pickup_reminder    → handle_pickup_reminder   (Scenario 2a)
-  • return_reminder    → handle_return_reminder   (Scenario 2a)
+  • OrderConfirmed     → handle_order_confirmed
+  • OrderActivated     → handle_order_activated
+  • ReturnProcessed    → handle_return_processed
+  • pickup_reminder    → handle_pickup_reminder
+  • return_reminder    → handle_return_reminder
 
 If the Notification Service is temporarily down, Kafka retains messages and
 replays them on restart — guaranteeing no student misses their notification.

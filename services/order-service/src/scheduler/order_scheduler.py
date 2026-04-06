@@ -75,7 +75,7 @@ class OrderScheduler:
     def _publish_reminders_job(self):
         """
         Job function: publish reminder events for orders due in the next 24 hours.
-                - pickup_reminder for COLLECTION orders with rental_start_date = tomorrow (PENDING/CONFIRMED)
+                - pickup_reminder for COLLECTION orders with rental_start_date = tomorrow (CONFIRMED)
                     OR same-day start_date when order was created today
                 - return_reminder for rental_end_date = tomorrow (ACTIVE)
         """
@@ -90,7 +90,7 @@ class OrderScheduler:
 
             pickup_count = 0
             for order in pickup_orders:
-                if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
+                if order.status != OrderStatus.CONFIRMED:
                     continue
                 if (order.fulfillment_method or "").upper() != "COLLECTION":
                     continue
@@ -109,7 +109,7 @@ class OrderScheduler:
             today_str = date.today().isoformat()
             same_day_orders = self.order_service.get_orders_by_rental_date(today_str)
             for order in same_day_orders:
-                if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
+                if order.status != OrderStatus.CONFIRMED:
                     continue
                 if (order.fulfillment_method or "").upper() != "COLLECTION":
                     continue

@@ -2,8 +2,8 @@
 SagaController — Flask blueprint exposing the two saga endpoints.
 
 Routes:
-  POST /orders/create     — Phase 1: initialise order, return order_id to UI
-  POST /submit-payment    — Phase 2: authorise payment, finalise order, publish events
+  POST /orders/create     — Create the order and return checkout details
+  POST /submit-payment    — Verify payment, finalise the order, publish events
   GET  /health            — liveness probe
 """
 
@@ -22,7 +22,7 @@ def health():
 @saga_bp.post("/orders/create")
 def create_order():
     """
-    Scenario 1, Steps 5-8.
+    Initialise checkout and create the pending order.
 
     Expected JSON body:
     {
@@ -73,7 +73,7 @@ def create_order():
 @saga_bp.post("/submit-payment")
 def submit_payment():
     """
-    Scenario 1, Steps 9-16.
+    Finalise checkout after the frontend confirms payment.
 
     Expected JSON body:
     {

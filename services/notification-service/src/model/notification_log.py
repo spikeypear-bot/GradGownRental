@@ -40,10 +40,10 @@ class NotificationLog:
     order_id: str
     event_type: NotificationEvent
     channel: NotificationChannel
-    recipient: str          # phone number (SMS) or email address
+    recipient: str          # recipient email address
     message_body: str
     status: NotificationStatus = NotificationStatus.PENDING
-    external_id: Optional[str] = None   # Twilio SID or SendGrid message ID
+    external_id: Optional[str] = None   # SendGrid message ID
     error_message: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     id: Optional[int] = None            # set after DB insert

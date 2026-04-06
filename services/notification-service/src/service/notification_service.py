@@ -2,14 +2,13 @@
 NotificationService — orchestrates message composition, adapter dispatch, and persistence.
 
 Covers:
-  • Scenario 2a: pickup_reminder / return_reminder (triggered by Kafka consumer)
-  • Scenario 2b: OrderConfirmed / OrderActivated / ReturnProcessed (event-driven)
+  • Reminder events: pickup_reminder / return_reminder
+  • Order events: OrderConfirmed / OrderActivated / ReturnProcessed
 """
 
 import logging
 from datetime import datetime
 
-from adapters.twilio_adapter import TwilioAdapter
 from adapters.sendgrid_adapter import SendGridAdapter
 from model.notification_log import (
     NotificationChannel,
@@ -24,19 +23,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Message templates
 # ---------------------------------------------------------------------------
-# Each event maps to: (sms_body, email_subject, email_html)
+# Each event maps to: (email_subject, email_html)
 # Placeholders are filled in by the service before dispatch.
-
-_SMS_TEMPLATES: dict[NotificationEvent, str] = {
-    NotificationEvent.CONFIRMATION: "Hi {name}, your GradGown order #{order_id} is confirmed! "
-                                    "Collection/delivery is on {date}.",
-    NotificationEvent.COLLECTION:   "Reminder: Your GradGown collection for order #{order_id} is "
-                                    "scheduled for {date}. Please be available.",
-    NotificationEvent.RETURN:       "Reminder: Your GradGown return for order #{order_id} is due on "
-                                    "{return_date}. Please prepare the gown.",
-    NotificationEvent.DEPOSIT:      "Hi {name}, return for order #{order_id} is complete. "
-                                    "{deposit_summary}",
-}
 
 _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
     # (subject, html_body)
@@ -84,11 +72,9 @@ _EMAIL_TEMPLATES: dict[NotificationEvent, tuple[str, str]] = {
 class NotificationService:
     def __init__(
         self,
-        twilio: TwilioAdapter,
         sendgrid: SendGridAdapter,
         repo: NotificationRepository,
     ):
-        self._twilio = twilio
         self._sendgrid = sendgrid
         self._repo = repo
 
@@ -97,7 +83,7 @@ class NotificationService:
     # ------------------------------------------------------------------
 
     def handle_order_confirmed(self, payload: dict) -> None:
-        """Scenario 2b — fires after OrderConfirmed event."""
+        """Handle order confirmation notifications."""
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
@@ -109,13 +95,12 @@ class NotificationService:
         self._dispatch(
             event=NotificationEvent.CONFIRMATION,
             order_id=ctx["order_id"],
-            phone=payload.get("phone"),
             email=payload.get("email"),
             ctx=ctx,
         )
 
     def handle_order_activated(self, payload: dict) -> None:
-        """Order activation does not emit one of the required four email stages."""
+        """Ignore order activation events for the current email lifecycle."""
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
@@ -124,7 +109,7 @@ class NotificationService:
         logger.info("Skipping OrderActivated notification for 4-stage lifecycle | order_id=%s", ctx["order_id"])
 
     def handle_return_processed(self, payload: dict) -> None:
-        """Scenario 2b — fires after ReturnProcessed event."""
+        """Handle return completion notifications."""
         has_damage = bool(payload.get("has_damage"))
         damage_fee = payload.get("damage_fee", "0.00")
         refundable_amount = payload.get("refund_amount", "0.00")
@@ -149,13 +134,12 @@ class NotificationService:
         self._dispatch(
             event=NotificationEvent.DEPOSIT,
             order_id=ctx["order_id"],
-            phone=payload.get("phone"),
             email=payload.get("email"),
             ctx=ctx,
         )
 
     def handle_pickup_reminder(self, payload: dict) -> None:
-        """Scenario 2a — scheduled pickup/collection reminder."""
+        """Handle scheduled pickup reminders."""
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
@@ -165,13 +149,12 @@ class NotificationService:
         self._dispatch(
             event=NotificationEvent.COLLECTION,
             order_id=ctx["order_id"],
-            phone=payload.get("phone"),
             email=payload.get("email"),
             ctx=ctx,
         )
 
     def handle_return_reminder(self, payload: dict) -> None:
-        """Scenario 2a — scheduled return reminder."""
+        """Handle scheduled return reminders."""
         ctx = {
             "order_id": payload["order_id"],
             "name": payload.get("student_name", "Student"),
@@ -180,7 +163,6 @@ class NotificationService:
         self._dispatch(
             event=NotificationEvent.RETURN,
             order_id=ctx["order_id"],
-            phone=payload.get("phone"),
             email=payload.get("email"),
             ctx=ctx,
         )
@@ -194,42 +176,11 @@ class NotificationService:
         event: NotificationEvent,
         order_id: str,
         ctx: dict,
-        phone: str | None,
         email: str | None,
     ) -> None:
-        """Send SMS (Twilio) and email (SendGrid) for a given event."""
-        if phone:
-            self._send_sms(event, order_id, phone, ctx)
+        """Send email notifications for a given event."""
         if email:
             self._send_email(event, order_id, email, ctx)
-
-    def _send_sms(
-        self,
-        event: NotificationEvent,
-        order_id: str,
-        phone: str,
-        ctx: dict,
-    ) -> None:
-        body = _SMS_TEMPLATES[event].format(**ctx)
-        log = NotificationLog(
-            order_id=order_id,
-            event_type=event,
-            channel=NotificationChannel.SMS,
-            recipient=phone,
-            message_body=body,
-            created_at=datetime.utcnow(),
-        )
-        log = self._repo.save(log)
-
-        result = self._twilio.send_sms(to=phone, body=body)
-        status = NotificationStatus.SENT if result["success"] else NotificationStatus.FAILED
-        self._repo.update_status(
-            log.id,
-            status=status,
-            external_id=result.get("external_id"),
-            error_message=result.get("error"),
-        )
-        logger.info("SMS %s | event=%s | order=%s", status.value, event.value, order_id)
 
     def _send_email(
         self,

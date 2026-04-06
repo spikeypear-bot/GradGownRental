@@ -20,7 +20,6 @@ producer = KafkaProducer(
 pickup_reminder_event = {
     "order_id": "ORDER-TEST-001",
     "student_name": "Test Student",
-    "phone": "+65 9123 4567",
     "email": "test@example.com",
     "fulfillment_date": "2026-04-06",
     "return_date": "2026-04-08",
@@ -36,7 +35,6 @@ print(f"✓ Published to partition {metadata.partition}, offset {metadata.offset
 return_reminder_event = {
     "order_id": "ORDER-TEST-002",
     "student_name": "Another Test Student",
-    "phone": "+65 9234 5678",
     "email": "another@example.com",
     "return_date": "2026-04-08",
 }
