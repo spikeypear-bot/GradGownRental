@@ -21,6 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("logistics-service")
 
 _ORDER_SHIPMENT_CACHE: dict[str, int] = {}
+_ORDER_SHIPMENT_CACHE_LOCK = threading.Lock()
 
 _OS_BASE = os.environ.get(
     "OUTSYSTEMS_BASE_URL",
@@ -107,11 +108,13 @@ def _cache_order_shipment(order_id: str, shipment_id: int | str | None) -> None:
     except (TypeError, ValueError):
         logger.warning("Skipping cache for non-numeric shipment_id=%s order_id=%s", shipment_id, order_id)
         return
-    _ORDER_SHIPMENT_CACHE[order_id] = resolved
+    with _ORDER_SHIPMENT_CACHE_LOCK:
+        _ORDER_SHIPMENT_CACHE[order_id] = resolved
 
 
 def _lookup_shipment_id(order_id: str) -> int | None:
-    return _ORDER_SHIPMENT_CACHE.get(order_id)
+    with _ORDER_SHIPMENT_CACHE_LOCK:
+        return _ORDER_SHIPMENT_CACHE.get(order_id)
 
 
 def notify_order_paid(
@@ -179,6 +182,21 @@ def lookup_shipment_id_by_order(order_id: str) -> int | None:
         raise
 
 
+def get_shipment_by_order(order_id: str) -> dict | None:
+    try:
+        resp = get_shipment(order_id)
+        payload = resp.json() if resp.content else {}
+        shipment_id = _extract_shipment_id(payload)
+        if shipment_id is not None:
+            _cache_order_shipment(order_id, shipment_id)
+        return payload if isinstance(payload, dict) else {}
+    except requests.HTTPError as exc:
+        status_code = getattr(exc.response, "status_code", None)
+        if status_code == 404:
+            return None
+        raise
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app)
@@ -228,22 +246,54 @@ def create_app() -> Flask:
 
     @app.get("/logistics/order/<string:order_id>/shipment-id")
     def get_shipment_id_for_order(order_id: str):
-        shipment_id = _lookup_shipment_id(order_id)
-        if shipment_id is None:
-            try:
-                shipment_id = lookup_shipment_id_by_order(order_id)
-            except Exception as exc:
-                _report_error(
-                    saga="order-fulfillment",
-                    step="lookup-shipment-by-order",
-                    detail=str(exc),
-                    order_id=order_id,
+        try:
+            # Treat OutSystems as source of truth; cache is only a convenience.
+            shipment_id = lookup_shipment_id_by_order(order_id)
+        except Exception as exc:
+            cached_shipment_id = _lookup_shipment_id(order_id)
+            if cached_shipment_id is not None:
+                logger.warning(
+                    "Falling back to cached shipment_id after OutSystems lookup failed | order_id=%s | error=%s",
+                    order_id,
+                    exc,
                 )
-                return jsonify({"error": "Failed to resolve shipment_id from OutSystems"}), 502
+                return jsonify({"order_id": order_id, "shipment_id": cached_shipment_id, "source": "cache"}), 200
+
+            _report_error(
+                saga="order-fulfillment",
+                step="lookup-shipment-by-order",
+                detail=str(exc),
+                order_id=order_id,
+            )
+            return jsonify({"error": "Failed to resolve shipment_id from OutSystems"}), 502
 
         if shipment_id is None:
             return jsonify({"error": "shipment_id not found for order_id"}), 404
-        return jsonify({"order_id": order_id, "shipment_id": shipment_id}), 200
+        return jsonify({"order_id": order_id, "shipment_id": shipment_id, "source": "outsystems"}), 200
+
+    @app.get("/logistics/order/<string:order_id>")
+    def get_shipment_for_order(order_id: str):
+        try:
+            payload = get_shipment_by_order(order_id)
+            if payload is None:
+                return jsonify({"error": "shipment not found for order_id"}), 404
+            return jsonify(payload), 200
+        except Exception as exc:
+            cached_shipment_id = _lookup_shipment_id(order_id)
+            if cached_shipment_id is not None:
+                logger.warning(
+                    "Full shipment lookup failed, but cached shipment_id exists | order_id=%s | shipment_id=%s | error=%s",
+                    order_id,
+                    cached_shipment_id,
+                    exc,
+                )
+            _report_error(
+                saga="order-fulfillment",
+                step="get-outsystems-shipment-by-order",
+                detail=str(exc),
+                order_id=order_id,
+            )
+            return jsonify({"error": "Failed to fetch OutSystems shipment by order"}), 502
 
     register_swagger(app)
     _start_order_paid_consumer()

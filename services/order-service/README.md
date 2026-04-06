@@ -25,6 +25,14 @@ CONFIRMED → ACTIVE → RETURNED → COMPLETED
 
 ---
 
+## Current Implementation Notes
+
+- Orders may begin as `PENDING` before payment confirmation in the full checkout flow.
+- Returned orders now move to `RETURNED` or `RETURNED_DAMAGED` first.
+- Orders only move to `COMPLETED` after the return maintenance flow finishes.
+- DELIVERY now requires `rental_start_date` to be after today.
+- Same-day delivery is rejected, while same-day collection is still allowed.
+
 ## Business Rules
 
 ### Fulfillment Method Validation
@@ -76,6 +84,8 @@ Check if the service is running.
 
 Creates a new order in CONFIRMED state.
 
+In the end-to-end checkout flow, orders are typically created in `PENDING` and later confirmed by the payment/saga path.
+
 **Request Body:**
 ```json
 {
@@ -109,6 +119,9 @@ Creates a new order in CONFIRMED state.
 **Validation:**
 - DELIVERY orders with same-day `rental_start_date` will be rejected with 400 error
 - COLLECTION orders can have same-day dates
+
+Current validation message:
+- `DELIVERY orders require rental_start_date after today. For same-day rentals, please use COLLECTION fulfillment method.`
 
 **Response (201 Created):**
 ```json
@@ -208,6 +221,8 @@ GET /orders/by-email/alice@example.com
 
 Fetch all orders with a specific status (CONFIRMED, ACTIVE, RETURNED, or COMPLETED).
 
+Supported statuses now also include `PENDING` and `RETURNED_DAMAGED`.
+
 **Example Request:**
 ```bash
 GET /orders/status/CONFIRMED
@@ -273,7 +288,9 @@ Content-Type: application/json
 ### 7. Mark Order as Returned
 **POST** `/orders/<order_id>/return`
 
-Mark order as returned (gown received back) and finalize to COMPLETED.
+Mark order as returned (gown received back).
+
+This endpoint now sets the order to `RETURNED` or `RETURNED_DAMAGED`. Final `COMPLETED` closure happens later when the return maintenance flow confirms the items are cleared.
 
 **Request Body:**
 ```json

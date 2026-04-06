@@ -9,6 +9,7 @@ public class DamageLogDto {
     private Integer damageId;
     private Inventory model;
     private int quantity;
+    private String orderId;
     private String reason;
     private LocalDate date;
     private LocalDate dateRepaired;
@@ -16,11 +17,12 @@ public class DamageLogDto {
     public DamageLogDto() {
     }
 
-    public DamageLogDto(Integer damageId, Inventory model, int quantity, String reason, LocalDate date,
+    public DamageLogDto(Integer damageId, Inventory model, int quantity, String orderId, String reason, LocalDate date,
             LocalDate dateRepaired) {
         this.damageId = damageId;
         this.model = model;
         this.quantity = quantity;
+        this.orderId = orderId;
         this.reason = reason;
         this.date = date;
         this.dateRepaired = dateRepaired;
@@ -48,6 +50,14 @@ public class DamageLogDto {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 
     public String getReason() {

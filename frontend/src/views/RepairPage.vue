@@ -32,7 +32,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in repairQueue" :key="item.modelId">
+                <tr v-for="item in repairQueue" :key="item.queueKey">
                   <td class="fw-semibold">{{ item.modelId }}</td>
                   <td>{{ item.itemName }}</td>
                   <td class="text-uppercase text-muted">{{ item.itemType }}</td>
@@ -47,9 +47,9 @@
                     <button
                       @click="markRepairComplete(item)"
                       class="btn btn-sm btn-repair"
-                      :disabled="processingId === item.modelId"
+                      :disabled="processingId === item.queueKey"
                     >
-                      <span v-if="processingId !== item.modelId">Mark As Repaired</span>
+                      <span v-if="processingId !== item.queueKey">Mark As Repaired</span>
                       <span v-else>
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         Updating...
@@ -101,13 +101,16 @@ const loadData = async () => {
 }
 
 const markRepairComplete = async (item) => {
-  processingId.value = item.modelId
+  processingId.value = item.queueKey
   try {
     await AdminService.completeRepair(item.orderId, item?.selectedPackages || null)
     const detailsMap = readMaintenanceDetails()
     const entry = { ...(detailsMap[item.orderId] || {}) }
     if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'wash'
+      entry.damagedItemStages = {
+        ...(entry.damagedItemStages || {}),
+        [item.queueKey]: 'wash'
+      }
     }
     detailsMap[item.orderId] = entry
     writeMaintenanceDetails(detailsMap)

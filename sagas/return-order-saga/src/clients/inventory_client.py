@@ -27,12 +27,14 @@ class InventoryClient:
             raise RuntimeError(payload.get("msg") or "Inventory transition failed")
         return payload
 
-    def transition(self, transition: str, items: list) -> dict:
+    def transition(self, transition: str, items: list, extra_payload: dict | None = None) -> dict:
         url = f"{INVENTORY_SERVICE_URL}/api/inventory/stock/transition"
         payload = {
             "transition": transition,
             "items": items,
         }
+        if extra_payload:
+            payload.update(extra_payload)
         resp = requests.put(url, json=payload, timeout=_TIMEOUT)
         return self._unwrap_or_raise(resp)
 

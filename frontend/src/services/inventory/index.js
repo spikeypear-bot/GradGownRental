@@ -9,8 +9,12 @@ import {
   AvailabilityResponse,
   Availability90Response
 } from './model.js'
+import { readCached, writeCached } from '../cache.js'
  
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/inventory`
+const PACKAGE_DETAIL_TTL_MS = 5 * 60 * 1000
+const PACKAGE_LIST_TTL_MS = 5 * 60 * 1000
+const STOCK_OVERVIEW_TTL_MS = 30 * 1000
  
 const unwrapApiData = (payload) => {
   if (
@@ -31,11 +35,15 @@ class InventoryService {
    */
   async getPackageById(packageId) {
     try {
+      const cacheKey = `inventory:package:${packageId}`
+      const cached = readCached(cacheKey, PACKAGE_DETAIL_TTL_MS)
+      if (cached) return cached
+
       const response = await fetch(`${API_BASE_URL}/${packageId}`)
       if (!response.ok) throw new Error('Failed to fetch package')
       const payload = await response.json()
       const data = unwrapApiData(payload)
-      return new DetailedPackage(data)
+      return writeCached(cacheKey, new DetailedPackage(data))
     } catch (error) {
       console.error('Error fetching package:', error)
       if (error instanceof TypeError) {
@@ -63,6 +71,10 @@ class InventoryService {
       if (filters.faculty) {
         url += `${url.includes('?') ? '&' : '?'}faculty=${filters.faculty}`
       }
+
+      const cacheKey = `inventory:catalogue:${url}`
+      const cached = readCached(cacheKey, PACKAGE_LIST_TTL_MS)
+      if (cached) return cached
  
       console.log('Fetching from:', url)
       const response = await fetch(url)
@@ -90,7 +102,7 @@ class InventoryService {
       }).filter(pkg => pkg !== null)
       
       console.log('Parsed packages count:', packages.length)
-      return packages
+      return writeCached(cacheKey, packages)
     } catch (error) {
       console.error('Error fetching packages:', error)
       if (error instanceof TypeError) {
@@ -196,6 +208,10 @@ class InventoryService {
         day: '2-digit'
       }).format(new Date(date))
 
+      const cacheKey = `inventory:stock-overview:${dateParam}`
+      const cached = readCached(cacheKey, STOCK_OVERVIEW_TTL_MS)
+      if (cached) return cached
+
       const response = await fetch(`${API_BASE_URL}/stock-overview?date=${dateParam}`)
       if (!response.ok) throw new Error('Failed to fetch stock overview')
       const payload = await response.json()
@@ -205,7 +221,7 @@ class InventoryService {
         throw new Error('Inventory stock overview returned an invalid response.')
       }
 
-      return data
+      const rows = data
         .map(row => ({
           modelId: row.modelId,
           itemName: row.itemName,
@@ -221,6 +237,7 @@ class InventoryService {
           backupQty: Number(row.backupQty || 0)
         }))
         .sort((a, b) => a.modelId.localeCompare(b.modelId))
+      return writeCached(cacheKey, rows)
     } catch (error) {
       console.error('Error loading stock overview:', error)
       if (error instanceof TypeError) {

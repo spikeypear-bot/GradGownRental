@@ -321,13 +321,18 @@ public class PostService {
 
     @Transactional
     public List<ItemAndDamageIdDto> damageItems(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
+        return damageItems(items, null);
+    }
+
+    @Transactional
+    public List<ItemAndDamageIdDto> damageItems(List<ModelIdAndQtyAndDateDto> items, String orderId) throws ModelNotFoundException{
         List<ItemAndDamageIdDto> itemAndDamageIdDtos=new ArrayList<>();
         
         
         for(ModelIdAndQtyAndDateDto item:items){
             LocalDate startDate = getTransitionStartDate(item.getChosenDate());
             int remainingDays = getRemainingWindowDays(item.getChosenDate());
-            Integer damageId= damageLogService.createDamage(item.getModelId(),item.getQty(),null);
+            Integer damageId= damageLogService.createDamage(item.getModelId(),item.getQty(),orderId,null);
             itemAndDamageIdDtos.add(new ItemAndDamageIdDto(damageId,item));
             InventoryDto itemDto=inventoryService.getByModelId(item.getModelId());
             for(int i=0;i<remainingDays;i++){
@@ -384,6 +389,22 @@ public class PostService {
     }
 
     @Transactional
+    public void moveRepairToWash(List<ModelIdAndQtyAndDateDto> items, List<DamageAndQtyDto> repairedDamageLogs)
+        throws ModelNotFoundException {
+        for (ModelIdAndQtyAndDateDto item : items) {
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
+            for (int i = 0; i < remainingDays; i++) {
+                LocalDate targetDate = startDate.plusDays(i);
+                applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
+                    trackDto.setWashQty(trackDto.getWashQty() + item.getQty());
+                });
+            }
+        }
+        damageLogService.repairDamage(repairedDamageLogs);
+    }
+
+    @Transactional
     public void moveWashToAvailable(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException{
         for (ModelIdAndQtyAndDateDto item : items) {
             LocalDate startDate = getTransitionStartDate(item.getChosenDate());
@@ -392,6 +413,44 @@ public class PostService {
                 LocalDate targetDate = startDate.plusDays(i);
                 applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
                     trackDto.setWashQty(Math.max(trackDto.getWashQty() - item.getQty(), 0));
+                });
+            }
+        }
+    }
+
+    @Transactional
+    public void useBackupForFulfillment(List<ModelIdAndQtyAndDateDto> items) throws ModelNotFoundException {
+        for (ModelIdAndQtyAndDateDto item : items) {
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
+
+            for (int i = 0; i < remainingDays; i++) {
+                LocalDate targetDate = startDate.plusDays(i);
+                InventoryQuantityTrackDto trackDto = getOrCreateTrackSnapshot(item.getModelId(), targetDate);
+                int backupQty = inventoryQuantityTrackService.resolveBackupQty(trackDto.getBackupQty());
+                if (backupQty < item.getQty()) {
+                    throw new RuntimeException(
+                        String.format(
+                            "Cannot use backup stock for modelId=%s on date=%s because backup_qty=%d is less than requested qty=%d.",
+                            item.getModelId(),
+                            targetDate,
+                            backupQty,
+                            item.getQty()
+                        )
+                    );
+                }
+            }
+        }
+
+        for (ModelIdAndQtyAndDateDto item : items) {
+            LocalDate startDate = getTransitionStartDate(item.getChosenDate());
+            int remainingDays = getRemainingWindowDays(item.getChosenDate());
+
+            for (int i = 0; i < remainingDays; i++) {
+                LocalDate targetDate = startDate.plusDays(i);
+                applyTrackAdjustment(item.getModelId(), targetDate, trackDto -> {
+                    int currentBackupQty = inventoryQuantityTrackService.resolveBackupQty(trackDto.getBackupQty());
+                    trackDto.setBackupQty(currentBackupQty - item.getQty());
                 });
             }
         }

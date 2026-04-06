@@ -18,7 +18,7 @@ const STATUS_STEPS = [
   { key: 'CONFIRMED',  label: 'Confirmed',     icon: 'bi-check-circle' },
   { key: 'ACTIVE',     label: 'In Possession',  icon: 'bi-box-seam' },
   { key: 'RETURNED',   label: 'Returned',       icon: 'bi-arrow-counterclockwise' },
-  { key: 'COMPLETED',  label: 'Processed',      icon: 'bi-shield-check' },
+  { key: 'COMPLETED',  label: 'Closed',      icon: 'bi-shield-check' },
 ]
 
 const currentStepIndex = computed(() => {
@@ -27,6 +27,7 @@ const currentStepIndex = computed(() => {
     PENDING: -1,
     CONFIRMED: 0,
     ACTIVE: 1,
+    RETURNED: 2,
     RETURNED_PENDING_INSPECTION: 2,
     RETURNED_DAMAGED: 2,
     COMPLETED: 3,
@@ -118,9 +119,10 @@ const statusLabel = computed(() => {
     PENDING: 'Pending',
     CONFIRMED: 'Confirmed',
     ACTIVE: 'Active',
+    RETURNED: 'Returned',
     RETURNED_PENDING_INSPECTION: 'Returned',
     RETURNED_DAMAGED: 'Returned (Damaged)',
-    COMPLETED: 'Processed',
+    COMPLETED: 'Closed',
   }
   return map[order.value?.status] || order.value?.status || ''
 })

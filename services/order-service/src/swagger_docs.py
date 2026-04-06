@@ -199,7 +199,7 @@ ORDER_OPENAPI_SPEC = {
                         "required": True,
                         "schema": {
                             "type": "string",
-                            "enum": ["PENDING", "CONFIRMED", "ACTIVE", "RETURNED", "COMPLETED"],
+                            "enum": ["PENDING", "CONFIRMED", "ACTIVE", "RETURNED", "RETURNED_DAMAGED", "COMPLETED"],
                         },
                     }
                 ],

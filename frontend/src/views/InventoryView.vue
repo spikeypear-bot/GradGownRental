@@ -27,37 +27,10 @@ const error = ref(null)
 function proceedToCheckout() {
   if (!selectedPackage.value) return
 
-  // Must pick a date first
-  if (!selectedDate.value) {
-    sizeRequiredError.value = 'Please select a ceremony date first.'
-    return
-  }
-
-  // Validate all items have a size selected
-  const missing = sizeOptions.value.filter(item => !selectedSizes.value[item.itemType])
-  if (missing.length) {
-    sizeRequiredError.value = `Please choose a size for: ${missing.map(i => i.itemName).join(', ')}`
-    return
-  }
-  sizeRequiredError.value = ''
-
-  const selectedModels = sizeOptions.value.map(item => {
-    const modelId = selectedSizes.value[item.itemType]
-    const model = item.models.find(m => m.modelId === modelId)
-    return {
-      itemType: item.itemType,
-      itemName: item.itemName,
-      modelId,
-      size: model?.size || ''
-    }
-  })
-
   router.push({
     path: '/order',
     query: {
       packageId: String(selectedPackage.value.packageId),
-      date: toISODate(selectedDate.value),
-      models: JSON.stringify(selectedModels),
       title: selectedPackage.value.title,
       level: selectedPackage.value.educationLevel,
       rentalFee: String(selectedPackage.value.rentalFee ?? ''),
@@ -423,7 +396,7 @@ watch(() => route.query.new, (newVal) => {
           </div>
 
           <!-- Step 1: Pick a date -->
-          <div class="mb-5">
+          <div v-if="false" class="mb-5">
             <h5 class="fw-bold text-dark mb-1">Select Ceremony Date</h5>
             <p class="text-secondary small mb-3">Availability is checked live for your chosen date.</p>
 
@@ -461,7 +434,7 @@ watch(() => route.query.new, (newVal) => {
           </div>
 
           <!-- Step 2: Pick sizes (unlocked after date chosen) -->
-          <div class="mb-4">
+          <div v-if="false" class="mb-4">
             <h5 class="fw-bold text-dark mb-1">Select Sizes</h5>
             <p v-if="!selectedDate" class="text-secondary small mb-0">Choose a date above to see available sizes.</p>
 
@@ -502,12 +475,11 @@ watch(() => route.query.new, (newVal) => {
           <hr class="mb-4 d-none d-lg-block border-0 opacity-0">
 
           <button @click="proceedToCheckout" class="btn btn-warning text-white fw-bold rounded-4 py-3 fs-5 w-100 btn-hover-custom mb-3">
-            Checkout <i class="bi bi-arrow-right ms-2"></i>
+            Continue to Checkout <i class="bi bi-arrow-right ms-2"></i>
           </button>
-          <div v-if="sizeRequiredError" class="alert alert-danger py-2 mb-3 small">{{ sizeRequiredError }}</div>
           <div class="d-flex gap-2 text-secondary align-items-center justify-content-center">
             <i class="bi bi-info-circle small"></i>
-            <span class="small fw-bold" style="letter-spacing: 1px;">YOUR DATE AND SIZES CARRY FORWARD TO CHECKOUT.</span>
+            <span class="small fw-bold" style="letter-spacing: 1px;">YOU'LL CHOOSE DATE, SIZE, AND FULFILLMENT IN CHECKOUT.</span>
           </div>
         </div>
       </div>

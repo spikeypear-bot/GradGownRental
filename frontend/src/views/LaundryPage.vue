@@ -32,7 +32,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in washQueue" :key="item.modelId">
+                <tr v-for="item in washQueue" :key="item.queueKey">
                   <td class="fw-semibold">{{ item.modelId }}</td>
                   <td>{{ item.itemName }}</td>
                   <td class="text-uppercase text-muted">{{ item.itemType }}</td>
@@ -47,9 +47,9 @@
                     <button
                       @click="markWashComplete(item)"
                       class="btn btn-sm btn-laundry"
-                      :disabled="processingId === item.modelId"
+                      :disabled="processingId === item.queueKey"
                     >
-                      <span v-if="processingId !== item.modelId">Mark Laundry Done</span>
+                      <span v-if="processingId !== item.queueKey">Mark Laundry Done</span>
                       <span v-else>
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         Updating...
@@ -101,18 +101,27 @@ const loadData = async () => {
 }
 
 const markWashComplete = async (item) => {
-  processingId.value = item.modelId
+  processingId.value = item.queueKey
   try {
     const detailsMap = readMaintenanceDetails()
     const entry = { ...(detailsMap[item.orderId] || {}) }
 
     if (item.subsetKey === 'clean') {
-      entry.cleanStage = 'done'
+      entry.cleanItemStages = {
+        ...(entry.cleanItemStages || {}),
+        [item.queueKey]: 'done'
+      }
     } else if (item.subsetKey === 'damaged') {
-      entry.damagedStage = 'done'
+      entry.damagedItemStages = {
+        ...(entry.damagedItemStages || {}),
+        [item.queueKey]: 'done'
+      }
     }
 
-    const remainingStages = [entry.cleanStage, entry.damagedStage].filter(stage => stage && stage !== 'done')
+    const remainingStages = [
+      ...Object.values(entry.cleanItemStages || {}),
+      ...Object.values(entry.damagedItemStages || {})
+    ].filter(stage => stage && stage !== 'done')
     const completeOrder = remainingStages.length === 0
 
     await AdminService.completeWash(item.orderId, item?.selectedPackages || null, { completeOrder })

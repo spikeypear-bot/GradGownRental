@@ -1,3 +1,8 @@
+import { clearCached, readCached, writeCached } from '../cache.js'
+
+const ORDER_LIST_TTL_MS = 15 * 1000
+const EMAIL_STATUS_TTL_MS = 30 * 1000
+
 export function normalizeOrder(raw = {}) {
   const damagedItems = Array.isArray(raw.damaged_items) ? raw.damaged_items : []
   const derivedDamageSummary = damagedItems.length
@@ -51,15 +56,27 @@ function resolveBrowserSafeOrderApiUrl(orderApiUrl) {
   return resolveBrowserSafeBaseUrl(orderApiUrl)
 }
 
+export function clearAdminOrderCaches() {
+  clearCached('admin:orders:CONFIRMED')
+  clearCached('admin:orders:ACTIVE')
+  clearCached('admin:orders:RETURNED')
+  clearCached('admin:orders:RETURNED_DAMAGED')
+  clearCached('admin:orders:COMPLETED')
+}
+
 export async function fetchOrdersByStatus(orderApiUrl, status) {
   try {
     const safeBaseUrl = resolveBrowserSafeOrderApiUrl(orderApiUrl)
+    const cacheKey = `admin:orders:${status}`
+    const cached = readCached(cacheKey, ORDER_LIST_TTL_MS)
+    if (cached) return cached
+
     const response = await fetch(`${safeBaseUrl}/orders/status/${encodeURIComponent(status)}`)
     if (!response.ok) {
       throw new Error(`Failed to fetch ${status} orders`)
     }
     const data = await response.json()
-    return Array.isArray(data) ? data.map(normalizeOrder) : []
+    return writeCached(cacheKey, Array.isArray(data) ? data.map(normalizeOrder) : [])
   } catch (error) {
     throw formatFetchError(error, `Unable to load ${status.toLowerCase()} orders.`)
   }
@@ -76,6 +93,10 @@ export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
   )
 
   try {
+    const cacheKey = `admin:email-status:${orderId}`
+    const cached = readCached(cacheKey, EMAIL_STATUS_TTL_MS)
+    if (cached) return cached
+
     const response = await fetch(`${safeBaseUrl}/notifications/${encodeURIComponent(orderId)}`)
     if (!response.ok) {
       return 'UNKNOWN'
@@ -108,9 +129,9 @@ export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
 
     const stage = stageByEventType[rawEventType] || 'UNKNOWN'
     if (stage === 'UNKNOWN') {
-      return rawStatus || 'UNKNOWN'
+      return writeCached(cacheKey, rawStatus || 'UNKNOWN')
     }
-    return rawStatus === 'SENT' ? stage : `${stage} (${rawStatus || 'UNKNOWN'})`
+    return writeCached(cacheKey, rawStatus === 'SENT' ? stage : `${stage} (${rawStatus || 'UNKNOWN'})`)
   } catch {
     return 'UNKNOWN'
   }

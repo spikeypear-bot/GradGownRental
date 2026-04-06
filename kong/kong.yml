@@ -44,6 +44,11 @@ services:
         paths: ["~/logistics/(?<shipment_id>[^/]+)$"]
         strip_path: false
 
+      - name: logistics-get-shipment-by-order
+        methods: [GET, OPTIONS]
+        paths: ["~/logistics/order/(?<order_id>[^/]+)$"]
+        strip_path: false
+
       - name: logistics-order-paid
         methods: [POST, OPTIONS]
         paths: [/logistics/events/order-paid]
