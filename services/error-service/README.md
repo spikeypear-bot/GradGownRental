@@ -1,14 +1,25 @@
 # Error Service
 
-Centralized error logging service for capturing saga and service failures across the GradGownRental system.
+**Saga Pattern Error Handler** — Centralizes failure logging and compensation triggering for distributed transactions in GradGownRental microservices. Demonstrates fault isolation and loose coupling.
+
+---
+
+## Purpose
+
+When a saga step fails (e.g. Payment service timeout), this service:
+1. **Logs the failure** → `docker logs error-service` for real-time observability
+2. **Triggers notifications** → Compensation via Notification Service
+3. **Returns 201 logged** → Saga continues recovery without blocking
+
+**Proves microservices fault tolerance: one service failure doesn't cascade.**
 
 ## Overview
 
 - **Port**: 5002
-- **Tech Stack**: Python, Flask, Flask-SQLAlchemy, PostgreSQL, psycopg2
+- **Tech Stack**: Python 3.12, Flask, Gunicorn, requests 
 - **Role**: Receives error reports from sagas when a distributed transaction step fails; provides a unified log for debugging.
 
-## API Endpoints
+**Stateless & lightweight — no database dependency.**
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -17,9 +28,8 @@ Centralized error logging service for capturing saga and service failures across
 | `GET` | `/errors` | Retrieve all error logs (most recent first) |
 | `GET` | `/errors/<error_id>` | Retrieve a specific error log by ID |
 
-### POST `/errors`
-
-Log an error from a saga or service.
+### `POST /errors`
+**Receives saga failures, logs them, triggers compensation.**
 
 **Request Body**:
 ```json
@@ -35,53 +45,96 @@ Log an error from a saga or service.
 **Response** `201 Created`:
 ```json
 {
-  "error_id": "uuid-here",
   "status": "logged"
 }
 ```
 
-### GET `/errors`
+**Console Output:**
+[ERROR] main — [PlaceAnOrderSaga] Step 10 failed | order_id=abc-123 | Payment service timeout
 
-Returns all logged errors, sorted by most recent.
 
-### GET `/errors/<error_id>`
+---
 
-Returns a specific error log by ID.
+## Architecture Flow
+Saga Step 10 (Payment) Error
+↓ POST /errors
+┌─────────────┐
+│ error-service│ ← docker logs error-service
+└──────┬──────┘
+↓ POST /notifications/error
+┌─────────────┐
+│ notification│ ← triggers compensating transaction
+│ service │
+└─────────────┘
 
-## How Sagas Call This Service
+---
+
+## How Other Services Call It
 
 ```python
 import requests
 
-requests.post("http://error-service:5002/errors", json={
-    "saga_name": "PlaceAnOrderSaga",
-    "step": "Step 10 - POST /payments",
-    "order_id": order_id,
-    "error_message": str(e),
-    "status_code": 500
-})
+try:
+    requests.post("http://error-service:5002/errors", json={
+        "saga_name": "PlaceAnOrderSaga",
+        "step": f"Step 10 - POST /payments",
+        "order_id": order_id,
+        "error_message": str(e),
+        "status_code": getattr(e, 'status_code', 500)
+    }, timeout=2)
+except:
+    pass  # Don't block saga recovery
 ```
 
-All three sagas call this endpoint as part of their failure handling before aborting a transaction.
+---
 
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DB_HOST` | PostgreSQL host |
-| `DB_NAME` | Database name |
-| `DB_USER` | Database user |
-| `DB_PASSWORD` | Database password |
-
-## Running Locally
+## Verification
 
 ```bash
-pip install -r requirements.txt
-python main.py
+# Watch logs in real-time
+docker logs -f error-service
+
+# Trigger test error (from any saga)
+curl -X POST http://localhost:5002/errors \
+  -H "Content-Type: application/json" \
+  -d '{"saga_name":"TestSaga","step":"Test","error_message":"Test error"}'
 ```
 
-## Docker
+**Expected:** Log entry appears immediately.
 
-```bash
-docker compose up error-service
+---
+
+## Docker Compose
+
+```yaml
+error-service:
+  build: ./services/error-service
+  ports:
+    - "5002:5002"
+  environment:
+    NOTIFICATION_SERVICE_URL: "http://notification-service:5005"
+  networks:
+    - app-network
 ```
+
+---
+
+## Production Considerations
+
+- **Observability**: Add ELK stack (Elasticsearch + Kibana) for log aggregation
+- **Persistence**: PostgreSQL + Grafana for historical analysis
+- **Alerting**: Prometheus + Alertmanager for critical failure thresholds
+- **Circuit Breaker**: Add resilience4j to prevent notification cascade failures
+
+**Current implementation prioritizes Saga pattern proof over full production monitoring.**
+
+---
+
+## Why This Design?
+
+1. **Fault Isolation**: Payment service down → saga still logs/recovers
+2. **Loose Coupling**: HTTP contract only — no shared DB
+3. **Demo Reliability**: Single container, no DB setup issues
+4. **Saga Pattern Compliance**: Centralized failure coordination
+
+**Validates microservices theory: independent failure handling via service mesh.**
