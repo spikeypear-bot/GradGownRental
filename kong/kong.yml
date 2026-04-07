@@ -18,6 +18,21 @@ services:
         paths: [/error-service/health]
         strip_path: true   # strips /error-service prefix -> /health upstream
 
+      - name: error-service-health-db
+        methods: [GET]
+        paths: [/error-service/health/db]
+        strip_path: true
+
+      - name: error-service-openapi
+        methods: [GET]
+        paths: [/error-service/openapi.json]
+        strip_path: true
+
+      - name: error-service-docs
+        methods: [GET]
+        paths: [/error-service/docs]
+        strip_path: true
+
       - name: error-list
         methods: [GET, OPTIONS]
         paths: [/errors]
@@ -26,6 +41,11 @@ services:
       - name: error-create
         methods: [POST, OPTIONS]
         paths: [/errors]
+        strip_path: false
+
+      - name: error-get-by-id
+        methods: [GET, OPTIONS]
+        paths: ["~/errors/(?<error_id>[^/]+)$"]
         strip_path: false
 
   # ---------------------------------------------------------------------------

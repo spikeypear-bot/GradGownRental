@@ -17,6 +17,7 @@ from clients.payment_client import PaymentClient
 from controller.saga_controller import saga_bp
 from service.kafka_publisher import KafkaPublisher
 from service.place_order_saga_service import PlaceOrderSagaService
+from swagger_docs import register_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,6 +57,7 @@ def create_app() -> Flask:
     # Blueprints
     # ------------------------------------------------------------------
     app.register_blueprint(saga_bp)
+    register_swagger(app)
 
     logger.info("place-order-saga ready")
     return app

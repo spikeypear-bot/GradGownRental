@@ -11,6 +11,7 @@ from clients.order_client import OrderClient
 from controller.saga_controller import saga_bp
 from service.fulfill_order_saga_service import FulfillOrderSagaService
 from service.kafka_publisher import KafkaPublisher
+from swagger_docs import register_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +48,7 @@ def create_app() -> Flask:
     app.extensions["order_client"] = order_client
 
     app.register_blueprint(saga_bp)
+    register_swagger(app)
     logger.info("fulfill-order-saga ready")
     return app
 

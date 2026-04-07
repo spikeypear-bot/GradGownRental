@@ -58,11 +58,13 @@ NOTIFICATION_OPENAPI_SPEC = {
                 "properties": {
                     "id": {"type": "integer"},
                     "order_id": {"type": "string"},
+                    "event_type": {"type": "string"},
                     "channel": {"type": "string"},
                     "recipient": {"type": "string"},
-                    "message": {"type": "string"},
+                    "message_body": {"type": "string"},
                     "status": {"type": "string"},
-                    "provider_message_id": {"type": "string"},
+                    "external_id": {"type": "string"},
+                    "error_message": {"type": "string"},
                     "created_at": {"type": "string", "format": "date-time"},
                 },
             }

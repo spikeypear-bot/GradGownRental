@@ -1,0 +1,480 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Inventory Service API",
+    "version": "1.0.0",
+    "description": "Static export of the current inventory-service HTTP contract based on InventoryController routes. Note: the live schema also includes a Hibernate-managed DamageLog table."
+  },
+  "paths": {
+    "/api/inventory/availability": {
+      "get": {
+        "summary": "Check availability for a specific date",
+        "parameters": [
+          {
+            "name": "hatModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hoodModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gownModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Availability response"
+          }
+        }
+      }
+    },
+    "/api/inventory/availability90": {
+      "get": {
+        "summary": "Check 90-day availability",
+        "parameters": [
+          {
+            "name": "hatModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hoodModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gownModelId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "90-day availability response"
+          }
+        }
+      }
+    },
+    "/api/inventory/packages/all": {
+      "get": {
+        "summary": "List all packages",
+        "responses": {
+          "200": {
+            "description": "Package list"
+          }
+        }
+      }
+    },
+    "/api/inventory/packages": {
+      "get": {
+        "summary": "List filtered packages",
+        "parameters": [
+          {
+            "name": "institution",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "educationLevel",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "faculty",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered package list"
+          }
+        }
+      }
+    },
+    "/api/inventory/catalogue": {
+      "get": {
+        "summary": "Scenario alias for package catalogue",
+        "parameters": [
+          {
+            "name": "institution",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "educationLevel",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "faculty",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catalogue response"
+          }
+        }
+      }
+    },
+    "/api/inventory/stock-overview": {
+      "get": {
+        "summary": "Get stock overview by date",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock overview rows"
+          }
+        }
+      }
+    },
+    "/api/inventory/{packageId}": {
+      "get": {
+        "summary": "Get package detail with styles and inventory",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package detail"
+          }
+        }
+      }
+    },
+    "/api/inventory/softlock": {
+      "post": {
+        "summary": "Create a soft hold",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Soft hold created"
+          }
+        }
+      }
+    },
+    "/api/inventory/soft-hold": {
+      "post": {
+        "summary": "Scenario alias for creating a soft hold",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Soft hold created"
+          }
+        }
+      }
+    },
+    "/api/inventory/reserveitems": {
+      "post": {
+        "summary": "Reserve items from a hold",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items reserved"
+          }
+        }
+      }
+    },
+    "/api/inventory/stock/transition": {
+      "put": {
+        "summary": "Perform a stock transition",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transition applied"
+          },
+          "400": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
+    "/api/inventory/maintenance/request": {
+      "put": {
+        "summary": "Scenario alias for damaged-to-repair request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Maintenance request accepted"
+          }
+        }
+      }
+    },
+    "/api/inventory/collectitems": {
+      "put": {
+        "summary": "Move reserved items to rented",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items collected"
+          }
+        }
+      }
+    },
+    "/api/inventory/washitems": {
+      "put": {
+        "summary": "Move rented items to wash",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items moved to wash"
+          }
+        }
+      }
+    },
+    "/api/inventory/damageitems": {
+      "post": {
+        "summary": "Mark items as damaged",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Damage logged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemAndDamageId"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/repairitems": {
+      "post": {
+        "summary": "Mark damage logs as repaired",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DamageAndQty"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Repairs recorded"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ModelIdAndQtyAndDate": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "integer"
+          },
+          "chosenDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "modelId",
+          "qty",
+          "chosenDate"
+        ]
+      },
+      "ReserveRequest": {
+        "type": "object",
+        "properties": {
+          "holdId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+            }
+          }
+        },
+        "required": [
+          "holdId",
+          "items"
+        ]
+      },
+      "DamageAndQty": {
+        "type": "object",
+        "properties": {
+          "damageId": {
+            "type": "integer"
+          },
+          "qty": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "damageId",
+          "qty"
+        ]
+      },
+      "ItemAndDamageId": {
+        "type": "object",
+        "properties": {
+          "damageId": {
+            "type": "integer"
+          },
+          "item": {
+            "$ref": "#/components/schemas/ModelIdAndQtyAndDate"
+          }
+        }
+      }
+    }
+  }
+}

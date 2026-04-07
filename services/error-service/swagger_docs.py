@@ -24,6 +24,22 @@ ERROR_OPENAPI_SPEC = {
                 },
             }
         },
+        "/health/db": {
+            "get": {
+                "summary": "Database health check",
+                "responses": {
+                    "200": {
+                        "description": "Database is reachable",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/HealthDbResponse"}
+                            }
+                        },
+                    },
+                    "500": {"description": "Database is unavailable"},
+                },
+            }
+        },
         "/errors": {
             "get": {
                 "summary": "List captured errors",
@@ -52,33 +68,99 @@ ERROR_OPENAPI_SPEC = {
                     },
                 },
                 "responses": {
-                    "201": {"description": "Error recorded"},
+                    "201": {
+                        "description": "Error recorded",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/CreateErrorResponse"}
+                            }
+                        },
+                    },
                     "400": {"description": "Missing required fields"},
                 },
             },
+        },
+        "/errors/{error_id}": {
+            "get": {
+                "summary": "Get a captured error by ID",
+                "parameters": [
+                    {
+                        "name": "error_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Error log entry",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/ErrorLog"}
+                            }
+                        },
+                    },
+                    "404": {"description": "Error not found"},
+                },
+            }
         },
     },
     "components": {
         "schemas": {
             "CreateErrorRequest": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "saga": {"type": "string"},
+                            "step": {"type": "string"},
+                            "order_id": {"type": "string"},
+                            "detail": {"type": "string"},
+                            "status_code": {"type": "integer"},
+                        },
+                        "required": ["saga", "step", "detail"],
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "saga_name": {"type": "string"},
+                            "step": {"type": "string"},
+                            "order_id": {"type": "string"},
+                            "error_message": {"type": "string"},
+                            "status_code": {"type": "integer"},
+                        },
+                        "required": ["saga_name", "step", "error_message"],
+                    },
+                ]
+            },
+            "CreateErrorResponse": {
                 "type": "object",
                 "properties": {
-                    "saga": {"type": "string"},
-                    "step": {"type": "string"},
-                    "order_id": {"type": "string"},
-                    "detail": {"type": "string"},
+                    "error_id": {"type": "string"},
+                    "status": {"type": "string", "example": "logged"},
                 },
-                "required": ["saga", "step", "detail"],
+                "required": ["error_id", "status"],
             },
             "ErrorLog": {
                 "type": "object",
                 "properties": {
-                    "saga": {"type": "string"},
+                    "error_id": {"type": "string"},
+                    "saga_name": {"type": "string"},
                     "step": {"type": "string"},
                     "order_id": {"type": "string"},
-                    "detail": {"type": "string"},
-                    "timestamp_utc": {"type": "string", "format": "date-time"},
+                    "error_message": {"type": "string"},
+                    "status_code": {"type": "string"},
+                    "created_at": {"type": "string", "format": "date-time"},
                 },
+            },
+            "HealthDbResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "service": {"type": "string"},
+                    "records": {"type": "integer"},
+                },
+                "required": ["status", "service", "records"],
             },
         }
     },

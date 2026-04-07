@@ -86,4 +86,11 @@ public class ItemHoldService {
         itemHoldRepository.deleteAllByCreatedAtBefore(cutoff);
     }
 
+    public LocalDateTime calculateExpiresAt(LocalDateTime createdAt) {
+        if (createdAt == null) {
+            return null;
+        }
+        return createdAt.plus(HOLD_EXPIRY);
+    }
+
 }

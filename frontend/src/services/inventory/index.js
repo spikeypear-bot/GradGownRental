@@ -232,7 +232,6 @@ class InventoryService {
           reservedQty: Number(row.reservedQty || 0),
           rentedQty: Number(row.rentedQty || 0),
           damagedQty: Number(row.damagedQty || 0),
-          repairQty: Number(row.repairQty || 0),
           washQty: Number(row.washQty || 0),
           backupQty: Number(row.backupQty || 0)
         }))

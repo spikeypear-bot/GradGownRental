@@ -9,7 +9,7 @@ PAYMENT_OPENAPI_SPEC = {
         "description": "Checkout, payment authorisation, refund, and Stripe webhook endpoints.",
     },
     "paths": {
-        "/health": {
+        "/api/payment/health": {
             "get": {
                 "summary": "Health check",
                 "responses": {
@@ -24,7 +24,7 @@ PAYMENT_OPENAPI_SPEC = {
                 },
             }
         },
-        "/checkout": {
+        "/api/payment/checkout": {
             "post": {
                 "summary": "Create a Stripe payment intent",
                 "requestBody": {
@@ -41,7 +41,7 @@ PAYMENT_OPENAPI_SPEC = {
                 },
             }
         },
-        "/payments": {
+        "/api/payment/payments": {
             "post": {
                 "summary": "Authorise or verify a payment",
                 "requestBody": {
@@ -60,7 +60,7 @@ PAYMENT_OPENAPI_SPEC = {
                 },
             }
         },
-        "/payments/refunds": {
+        "/api/payment/refunds": {
             "post": {
                 "summary": "Refund an authorised payment",
                 "requestBody": {
@@ -81,21 +81,12 @@ PAYMENT_OPENAPI_SPEC = {
                 },
             }
         },
-        "/webhook": {
+        "/api/payment/webhook": {
             "post": {
                 "summary": "Handle Stripe webhook events",
                 "responses": {
                     "200": {"description": "Webhook accepted"},
                     "400": {"description": "Invalid payload or signature"},
-                },
-            }
-        },
-        "/test": {
-            "get": {
-                "summary": "Development-only payment listing endpoint",
-                "responses": {
-                    "200": {"description": "Payments returned"},
-                    "400": {"description": "No payments found"},
                 },
             }
         },

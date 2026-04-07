@@ -65,7 +65,6 @@
                 <th>Reserved</th>
                 <th>Rented</th>
                 <th>Damaged</th>
-                <th>Repair</th>
                 <th>Wash</th>
                 <th>Backup</th>
               </tr>
@@ -81,7 +80,6 @@
                 <td>{{ item.reservedQty }}</td>
                 <td>{{ item.rentedQty }}</td>
                 <td>{{ item.damagedQty }}</td>
-                <td>{{ item.repairQty }}</td>
                 <td>{{ item.washQty }}</td>
                 <td>{{ item.backupQty }}</td>
               </tr>

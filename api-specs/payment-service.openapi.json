@@ -1,0 +1,191 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Payment Service API",
+    "version": "1.0.0",
+    "description": "Checkout, payment authorisation, refund, and Stripe webhook endpoints."
+  },
+  "paths": {
+    "/api/payment/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok",
+                  "service": "payment-service"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment/checkout": {
+      "post": {
+        "summary": "Create a Stripe payment intent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Client secret returned"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/payment/payments": {
+      "post": {
+        "summary": "Authorise or verify a payment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorisePaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing idempotent payment returned"
+          },
+          "201": {
+            "description": "Payment authorised"
+          },
+          "400": {
+            "description": "Missing fields"
+          },
+          "402": {
+            "description": "Payment failed"
+          }
+        }
+      }
+    },
+    "/api/payment/refunds": {
+      "post": {
+        "summary": "Refund an authorised payment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "No refund needed"
+          },
+          "201": {
+            "description": "Refund created"
+          },
+          "202": {
+            "description": "Simulated refund generated"
+          },
+          "400": {
+            "description": "Invalid refund request"
+          },
+          "402": {
+            "description": "Refund failed"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        }
+      }
+    },
+    "/api/payment/webhook": {
+      "post": {
+        "summary": "Handle Stripe webhook events",
+        "responses": {
+          "200": {
+            "description": "Webhook accepted"
+          },
+          "400": {
+            "description": "Invalid payload or signature"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CheckoutRequest": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "amount"
+        ]
+      },
+      "PaymentDetails": {
+        "type": "object",
+        "properties": {
+          "payment_intent_id": {
+            "type": "string"
+          },
+          "test_payment_method_id": {
+            "type": "string"
+          }
+        }
+      },
+      "AuthorisePaymentRequest": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "total_amount": {
+            "type": "number"
+          },
+          "payment_details": {
+            "$ref": "#/components/schemas/PaymentDetails"
+          }
+        },
+        "required": [
+          "order_id",
+          "total_amount"
+        ]
+      },
+      "RefundRequest": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "refundable_amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "order_id",
+          "payment_id",
+          "refundable_amount"
+        ]
+      }
+    }
+  }
+}

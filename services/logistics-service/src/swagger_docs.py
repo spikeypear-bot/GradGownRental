@@ -24,15 +24,6 @@ LOGISTICS_OPENAPI_SPEC = {
                 },
             }
         },
-        "/logistics/events/order-paid": {
-            "post": {
-                "summary": "Deprecated local HTTP wrapper",
-                "description": "Order-paid ingress now comes from Kafka rather than direct HTTP.",
-                "responses": {
-                    "410": {"description": "Ingress moved to Kafka consumer"},
-                },
-            }
-        },
         "/logistics/{shipment_id}/status": {
             "put": {
                 "summary": "Proxy shipment status update to OutSystems",
@@ -62,6 +53,30 @@ LOGISTICS_OPENAPI_SPEC = {
                         },
                     },
                     "400": {"description": "Invalid status or shipment_id"},
+                    "502": {"description": "Failed to reach OutSystems"},
+                },
+            }
+        },
+        "/logistics/{shipment_id}": {
+            "get": {
+                "summary": "Fetch shipment by shipment ID",
+                "parameters": [
+                    {
+                        "name": "shipment_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shipment found in OutSystems",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        },
+                    },
                     "502": {"description": "Failed to reach OutSystems"},
                 },
             }

@@ -236,7 +236,6 @@ ORDER_OPENAPI_SPEC = {
                     "order_id": {"type": "string"},
                     "student_name": {"type": "string"},
                     "email": {"type": "string", "format": "email"},
-                    "phone": {"type": "string"},
                     "package_id": {"type": "integer"},
                     "selected_items": {
                         "type": "array",
@@ -257,7 +256,6 @@ ORDER_OPENAPI_SPEC = {
                 "required": [
                     "student_name",
                     "email",
-                    "phone",
                     "selected_items",
                     "rental_start_date",
                     "rental_end_date",
@@ -288,7 +286,6 @@ ORDER_OPENAPI_SPEC = {
                     "order_id": {"type": "string"},
                     "student_name": {"type": "string"},
                     "email": {"type": "string"},
-                    "phone": {"type": "string"},
                     "package_id": {"type": "integer"},
                     "selected_items": {
                         "type": "array",

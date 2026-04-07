@@ -199,11 +199,41 @@ services:
     build:
       context: ./services/error-service
     container_name: error-service
+    depends_on:
+      error-service-db:
+        condition: service_healthy
+    environment:
+      ERROR_DB_HOST: error-service-db
+      ERROR_DB_PORT: 5432
+      ERROR_DB_NAME: ${ERROR_DB_NAME:-error}
+      ERROR_DB_USER: ${ERROR_DB_USER:-error_user}
+      ERROR_DB_PASSWORD: ${ERROR_DB_PASSWORD:-error_pass}
+      NOTIFICATION_SERVICE_URL: http://notification-service:5001
     # ports:
     #   - "5002:5002"
     networks:
       - app-network
     restart: on-failure
+
+  error-service-db:
+    image: postgres:latest
+    container_name: error-service-db
+    environment:
+      POSTGRES_USER: ${ERROR_DB_USER:-error_user}
+      POSTGRES_DB: ${ERROR_DB_NAME:-error}
+      POSTGRES_PASSWORD: ${ERROR_DB_PASSWORD:-error_pass}
+    expose:
+      - "5432"
+    networks:
+      - app-network
+    volumes:
+      - error-data:/var/lib/postgresql
+      - ./services/error-service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ERROR_DB_USER:-error_user} -d ${ERROR_DB_NAME:-error}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   notification-service-db:
     image: postgres:latest
@@ -442,6 +472,7 @@ volumes:
   inventory-data:
   payment-data:
   notification-data:
+  error-data:
   order-data:
   kafka-data:
   kafka-secrets:

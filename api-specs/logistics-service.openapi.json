@@ -1,0 +1,205 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Logistics Service API",
+    "version": "1.0.0",
+    "description": "Kafka-to-OutSystems adapter for gown fulfillment logistics."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok",
+                  "service": "logistics-service"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logistics/{shipment_id}/status": {
+      "put": {
+        "summary": "Proxy shipment status update to OutSystems",
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShipmentStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OutSystems shipment updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status or shipment_id"
+          },
+          "502": {
+            "description": "Failed to reach OutSystems"
+          }
+        }
+      }
+    },
+    "/logistics/{shipment_id}": {
+      "get": {
+        "summary": "Fetch shipment by shipment ID",
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment found in OutSystems",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Failed to reach OutSystems"
+          }
+        }
+      }
+    },
+    "/logistics/order/{order_id}": {
+      "get": {
+        "summary": "Fetch full shipment by order ID",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment found in OutSystems",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment not found for order"
+          },
+          "502": {
+            "description": "Failed to reach OutSystems"
+          }
+        }
+      }
+    },
+    "/logistics/order/{order_id}/shipment-id": {
+      "get": {
+        "summary": "Resolve shipment ID by order ID",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment ID resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "shipment_id": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "outsystems",
+                        "cache"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment not found for order"
+          },
+          "502": {
+            "description": "Failed to reach OutSystems"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UpdateShipmentStatusRequest": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "tracking_status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "COLLECTED",
+              "DELIVERED"
+            ]
+          }
+        },
+        "required": [
+          "tracking_status"
+        ]
+      }
+    }
+  }
+}

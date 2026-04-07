@@ -2,6 +2,7 @@ package com.inventory_service.inventory_service.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,6 +84,10 @@ public class PostService {
         UUID uuid = UUID.randomUUID();
         String holdId=uuid.toString();
         LocalDateTime createdAt=LocalDateTime.now();
+        LocalDateTime expiresAt = itemHoldService.calculateExpiresAt(createdAt);
+        ZoneId zone = ZoneId.systemDefault();
+        long createdAtEpochMs = createdAt.atZone(zone).toInstant().toEpochMilli();
+        long expiresAtEpochMs = expiresAt.atZone(zone).toInstant().toEpochMilli();
 
         List<ItemHoldDto> res= new ArrayList<>();
 
@@ -98,7 +103,7 @@ public class PostService {
         }
         itemHoldService.setAllItems(res);
         
-        return new SoftHoldDto(holdId,items,createdAt);
+        return new SoftHoldDto(holdId,items,createdAt,expiresAt,createdAtEpochMs,expiresAtEpochMs);
 
     }
 

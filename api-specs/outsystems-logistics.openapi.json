@@ -1,0 +1,282 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "OutSystems Logistics API",
+    "description": "Direct OutSystems logistics service used by the internal logistics wrapper.",
+    "version": "1"
+  },
+  "basePath": "/Logistics/rest/Logistics",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/del": {
+      "delete": {
+        "tags": [
+          "Logistics"
+        ],
+        "description": "",
+        "operationId": "Del",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/logistics/{id}": {
+      "get": {
+        "tags": [
+          "Logistics"
+        ],
+        "description": "",
+        "operationId": "GetShipment",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "default": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/ShipmentResponse"
+            }
+          }
+        }
+      }
+    },
+    "/logistics/{id}/status": {
+      "put": {
+        "tags": [
+          "Logistics"
+        ],
+        "description": "",
+        "operationId": "UpdateTrackingStatus",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "Request",
+            "in": "body",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateStatusRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/LogisticsAPI"
+            }
+          }
+        }
+      }
+    },
+    "/logistics/events/order-paid": {
+      "post": {
+        "tags": [
+          "Logistics"
+        ],
+        "description": "",
+        "operationId": "ReceiveOrderPaidEvent",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Request",
+            "in": "body",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrderPaidEvent"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/ShipmentResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "LogisticsAPI": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/ShipmentData"
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "OrderPaidEvent": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "order_id": {
+          "type": "string",
+          "default": ""
+        },
+        "fulfillment_method": {
+          "type": "string",
+          "default": ""
+        },
+        "scheduled_datetime": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        },
+        "shipment_id": {
+          "type": "integer",
+          "example": 1234567891234567,
+          "format": "int64"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        }
+      },
+      "required": [
+        "order_id",
+        "fulfillment_method",
+        "scheduled_datetime",
+        "shipment_id",
+        "created_at"
+      ]
+    },
+    "ShipmentData": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "shipment_id": {
+          "type": "integer",
+          "example": 1234567891234567,
+          "format": "int64"
+        },
+        "order_id": {
+          "type": "string",
+          "default": ""
+        },
+        "fulfillment_method": {
+          "type": "string",
+          "default": ""
+        },
+        "tracking_status": {
+          "type": "string",
+          "default": ""
+        },
+        "scheduled_datetime": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        }
+      },
+      "required": [
+        "shipment_id",
+        "order_id",
+        "fulfillment_method",
+        "tracking_status",
+        "scheduled_datetime",
+        "created_at"
+      ]
+    },
+    "ShipmentResponse": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "shipment_id": {
+          "type": "integer",
+          "example": 1234567891234567,
+          "format": "int64"
+        },
+        "order_id": {
+          "type": "string",
+          "default": ""
+        },
+        "fulfillment_method": {
+          "type": "string",
+          "default": ""
+        },
+        "tracking_status": {
+          "type": "string",
+          "default": ""
+        },
+        "scheduled_datetime": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2014-12-31T23:59:59.938Z"
+        }
+      },
+      "required": [
+        "shipment_id",
+        "order_id",
+        "fulfillment_method",
+        "tracking_status",
+        "scheduled_datetime",
+        "created_at"
+      ]
+    },
+    "UpdateStatusRequest": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "tracking_status": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "tracking_status"
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "Logistics"
+    }
+  ]
+}

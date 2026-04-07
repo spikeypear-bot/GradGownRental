@@ -36,10 +36,15 @@ const reviewError = ref('')
 const paymentError = ref('')
 const stripeError = ref('')
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
+const holdExpiresAt = ref(null)
+const holdCountdownMs = ref(0)
+const holdExpiryHandled = ref(false)
 
 let stripe = null
 let elements = null
 let cardElement = null
+let holdCountdownInterval = null
+let holdExpiryRedirectTimeout = null
 
 const holdId = ref('')
 const orderId = ref('')
@@ -109,6 +114,15 @@ const depositFee = computed(() => {
 const deliveryFee = computed(() => (fulfillment.value === 'delivery' ? 5 : 0))
 const totalCharge = computed(() => rentalFee.value + depositFee.value + deliveryFee.value)
 const totalCost = computed(() => totalCharge.value)
+const holdHasExpired = computed(() =>
+  Boolean(holdExpiresAt.value) && holdCountdownMs.value <= 0,
+)
+const holdCountdownLabel = computed(() => {
+  const totalSeconds = Math.max(Math.ceil(holdCountdownMs.value / 1000), 0)
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0')
+  const seconds = String(totalSeconds % 60).padStart(2, '0')
+  return `${minutes}:${seconds}`
+})
 
 
 // Per-item size options for direct (non-cart) checkout
@@ -205,6 +219,93 @@ function applyPreselectedSelections() {
     }
   })
   selectedSizes.value = nextSelections
+}
+
+function parseBackendDateTime(rawValue) {
+  if (!rawValue) return null
+
+  const parsed = new Date(rawValue)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+
+  const match = String(rawValue).match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/,
+  )
+  if (!match) return null
+
+  const [, year, month, day, hour, minute, second = '0', millisecond = '0'] = match
+  return new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+    Number(millisecond.padEnd(3, '0')),
+  )
+}
+
+function stopHoldCountdown() {
+  if (holdCountdownInterval) {
+    clearInterval(holdCountdownInterval)
+    holdCountdownInterval = null
+  }
+  if (holdExpiryRedirectTimeout) {
+    clearTimeout(holdExpiryRedirectTimeout)
+    holdExpiryRedirectTimeout = null
+  }
+}
+
+function clearHoldState() {
+  stopHoldCountdown()
+  holdExpiresAt.value = null
+  holdCountdownMs.value = 0
+  holdExpiryHandled.value = false
+}
+
+function handleHoldExpired() {
+  if (holdExpiryHandled.value || isPaymentConfirmed.value) return
+
+  holdExpiryHandled.value = true
+  holdCountdownMs.value = 0
+  stopHoldCountdown()
+  isSubmittingPayment.value = false
+  checkoutClientSecret.value = ''
+  paymentError.value = 'Your 10-minute reservation expired. Please restart checkout.'
+
+  holdExpiryRedirectTimeout = window.setTimeout(() => {
+    router.replace({ path: '/inventory', query: { new: 'true' } })
+  }, 1800)
+}
+
+function updateHoldCountdown() {
+  if (!holdExpiresAt.value) return
+  holdCountdownMs.value = Math.max(holdExpiresAt.value.getTime() - Date.now(), 0)
+  if (holdCountdownMs.value <= 0) {
+    handleHoldExpired()
+  }
+}
+
+function startHoldCountdown(hold) {
+  clearHoldState()
+
+  const expiresAt = hold?.expiresAtEpochMs
+    ? new Date(Number(hold.expiresAtEpochMs))
+    : (
+        parseBackendDateTime(hold?.expiresAt) ||
+        (() => {
+          if (hold?.createdAtEpochMs) {
+            return new Date(Number(hold.createdAtEpochMs) + 10 * 60 * 1000)
+          }
+          const createdAt = parseBackendDateTime(hold?.createdAt)
+          return createdAt ? new Date(createdAt.getTime() + 10 * 60 * 1000) : null
+        })()
+      )
+
+  if (!expiresAt) return
+
+  holdExpiresAt.value = expiresAt
+  updateHoldCountdown()
+  holdCountdownInterval = window.setInterval(updateHoldCountdown, 1000)
 }
 
 // When packageDetail loads, default selectedSizes to first size of each item
@@ -478,6 +579,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  stopHoldCountdown()
   if (cardElement) {
     cardElement.destroy()
   }
@@ -531,6 +633,7 @@ const goToReview = async () => {
 
     orderId.value = orderInit.order_id
     checkoutClientSecret.value = orderInit.client_secret || ''
+    startHoldCountdown(hold)
     currentStep.value = 4
   } catch (err) {
     reviewError.value = err.message || 'Failed to prepare checkout. Please try again.'
@@ -541,6 +644,10 @@ const goToReview = async () => {
 
 const confirmPayment = async () => {
   if (!orderId.value || !holdId.value) return
+  if (holdHasExpired.value) {
+    handleHoldExpired()
+    return
+  }
 
   paymentError.value = ''
   stripeError.value = ''
@@ -574,6 +681,9 @@ const confirmPayment = async () => {
     if (!paymentIntent || paymentIntent.status !== 'succeeded') {
       throw new Error(`Payment did not succeed (status=${paymentIntent?.status || 'unknown'}).`)
     }
+    if (holdHasExpired.value) {
+      throw new Error('Your 10-minute reservation expired before payment could be finalized.')
+    }
 
     const studentName = `${contact.value.firstName} ${contact.value.lastName}`.trim()
     const summary = await orderService.submitPayment({
@@ -596,6 +706,7 @@ const confirmPayment = async () => {
     })
 
     isPaymentConfirmed.value = true
+    clearHoldState()
     confirmedOrderId.value = summary.order_id || orderId.value
 
     // Remove the purchased package from cart session if present.
@@ -1166,6 +1277,13 @@ function formatDate(date) {
                         >SECURE PAYMENT</span
                       >
                     </div>
+                    <div
+                      class="mb-3 rounded-4 px-3 py-2 d-flex justify-content-between align-items-center hold-timer-banner"
+                      :class="{ expired: holdHasExpired }"
+                    >
+                      <span class="fw-bold small mb-0">Reservation timer</span>
+                      <span class="fw-bold timer-value">{{ holdCountdownLabel }}</span>
+                    </div>
                     <div class="mb-3 small text-secondary">
                       Sandbox cards: <code>4242 4242 4242 4242</code> (success),
                       <code>4000 0000 0000 0002</code> (declined), any future expiry/CVC.
@@ -1184,7 +1302,7 @@ function formatDate(date) {
               <button
                 class="btn btn-warning text-white fw-bold rounded-pill w-100 py-3 fs-3 shadow-sm mb-3"
                 @click="confirmPayment"
-                :disabled="isPaymentConfirmed || isSubmittingPayment || !orderId"
+                :disabled="isPaymentConfirmed || isSubmittingPayment || !orderId || holdHasExpired"
               >
                 <span v-if="!isPaymentConfirmed && !isSubmittingPayment">Confirm Payment</span>
                 <span v-else-if="isSubmittingPayment"
@@ -1415,6 +1533,22 @@ function formatDate(date) {
 
 .bg-danger-soft {
   background-color: rgba(181, 74, 42, 0.1);
+}
+
+.hold-timer-banner {
+  background-color: rgba(181, 74, 42, 0.08);
+  border: 1px solid rgba(181, 74, 42, 0.16);
+  color: #8f3a21;
+}
+
+.hold-timer-banner.expired {
+  background-color: rgba(181, 74, 42, 0.14);
+  border-color: rgba(181, 74, 42, 0.28);
+}
+
+.timer-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 .text-danger-custom {

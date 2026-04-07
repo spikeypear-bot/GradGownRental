@@ -90,6 +90,8 @@ export class ItemHold {
     this.createdAt = data.createdAt
     // Soft-hold duration is currently 10 minutes from creation
     this.expiresAt = data.expiresAt || null
+    this.createdAtEpochMs = Number(data.createdAtEpochMs || 0) || null
+    this.expiresAtEpochMs = Number(data.expiresAtEpochMs || 0) || null
   }
 }
 

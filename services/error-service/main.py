@@ -1,9 +1,13 @@
 import logging
 import os
-from datetime import datetime, timezone
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
+
+from app import db
+from app.models import ErrorLog
+from app.routes import bp as error_bp
+from config import Config
 from swagger_docs import register_swagger
 
 logging.basicConfig(
@@ -16,40 +20,26 @@ logger = logging.getLogger(__name__)
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app)
-    app.extensions["error_logs"] = []
+    app.config.from_object(Config)
+    db.init_app(app)
+
+    with app.app_context():
+        db.create_all()
 
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "service": "error-service"}), 200
 
-    @app.post("/errors")
-    def log_error():
-        body = request.get_json() or {}
-        required = ["saga", "step", "detail"]
-        missing = [f for f in required if f not in body]
-        if missing:
-            return jsonify({"error": f"Missing required fields: {missing}"}), 400
+    @app.get("/health/db")
+    def health_db():
+        try:
+            count = db.session.query(ErrorLog).count()
+            return jsonify({"status": "ok", "service": "error-service", "records": count}), 200
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Database health check failed: %s", exc)
+            return jsonify({"status": "error", "service": "error-service", "error": str(exc)}), 500
 
-        record = {
-            "saga": body["saga"],
-            "step": body["step"],
-            "order_id": body.get("order_id"),
-            "detail": body["detail"],
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        }
-        app.extensions["error_logs"].append(record)
-        logger.error(
-            "[%s] %s failed | order_id=%s | %s",
-            record["saga"],
-            record["step"],
-            record["order_id"],
-            record["detail"],
-        )
-        return jsonify({"logged": True}), 201
-
-    @app.get("/errors")
-    def list_errors():
-        return jsonify(app.extensions["error_logs"]), 200
+    app.register_blueprint(error_bp)
 
     register_swagger(app)
     return app
