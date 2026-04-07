@@ -141,7 +141,7 @@ const loadStockOverview = async () => {
   try {
     stockOverview.value = await inventoryService.getStockOverview(new Date())
   } catch (error) {
-    console.error('Error loading stock overview:', error)
+    // console.error('Error loading stock overview:', error)
     errorMessage.value = error.message || 'Unable to load stock overview right now.'
     stockOverview.value = []
   }

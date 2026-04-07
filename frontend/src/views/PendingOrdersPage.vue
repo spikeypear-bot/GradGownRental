@@ -11,10 +11,10 @@
         <div class="col-md-6">
           <div class="search-box">
             <i class="bi bi-search"></i>
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              class="form-control" 
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-control"
               placeholder="Search by customer name or order ID"
             />
           </div>
@@ -71,7 +71,7 @@
                 <td>{{ formatDate(order.rental_end_date) }}</td>
                 <td class="fw-bold">SGD ${{ order.TotalAmount }}</td>
                 <td>
-                  <button 
+                  <button
                     @click="confirmOrder(order.orderID)"
                     class="btn btn-sm btn-success"
                     :disabled="processingId === order.orderID"
@@ -96,7 +96,7 @@
         <div class="modal-content" @click.stop>
           <h4 class="mb-3">Confirm Order</h4>
           <p class="text-muted">
-            Are you sure you want to confirm order <strong>{{ selectedOrderId }}</strong>? 
+            Are you sure you want to confirm order <strong>{{ selectedOrderId }}</strong>?
             This will move it to fulfillment processing.
           </p>
           <div class="d-flex gap-2 justify-content-end mt-4">
@@ -167,7 +167,7 @@ const loadPendingOrders = async () => {
       orders.value = await response.json()
     }
   } catch (error) {
-    console.error('Error loading pending orders:', error)
+    // console.error('Error loading pending orders:', error)
   } finally {
     isLoading.value = false
   }
@@ -195,7 +195,7 @@ const submitConfirmation = async () => {
     orders.value = orders.value.filter(order => order.orderID !== selectedOrderId.value)
     closeModal()
   } catch (error) {
-    console.error('Error confirming order:', error)
+    // console.error('Error confirming order:', error)
     alert('Failed to confirm order: ' + error.message)
   } finally {
     isProcessing.value = false

@@ -441,7 +441,7 @@ const fetchShipmentDetails = async (orders) => {
       const shipment = await AdminService.getShipmentForOrder(orderId)
       return [orderId, normalizeShipment(shipment, orderId)]
     } catch (error) {
-      console.warn(`Unable to load shipment for ${orderId}:`, error)
+      // console.warn(`Unable to load shipment for ${orderId}:`, error)
       return [orderId, null]
     }
   }))
@@ -465,7 +465,7 @@ const loadFulfillmentData = async () => {
     activeOrders.value = active
     await fetchShipmentDetails([...confirmed, ...active])
   } catch (error) {
-    console.error('Error loading confirmed orders:', error)
+    // console.error('Error loading confirmed orders:', error)
     errorMessage.value = 'Failed to load fulfillment overview'
   } finally {
     isLoading.value = false

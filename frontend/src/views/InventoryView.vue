@@ -104,13 +104,13 @@ const filteredPackages = computed(() => {
     return true
   })
 
-  console.log('Filter criteria:', {
-    level: selectedLevel.value || 'all',
-    institution: selectedInstitution.value || 'all',
-    faculty: selectedFaculty.value || 'all',
-    matchCount: filtered.length,
-    totalPackages: allPackages.value.length
-  })
+  // console.log('Filter criteria:', {
+  //   level: selectedLevel.value || 'all',
+  //   institution: selectedInstitution.value || 'all',
+  //   faculty: selectedFaculty.value || 'all',
+  //   matchCount: filtered.length,
+  //   totalPackages: allPackages.value.length
+  // })
   return filtered
 })
 
@@ -167,11 +167,11 @@ async function onDateSelected(fullDate) {
   availableModelIds.value = null
   availabilityError.value = ''
 
-  console.log('[onDateSelected] date:', toISODate(fullDate))
-  console.log('[onDateSelected] sizeOptions:', JSON.stringify(sizeOptions.value))
+  // console.log('[onDateSelected] date:', toISODate(fullDate))
+  // console.log('[onDateSelected] sizeOptions:', JSON.stringify(sizeOptions.value))
 
   if (!sizeOptions.value.length) {
-    console.warn('[onDateSelected] sizeOptions is empty — sizes will not show')
+    // console.warn('[onDateSelected] sizeOptions is empty — sizes will not show')
     return
   }
 
@@ -195,7 +195,7 @@ async function onDateSelected(fullDate) {
       }, isoDate))
     )
     const results = await Promise.all(availabilityChecks)
-    console.log('[onDateSelected] availability results:', JSON.stringify(results))
+    // console.log('[onDateSelected] availability results:', JSON.stringify(results))
     availableModelIds.value = new Set(
       results
         .flatMap(result => result.components || [])
@@ -218,7 +218,7 @@ async function onDateSelected(fullDate) {
     })
     selectedSizes.value = availableDefaults
   } catch (err) {
-    console.error('[onDateSelected] availability check failed:', err)
+    // console.error('[onDateSelected] availability check failed:', err)
     availabilityError.value = 'Could not check live availability — all sizes shown.'
     availableModelIds.value = null
   } finally {
@@ -256,7 +256,7 @@ const selectPackage = async (packageObj) => {
   let itemSizeOptions = []
   try {
     const detail = await inventoryService.getPackageById(packageObj.packageId)
-    console.log('[selectPackage] raw detail:', JSON.stringify(detail))
+    // console.log('[selectPackage] raw detail:', JSON.stringify(detail))
     if (typeof detail.getItemSizeOptions === 'function') {
       itemSizeOptions = detail.getItemSizeOptions()
     } else {
@@ -274,9 +274,9 @@ const selectPackage = async (packageObj) => {
         }))
         .filter(item => item.itemType && item.models.length)
     }
-    console.log('[selectPackage] itemSizeOptions:', JSON.stringify(itemSizeOptions))
+    // console.log('[selectPackage] itemSizeOptions:', JSON.stringify(itemSizeOptions))
   } catch (err) {
-    console.error('[selectPackage] Failed to load package detail for sizes:', err)
+    // console.error('[selectPackage] Failed to load package detail for sizes:', err)
   }
 
   sizeOptions.value = itemSizeOptions

@@ -94,7 +94,7 @@ const loadData = async () => {
     const buckets = await loadMaintenanceBuckets(orderApiUrl)
     repairQueue.value = buckets.repairQueue
   } catch (error) {
-    console.error('Error loading repair queue:', error)
+    // console.error('Error loading repair queue:', error)
   } finally {
     isLoading.value = false
   }
@@ -116,7 +116,7 @@ const markRepairComplete = async (item) => {
     writeMaintenanceDetails(detailsMap)
     await loadData()
   } catch (error) {
-    console.error('Error completing repair:', error)
+    // console.error('Error completing repair:', error)
     alert('Failed to send item to laundry: ' + error.message)
   } finally {
     processingId.value = null

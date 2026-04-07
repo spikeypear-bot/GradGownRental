@@ -219,7 +219,7 @@ const loadOrders = async () => {
 
     emailStatusMap.value = Object.fromEntries(statusPairs.filter(([orderId]) => !!orderId))
   } catch (error) {
-    console.error('Error loading orders:', error)
+    // console.error('Error loading orders:', error)
     errorMessage.value = error.message || 'Unable to load orders right now.'
   } finally {
     isLoading.value = false

@@ -188,7 +188,7 @@ async function refreshAvailabilityForSelectedDate() {
     })
     selectedSizes.value = nextSelections
   } catch (error) {
-    console.error('Failed to refresh live availability:', error)
+    // console.error('Failed to refresh live availability:', error)
     availableModelIds.value = null
     availabilityError.value = 'Could not check live availability right now.'
   } finally {

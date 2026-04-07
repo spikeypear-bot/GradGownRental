@@ -34,7 +34,7 @@
                   </div>
                   <p class="item-issue">Issue: {{ item.issue }}</p>
                   <p class="item-date">Added: {{ formatDate(item.dateAdded) }}</p>
-                  <button 
+                  <button
                     @click="markRepairComplete(item)"
                     class="btn btn-sm btn-success"
                     :disabled="processingId === item.id"
@@ -78,7 +78,7 @@
                   </div>
                   <p class="item-condition">Condition: {{ item.condition }}</p>
                   <p class="item-date">Added: {{ formatDate(item.dateAdded) }}</p>
-                  <button 
+                  <button
                     @click="markWashComplete(item)"
                     class="btn btn-sm btn-primary"
                     :disabled="processingId === item.id"
@@ -137,7 +137,7 @@
                         </small>
                       </td>
                       <td>
-                        <button 
+                        <button
                           @click="markReadyToReturn(item)"
                           class="btn btn-sm btn-outline-success"
                           :disabled="processingId === item.id"
@@ -256,7 +256,7 @@ const loadMaintenanceData = async () => {
     washQueue.value = buckets.washQueue
     readyForReturn.value = buckets.completedQueue
   } catch (error) {
-    console.error('Error loading maintenance data:', error)
+    // console.error('Error loading maintenance data:', error)
   } finally {
     loadingRepair.value = false
     loadingWash.value = false
@@ -280,7 +280,7 @@ const markRepairComplete = async (item) => {
     writeMaintenanceDetails(detailsMap)
     await loadMaintenanceData()
   } catch (error) {
-    console.error('Error completing repair:', error)
+    // console.error('Error completing repair:', error)
     alert('Failed to complete repair: ' + error.message)
   } finally {
     processingId.value = null
@@ -316,7 +316,7 @@ const markWashComplete = async (item) => {
     writeMaintenanceDetails(detailsMap)
     await loadMaintenanceData()
   } catch (error) {
-    console.error('Error completing wash:', error)
+    // console.error('Error completing wash:', error)
     alert('Failed to complete wash: ' + error.message)
   } finally {
     processingId.value = null
@@ -329,7 +329,7 @@ const markReadyToReturn = async (item) => {
     await AdminService.markItemComplete(item.itemId, item?.selectedPackages || null, { completeOrder: true })
     readyForReturn.value = readyForReturn.value.filter(entry => entry.id !== item.id)
   } catch (error) {
-    console.error('Error marking item complete:', error)
+    // console.error('Error marking item complete:', error)
     alert('Failed to mark item complete: ' + error.message)
   } finally {
     processingId.value = null

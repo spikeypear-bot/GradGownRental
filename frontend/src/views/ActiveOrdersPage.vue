@@ -11,10 +11,10 @@
         <div class="col-md-6">
           <div class="search-box">
             <i class="bi bi-search"></i>
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              class="form-control" 
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-control"
               placeholder="Search by customer name or order ID"
             />
           </div>
@@ -77,7 +77,7 @@
                 </td>
                 <td class="fw-bold">SGD ${{ order.TotalAmount }}</td>
                 <td>
-                  <button 
+                  <button
                     @click="markForReturn(order.orderID)"
                     class="btn btn-sm btn-warning"
                     :disabled="processingId === order.orderID"
@@ -102,7 +102,7 @@
         <div class="modal-content" @click.stop>
           <h4 class="mb-3">Mark for Return</h4>
           <p class="text-muted">
-            Mark order <strong>{{ selectedOrderId }}</strong> for return processing? 
+            Mark order <strong>{{ selectedOrderId }}</strong> for return processing?
             The customer will be notified to return the gown.
           </p>
           <div class="d-flex gap-2 justify-content-end mt-4">
@@ -188,7 +188,7 @@ const loadActiveOrders = async () => {
       orders.value = await response.json()
     }
   } catch (error) {
-    console.error('Error loading active orders:', error)
+    // console.error('Error loading active orders:', error)
   } finally {
     isLoading.value = false
   }
@@ -216,7 +216,7 @@ const submitReturn = async () => {
     orders.value = orders.value.filter(order => order.orderID !== selectedOrderId.value)
     closeModal()
   } catch (error) {
-    console.error('Error marking order for return:', error)
+    // console.error('Error marking order for return:', error)
     alert('Failed to mark order for return: ' + error.message)
   } finally {
     isProcessing.value = false

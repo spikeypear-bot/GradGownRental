@@ -94,7 +94,7 @@ const loadData = async () => {
     const buckets = await loadMaintenanceBuckets(orderApiUrl)
     washQueue.value = buckets.washQueue
   } catch (error) {
-    console.error('Error loading laundry queue:', error)
+    // console.error('Error loading laundry queue:', error)
   } finally {
     isLoading.value = false
   }
@@ -129,7 +129,7 @@ const markWashComplete = async (item) => {
     writeMaintenanceDetails(detailsMap)
     await loadData()
   } catch (error) {
-    console.error('Error completing wash:', error)
+    // console.error('Error completing wash:', error)
     alert('Failed to complete laundry: ' + error.message)
   } finally {
     processingId.value = null

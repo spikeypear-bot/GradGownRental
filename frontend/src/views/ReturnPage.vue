@@ -243,7 +243,7 @@ const loadActiveReturns = async () => {
       'http://localhost:8000'
     orders.value = await fetchOrdersByStatus(orderApiUrl, 'ACTIVE')
   } catch (error) {
-    console.error('Error loading active returns:', error)
+    // console.error('Error loading active returns:', error)
     errorMessage.value = error.message || 'Failed to load active returns'
   } finally {
     isLoading.value = false
