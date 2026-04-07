@@ -120,9 +120,7 @@ public class DamageLogService {
 
 
 
-    }
-        
-        
+    }            
 
 }
 

@@ -1,3 +1,6 @@
+#!/bin/sh
+set -e
+
 sleep 5
 
 if [ ! -d migrations ] || [ ! -f migrations/alembic.ini ]; then

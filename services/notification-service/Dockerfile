@@ -2,6 +2,7 @@
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
@@ -10,6 +11,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM python:3.13-slim
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /install /usr/local
 
@@ -21,6 +23,7 @@ COPY migrate.py ./migrate.py
 COPY db/migrations/ ./db/migrations/
 
 COPY entrypoint.sh ./entrypoint.sh
+RUN dos2unix /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 ENV PYTHONUNBUFFERED=1
