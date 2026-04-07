@@ -2,11 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-COMPONENT_DAMAGE_RATES = {
-    "gown": 0.60,
-    "hood": 0.25,
-    "mortarboard": 0.15,
-}
+VALID_COMPONENTS = {"gown", "hood", "mortarboard"}
 
 
 class SagaStatus(str, Enum):

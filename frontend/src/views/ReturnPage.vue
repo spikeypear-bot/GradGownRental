@@ -90,11 +90,17 @@
             <div class="mb-4">
               <label class="section-label">Damaged Items</label>
               <div class="damage-checklist">
-                <label v-for="item in damageOptions" :key="item.key" class="damage-option">
+                <label
+                  v-for="item in damageOptions"
+                  :key="item.key"
+                  class="damage-option"
+                  :class="{ 'damage-option--disabled': !orderComponentKeys.has(item.key) }"
+                >
                   <input
                     v-model="damagedComponents"
                     type="checkbox"
                     :value="item.key"
+                    :disabled="!orderComponentKeys.has(item.key)"
                   />
                   <span>{{ item.label }}</span>
                 </label>
@@ -201,6 +207,15 @@ const returnQueue = computed(() =>
 )
 
 const hasDamage = computed(() => damageSelection.value === 'HAS_DAMAGE')
+
+const orderComponentKeys = computed(() => {
+  if (!selectedOrder.value) return new Set()
+  return new Set(
+    (selectedOrder.value.selected_items || [])
+      .map(item => getComponentKeyForItem(item))
+      .filter(Boolean)
+  )
+})
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -506,6 +521,19 @@ onMounted(loadActiveReturns)
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.damage-option--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.damage-option--disabled input {
+  cursor: not-allowed;
+}
+
+.damage-option--disabled span {
+  color: #aaa;
 }
 
 .form-control,

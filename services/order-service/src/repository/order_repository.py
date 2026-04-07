@@ -17,13 +17,6 @@ logger = logging.getLogger(__name__)
 
 class OrderRepository:
 
-    def get_next_order_sequence_value(self) -> int:
-        """Reserve the next database id so we can generate a matching ORDER### code."""
-        sql = "SELECT nextval(pg_get_serial_sequence('orders', 'id'))"
-        with self._conn.cursor() as cur:
-            cur.execute(sql)
-            return int(cur.fetchone()[0])
-
     def set_damage(self, order_id: str, damaged: bool, damaged_items: list = None) -> None:
         """Set the damaged flag and damaged items list for an order."""
         sql = """
@@ -49,69 +42,37 @@ class OrderRepository:
         """Insert a new order and return it with the generated id."""
         confirmed_at_value = order.confirmed_at or order.created_at
 
-        if order.id is not None:
-            sql = """
-                INSERT INTO orders
-                    (id, order_id, student_name, email, package_id,
-                     selected_items, rental_start_date, rental_end_date,
-                     total_amount, deposit, fulfillment_method, status, confirmed_at,
-                     created_at, updated_at, hold_id, payment_id)
-                VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """
-            params = (
-                order.id,
-                order.order_id,
-                order.student_name,
-                order.email,
-                order.package_id,
-                json.dumps(order.selected_items),
-                order.rental_start_date,
-                order.rental_end_date,
-                order.total_amount,
-                order.deposit,
-                order.fulfillment_method,
-                order.status.value,
-                confirmed_at_value,
-                order.created_at,
-                order.updated_at,
-                order.hold_id,
-                order.payment_id,
-            )
-        else:
-            sql = """
-                INSERT INTO orders
-                    (order_id, student_name, email, package_id,
-                     selected_items, rental_start_date, rental_end_date,
-                     total_amount, deposit, fulfillment_method, status, confirmed_at,
-                     created_at, updated_at, hold_id, payment_id)
-                VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """
-            params = (
-                order.order_id,
-                order.student_name,
-                order.email,
-                order.package_id,
-                json.dumps(order.selected_items),
-                order.rental_start_date,
-                order.rental_end_date,
-                order.total_amount,
-                order.deposit,
-                order.fulfillment_method,
-                order.status.value,
-                confirmed_at_value,
-                order.created_at,
-                order.updated_at,
-                order.hold_id,
-                order.payment_id,
-            )
+        sql = """
+            INSERT INTO orders
+                (order_id, student_name, email, package_id,
+                 selected_items, rental_start_date, rental_end_date,
+                 total_amount, deposit, fulfillment_method, status, confirmed_at,
+                 created_at, updated_at, hold_id, payment_id)
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        params = (
+            order.order_id,
+            order.student_name,
+            order.email,
+            order.package_id,
+            json.dumps(order.selected_items),
+            order.rental_start_date,
+            order.rental_end_date,
+            order.total_amount,
+            order.deposit,
+            order.fulfillment_method,
+            order.status.value,
+            confirmed_at_value,
+            order.created_at,
+            order.updated_at,
+            order.hold_id,
+            order.payment_id,
+        )
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
             order.id = cur.fetchone()[0]
-            # autocommit=True in connection, so no explicit commit needed
         return order
 
     def update_status(self, order_id: str, new_status: OrderStatus) -> None:

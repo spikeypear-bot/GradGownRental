@@ -11,6 +11,7 @@ class PaymentStatus(enum.Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILED"
     CANCELLED = "CANCELLED"
+    REFUNDED = "REFUNDED"
 
 class Payment(db.Model):
     """Model for payment transactions"""

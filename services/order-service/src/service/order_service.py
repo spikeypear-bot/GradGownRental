@@ -3,16 +3,13 @@ OrderService — orchestrates order creation, state transitions, and business lo
 """
 
 import logging
+import uuid
 from datetime import date
 
 from ..model.order import Order, OrderStatus
 from ..repository.order_repository import OrderRepository
 
 logger = logging.getLogger(__name__)
-
-
-def _format_order_code(sequence_number: int) -> str:
-    return f"ORDER{sequence_number:03d}"
 
 
 class OrderService:
@@ -59,10 +56,8 @@ class OrderService:
         
         :raises ValueError: if DELIVERY is chosen with rental_start_date < 24 hours away
         """
-        reserved_id = None
         if not order_id:
-            reserved_id = self._repo.get_next_order_sequence_value()
-            order_id = _format_order_code(reserved_id)
+            order_id = str(uuid.uuid4())
 
         try:
             initial_status = OrderStatus[status.upper()]
@@ -93,7 +88,6 @@ class OrderService:
         # Note: total_amount already includes delivery fee if applicable (calculated by frontend)
         
         order = Order(
-            id=reserved_id,
             order_id=order_id,
             student_name=student_name,
             email=email,
