@@ -6,6 +6,7 @@ Topics consumed:
   • OrderActivated     → handle_order_activated
   • ReturnProcessed    → handle_return_processed
   • pickup_reminder    → handle_pickup_reminder
+  • delivery_reminder  → handle_delivery_reminder
   • return_reminder    → handle_return_reminder
 
 If the Notification Service is temporarily down, Kafka retains messages and
@@ -29,6 +30,7 @@ TOPICS = [
     "OrderActivated",
     "ReturnProcessed",
     "pickup_reminder",
+    "delivery_reminder",
     "return_reminder",
 ]
 
@@ -37,6 +39,7 @@ _HANDLER_MAP = {
     "OrderActivated":  "handle_order_activated",
     "ReturnProcessed": "handle_return_processed",
     "pickup_reminder": "handle_pickup_reminder",
+    "delivery_reminder": "handle_delivery_reminder",
     "return_reminder": "handle_return_reminder",
 }
 

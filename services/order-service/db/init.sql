@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS orders (
     -- Student contact info (needed by Notification Service)
     student_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     
     -- Package & selected items
     -- package_id: which graduation package was selected

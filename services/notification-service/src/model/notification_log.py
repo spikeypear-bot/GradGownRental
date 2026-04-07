@@ -24,11 +24,13 @@ class NotificationEvent(str, Enum):
     # Canonical 4-stage labels (requested lifecycle)
     CONFIRMATION = "CONFIRMATION"
     COLLECTION = "COLLECTION"
+    DELIVERY = "DELIVERY"
     RETURN = "RETURN"
     DEPOSIT = "DEPOSIT"
 
     # Backward-compatible aliases currently used by topics/events
     PICKUP_REMINDER = "pickup_reminder"
+    DELIVERY_REMINDER = "delivery_reminder"
     RETURN_REMINDER = "return_reminder"
     ORDER_CONFIRMED = "OrderConfirmed"
     ORDER_ACTIVATED = "OrderActivated"

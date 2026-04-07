@@ -37,6 +37,7 @@ class Order:
     # --- Student contact info (for notifications) ---
     student_name: str
     email: str
+    phone: str
     
     # --- Package & selected items ---
     # package_id: which graduation package (e.g., NUS Engineering)
@@ -98,6 +99,7 @@ class Order:
             "order_id": self.order_id,
             "student_name": self.student_name,
             "email": self.email,
+            "phone": self.phone,
             "package_id": self.package_id,
             "selected_items": self.selected_items,
             "rental_start_date": rental_start_date,

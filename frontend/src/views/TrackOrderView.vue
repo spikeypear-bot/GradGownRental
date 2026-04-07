@@ -257,6 +257,15 @@ const depositStatus = computed(() => {
         </div>
       </div>
 
+      <!-- Action buttons -->
+      <div v-if="order" class="d-flex gap-3 flex-wrap mb-4">
+        <button class="btn btn-inquiry" @click="error = 'Submit inquiry feature coming soon.'">
+          <i class="bi bi-question-circle me-2"></i>Submit Inquiry
+        </button>
+        <button class="btn btn-download fw-bold">
+          Download PDF Receipt <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+      </div>
 
       <!-- Activate (collection only) -->
       <div v-if="order && canActivate" class="info-card mb-3">

@@ -3,6 +3,7 @@ KafkaEventPublisher — emits order reminder events for notification-service.
 
 Published topics:
   • pickup_reminder
+  • delivery_reminder
   • return_reminder
 """
 
@@ -29,6 +30,9 @@ class KafkaEventPublisher:
 
     def publish_pickup_reminder(self, payload: dict) -> None:
         self._publish("pickup_reminder", payload)
+
+    def publish_delivery_reminder(self, payload: dict) -> None:
+        self._publish("delivery_reminder", payload)
 
     def publish_return_reminder(self, payload: dict) -> None:
         self._publish("return_reminder", payload)

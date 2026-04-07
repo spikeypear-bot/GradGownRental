@@ -82,7 +82,49 @@ export async function fetchOrdersByStatus(orderApiUrl, status) {
   }
 }
 
-export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
+function deriveRelevantNotificationConfig(orderStatus, fulfillmentMethod) {
+  const normalizedOrderStatus = String(orderStatus || '').toUpperCase()
+  const normalizedFulfillmentMethod = String(fulfillmentMethod || '').toUpperCase()
+
+  switch (normalizedOrderStatus) {
+    case 'CONFIRMED':
+      return {
+        stage: 'CONFIRMATION',
+        eventTypes: new Set(['CONFIRMATION', 'ORDERCONFIRMED'])
+      }
+    case 'ACTIVE':
+      return {
+        stage: normalizedFulfillmentMethod === 'DELIVERY' ? 'DELIVERY' : 'COLLECTION',
+        eventTypes: new Set([
+          'ORDERACTIVATED',
+          normalizedFulfillmentMethod === 'DELIVERY' ? 'DELIVERY' : 'COLLECTION',
+          normalizedFulfillmentMethod === 'DELIVERY' ? 'DELIVERYREMINDER' : 'PICKUPREMINDER'
+        ])
+      }
+    case 'RETURNED':
+    case 'RETURNED_DAMAGED':
+      return {
+        stage: 'RETURN',
+        eventTypes: new Set(['RETURN', 'RETURNREMINDER'])
+      }
+    case 'COMPLETED':
+      return {
+        stage: 'DEPOSIT',
+        eventTypes: new Set(['DEPOSIT', 'RETURNPROCESSED'])
+      }
+    default:
+      return null
+  }
+}
+
+function normalizeNotificationEventType(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+}
+
+export async function fetchEmailStatusForOrder(orderId, notificationApiUrl, options = {}) {
   if (!orderId) return 'NOT SENT'
 
   const safeBaseUrl = resolveBrowserSafeBaseUrl(
@@ -93,7 +135,12 @@ export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
   )
 
   try {
-    const cacheKey = `admin:email-status:${orderId}`
+    const cacheKey = [
+      'admin:email-status',
+      orderId,
+      String(options.orderStatus || '').toUpperCase(),
+      String(options.fulfillmentMethod || '').toUpperCase()
+    ].join(':')
     const cached = readCached(cacheKey, EMAIL_STATUS_TTL_MS)
     if (cached) return cached
 
@@ -112,22 +159,38 @@ export async function fetchEmailStatusForOrder(orderId, notificationApiUrl) {
       return 'NOT SENT'
     }
 
-    const latest = emailLogs.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0))[0]
-    const rawEventType = String(latest?.event_type || '').toUpperCase()
+    const relevantConfig = deriveRelevantNotificationConfig(
+      options.orderStatus,
+      options.fulfillmentMethod
+    )
+
+    const sortedLogs = [...emailLogs].sort(
+      (a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0)
+    )
+
+    const relevantLogs = relevantConfig
+      ? sortedLogs.filter(log => relevantConfig.eventTypes.has(normalizeNotificationEventType(log?.event_type)))
+      : sortedLogs
+
+    const latest = relevantLogs[0] || sortedLogs[0]
+    const rawEventType = normalizeNotificationEventType(latest?.event_type)
     const rawStatus = String(latest?.status || '').toUpperCase()
 
     const stageByEventType = {
       CONFIRMATION: 'CONFIRMATION',
       COLLECTION: 'COLLECTION',
+      DELIVERY: 'DELIVERY',
       RETURN: 'RETURN',
       DEPOSIT: 'DEPOSIT',
       ORDERCONFIRMED: 'CONFIRMATION',
-      PICKUP_REMINDER: 'COLLECTION',
-      RETURN_REMINDER: 'RETURN',
+      ORDERACTIVATED: relevantConfig?.stage || 'COLLECTION',
+      PICKUPREMINDER: 'COLLECTION',
+      DELIVERYREMINDER: 'DELIVERY',
+      RETURNREMINDER: 'RETURN',
       RETURNPROCESSED: 'DEPOSIT'
     }
 
-    const stage = stageByEventType[rawEventType] || 'UNKNOWN'
+    const stage = relevantConfig?.stage || stageByEventType[rawEventType] || 'UNKNOWN'
     if (stage === 'UNKNOWN') {
       return writeCached(cacheKey, rawStatus || 'UNKNOWN')
     }

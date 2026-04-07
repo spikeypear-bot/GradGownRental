@@ -17,6 +17,7 @@ Activation Logic:
 """
 
 import logging
+import os
 from datetime import date
 from flask import Blueprint, request, jsonify, current_app
 
@@ -24,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 root_bp = Blueprint("root", __name__)
 order_bp = Blueprint("orders", __name__, url_prefix="/orders")
+
+
+def _is_demo_mode_enabled() -> bool:
+    raw = os.environ.get("VITE_DEMO_MODE", "")
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
 
 @root_bp.get("/health")
@@ -40,7 +46,7 @@ def create_order():
     
     # Validate required fields
     required = [
-        "student_name", "email",
+        "student_name", "email", "phone",
         "selected_items", "rental_start_date",
         "rental_end_date", "total_amount", "fulfillment_method"
     ]
@@ -53,6 +59,7 @@ def create_order():
             order_id=data.get("order_id"),
             student_name=data["student_name"],
             email=data["email"],
+            phone=data["phone"],
             package_id=int(data.get("package_id", 0)),
             selected_items=data["selected_items"],
             rental_start_date=data["rental_start_date"],
@@ -76,21 +83,28 @@ def create_order():
 
 
 def _publish_immediate_collection_reminder_if_needed(order) -> None:
-    """Publish pickup_reminder immediately for same-day confirmed COLLECTION orders."""
+    """Publish demo/live reminders immediately for eligible confirmed orders."""
     try:
-        if (order.fulfillment_method or "").upper() != "COLLECTION":
+        fulfillment_method = (order.fulfillment_method or "").upper()
+        if fulfillment_method not in {"COLLECTION", "DELIVERY"}:
             return
         if (order.status.value if hasattr(order.status, "value") else str(order.status)).upper() != "CONFIRMED":
             return
 
         rental_start = str(order.rental_start_date or "")[:10]
         today = date.today().isoformat()
-        if rental_start != today:
+        should_publish = False
+        if fulfillment_method == "COLLECTION" and rental_start == today:
+            should_publish = True
+        elif _is_demo_mode_enabled():
+            should_publish = True
+
+        if not should_publish:
             return
 
         publisher = current_app.extensions.get("reminder_publisher")
         if publisher is None:
-            logger.warning("Immediate pickup reminder skipped | reason=publisher_unavailable | order_id=%s", order.order_id)
+            logger.warning("Immediate reminder skipped | reason=publisher_unavailable | order_id=%s", order.order_id)
             return
 
         payload = {
@@ -102,10 +116,18 @@ def _publish_immediate_collection_reminder_if_needed(order) -> None:
             "return_date": str(order.rental_end_date) if order.rental_end_date else None,
             "fulfillment_method": order.fulfillment_method,
         }
-        publisher.publish_pickup_reminder(payload)
-        logger.info("Immediate same-day pickup reminder published | order_id=%s", order.order_id)
+        if fulfillment_method == "DELIVERY":
+            publisher.publish_delivery_reminder(payload)
+        else:
+            publisher.publish_pickup_reminder(payload)
+        logger.info(
+            "Immediate reminder published | order_id=%s | fulfillment_method=%s | demo_mode=%s",
+            order.order_id,
+            fulfillment_method,
+            _is_demo_mode_enabled(),
+        )
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Failed to publish immediate same-day pickup reminder | order_id=%s | error=%s", order.order_id, exc)
+        logger.exception("Failed to publish immediate reminder | order_id=%s | error=%s", order.order_id, exc)
 
 
 def _publish_order_paid_if_needed(order) -> None:

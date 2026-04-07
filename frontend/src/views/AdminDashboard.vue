@@ -209,7 +209,10 @@ const loadOrders = async () => {
     const statusPairs = await Promise.all(
       orders.value.map(async (order) => {
         const orderId = order?.orderID
-        const status = await fetchEmailStatusForOrder(orderId)
+        const status = await fetchEmailStatusForOrder(orderId, undefined, {
+          orderStatus: order?.status,
+          fulfillmentMethod: order?.fulfillment_method
+        })
         return [orderId, status]
       })
     )
