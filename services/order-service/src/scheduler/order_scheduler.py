@@ -3,7 +3,7 @@ OrderScheduler — scheduled jobs for automatic order processing and reminders.
 
 Jobs:
   • activate_delivery_orders: Auto-activate DELIVERY orders on rental_start_date
-  • publish_reminders: publish pickup_reminder and return_reminder events to Kafka
+  • publish_reminders: publish pickup/delivery/return reminder events to Kafka
 """
 
 import logging
@@ -43,12 +43,12 @@ class OrderScheduler:
             replace_existing=True,
         )
 
-        # Add job: publish next-day pickup and return reminders daily at 9 AM
+        # Add job: publish next-day pickup, delivery, and return reminders daily at 9 AM
         self.scheduler.add_job(
             self._publish_reminders_job,
             CronTrigger(hour=9, minute=0),  # Every day at 9:00 AM
             id='publish_reminders',
-            name='Publish pickup/return reminders for next day',
+            name='Publish pickup/delivery/return reminders for next day',
             replace_existing=True,
         )
         
@@ -77,6 +77,7 @@ class OrderScheduler:
         Job function: publish reminder events for orders due in the next 24 hours.
                 - pickup_reminder for COLLECTION orders with rental_start_date = tomorrow (CONFIRMED)
                     OR same-day start_date when order was created today
+                - delivery_reminder for DELIVERY orders with rental_start_date = tomorrow (CONFIRMED)
                 - return_reminder for rental_end_date = tomorrow (ACTIVE)
         """
         if self.publisher is None:
@@ -89,10 +90,24 @@ class OrderScheduler:
             return_orders = self.order_service.get_orders_by_return_date(target_date)
 
             pickup_count = 0
+            delivery_count = 0
             for order in pickup_orders:
                 if order.status != OrderStatus.CONFIRMED:
                     continue
-                if (order.fulfillment_method or "").upper() != "COLLECTION":
+                fulfillment_method = (order.fulfillment_method or "").upper()
+                if fulfillment_method == "COLLECTION":
+                    payload = {
+                        "order_id": order.order_id,
+                        "student_name": order.student_name,
+                        "email": order.email,
+                        "fulfillment_date": order.rental_start_date,
+                        "return_date": order.rental_end_date,
+                        "fulfillment_method": order.fulfillment_method,
+                    }
+                    self.publisher.publish_pickup_reminder(payload)
+                    pickup_count += 1
+                    continue
+                if fulfillment_method != "DELIVERY":
                     continue
                 payload = {
                     "order_id": order.order_id,
@@ -102,8 +117,8 @@ class OrderScheduler:
                     "return_date": order.rental_end_date,
                     "fulfillment_method": order.fulfillment_method,
                 }
-                self.publisher.publish_pickup_reminder(payload)
-                pickup_count += 1
+                self.publisher.publish_delivery_reminder(payload)
+                delivery_count += 1
 
             today_str = date.today().isoformat()
             same_day_orders = self.order_service.get_orders_by_rental_date(today_str)
@@ -146,9 +161,10 @@ class OrderScheduler:
                 return_count += 1
 
             logger.info(
-                "Reminder publish job complete | target_date=%s | pickup=%s | return=%s",
+                "Reminder publish job complete | target_date=%s | pickup=%s | delivery=%s | return=%s",
                 target_date,
                 pickup_count,
+                delivery_count,
                 return_count,
             )
         except Exception as e:

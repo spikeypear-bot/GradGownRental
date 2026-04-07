@@ -82,7 +82,7 @@ class OrderRepository:
             SET status = %s, updated_at = %s
         """
         params = [new_status.value, datetime.now(timezone.utc)]
-        
+
         # Also set status-specific timestamps
         if new_status == OrderStatus.CONFIRMED:
             sql += ", confirmed_at = %s"
@@ -96,10 +96,10 @@ class OrderRepository:
         elif new_status == OrderStatus.COMPLETED:
             sql += ", completed_at = %s"
             params.append(datetime.now(timezone.utc))
-        
+
         sql += " WHERE order_id = %s"
         params.append(order_id)
-        
+
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
             self._conn.commit()
@@ -211,42 +211,42 @@ class OrderRepository:
         selected_items = row[5]
         if isinstance(selected_items, str):
             selected_items = json.loads(selected_items)
-        
+
         # damaged_items from JSONB column
         damaged_items = row[21] if len(row) > 21 else []
         if isinstance(damaged_items, str):
             damaged_items = json.loads(damaged_items)
         elif damaged_items is None:
             damaged_items = []
-        
+
         # damaged is at index 20
         damaged = row[20] if len(row) > 20 else None
-        
+
         # Convert naive datetimes from database to timezone-aware UTC
         created_at = row[12]
         if created_at and isinstance(created_at, datetime) and created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
-        
+
         updated_at = row[13]
         if updated_at and isinstance(updated_at, datetime) and updated_at.tzinfo is None:
             updated_at = updated_at.replace(tzinfo=timezone.utc)
-        
+
         confirmed_at = row[14]
         if confirmed_at and isinstance(confirmed_at, datetime) and confirmed_at.tzinfo is None:
             confirmed_at = confirmed_at.replace(tzinfo=timezone.utc)
-        
+
         activated_at = row[15]
         if activated_at and isinstance(activated_at, datetime) and activated_at.tzinfo is None:
             activated_at = activated_at.replace(tzinfo=timezone.utc)
-        
+
         returned_at = row[16]
         if returned_at and isinstance(returned_at, datetime) and returned_at.tzinfo is None:
             returned_at = returned_at.replace(tzinfo=timezone.utc)
-        
+
         completed_at = row[17]
         if completed_at and isinstance(completed_at, datetime) and completed_at.tzinfo is None:
             completed_at = completed_at.replace(tzinfo=timezone.utc)
-        
+
         return Order(
             id=row[0],
             order_id=row[1],

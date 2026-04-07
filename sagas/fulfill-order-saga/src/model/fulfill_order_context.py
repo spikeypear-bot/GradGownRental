@@ -19,10 +19,12 @@ class FulfillOrderContext:
     tracking_status: str
     selected_packages: list
     chosen_date: str
+    fulfillment_method: str = "COLLECTION"
 
     student_name: str = "Student"
     phone: str = ""
     email: str = ""
+    fulfillment_date: str = ""
     return_date: str = ""
 
     status: SagaStatus = SagaStatus.STARTED

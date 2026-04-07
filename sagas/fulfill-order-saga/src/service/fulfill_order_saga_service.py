@@ -33,6 +33,8 @@ class FulfillOrderSagaService:
                 "student_name": context.student_name,
                 "phone": context.phone,
                 "email": context.email,
+                "fulfillment_method": context.fulfillment_method,
+                "fulfillment_date": context.fulfillment_date or context.chosen_date,
                 "return_date": context.return_date,
             })
 

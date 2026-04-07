@@ -40,9 +40,11 @@ def activate_fulfillment():
             ),
             selected_packages=selected_items,
             chosen_date=body.get("chosen_date") or order.get("rental_start_date"),
+            fulfillment_method=order.get("fulfillment_method", "COLLECTION"),
             student_name=order.get("student_name", "Student"),
             phone=order.get("phone", ""),
             email=order.get("email", ""),
+            fulfillment_date=order.get("rental_start_date", ""),
             return_date=order.get("rental_end_date", ""),
         )
 
