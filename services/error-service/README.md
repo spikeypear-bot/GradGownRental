@@ -1,36 +1,38 @@
 # Error Service
 
-A lightweight microservice responsible for logging failures that occur during saga orchestration in the GradGownRental system. It receives error reports from sagas via HTTP, persists them to a PostgreSQL database, and triggers a notification alert.
+Centralized error logging service for capturing saga and service failures across the GradGownRental system.
 
----
+## Overview
 
-## Tech Stack
+- **Port**: 5002
+- **Tech Stack**: Python, Flask, Flask-SQLAlchemy, PostgreSQL, psycopg2
+- **Role**: Receives error reports from sagas when a distributed transaction step fails; provides a unified log for debugging.
 
-- Python 3.12
-- Flask
-- Flask-SQLAlchemy
-- PostgreSQL
-- psycopg2
+## API Endpoints
 
----
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/errors` | Log an error event |
+| `GET` | `/errors` | Retrieve all error logs (most recent first) |
+| `GET` | `/errors/<error_id>` | Retrieve a specific error log by ID |
 
-## Endpoints
+### POST `/errors`
 
-### POST /errors
-Logs a new error from a saga.
+Log an error from a saga or service.
 
-**Request Body:**
+**Request Body**:
 ```json
 {
   "saga_name": "PlaceAnOrderSaga",
   "step": "Step 10 - POST /payments",
-  "order_id": "abc-123",
+  "order_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "error_message": "Payment service timeout",
   "status_code": 504
 }
 ```
 
-**Response (201):**
+**Response** `201 Created`:
 ```json
 {
   "error_id": "uuid-here",
@@ -38,49 +40,48 @@ Logs a new error from a saga.
 }
 ```
 
-### GET /errors
+### GET `/errors`
+
 Returns all logged errors, sorted by most recent.
 
-**Response (200):**
-```json
-[
-  {
-    "error_id": "...",
-    "saga_name": "...",
-    "step": "...",
-    "order_id": "...",
-    "error_message": "...",
-    "status_code": 504,
-    "created_at": "..."
-  }
-]
-```
+### GET `/errors/<error_id>`
 
-### GET /errors/<error_id>
 Returns a specific error log by ID.
 
-**Response (200):**
-```json
-{
-  "error_id": "...",
-  "saga_name": "...",
-  "step": "...",
-  "order_id": "...",
-  "error_message": "...",
-  "status_code": 504,
-  "created_at": "..."
-}
-```
+## How Sagas Call This Service
 
----
-
-## How Other Services Call This
+```python
 import requests
 
-requests.post("http://localhost:5006/errors", json={
+requests.post("http://error-service:5002/errors", json={
     "saga_name": "PlaceAnOrderSaga",
     "step": "Step 10 - POST /payments",
     "order_id": order_id,
     "error_message": str(e),
     "status_code": 500
 })
+```
+
+All three sagas call this endpoint as part of their failure handling before aborting a transaction.
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DB_HOST` | PostgreSQL host |
+| `DB_NAME` | Database name |
+| `DB_USER` | Database user |
+| `DB_PASSWORD` | Database password |
+
+## Running Locally
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+## Docker
+
+```bash
+docker compose up error-service
+```
