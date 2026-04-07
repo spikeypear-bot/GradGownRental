@@ -1,12 +1,8 @@
 # ── Stage 1: dependency install ──────────────────────────────────────────────
-# Use the official slim Python image matching your .python-version (3.13)
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Copy only the dependency manifest first.
-# Docker caches this layer — if requirements.txt hasn't changed,
-# pip install is skipped entirely on rebuilds. Big time saver.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
@@ -15,22 +11,23 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copy installed packages from the builder stage (keeps the final image small)
 COPY --from=builder /install /usr/local
 
-# Copy application source code
+# Application source
 COPY src/ ./src/
 
-# Tell Python not to buffer stdout/stderr —
-# without this, your print() and logger output won't appear in docker compose logs
+# Migration runner + SQL migration files
+COPY migrate.py ./migrate.py
+COPY db/migrations/ ./db/migrations/
+
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 ENV PYTHONUNBUFFERED=1
 
-# The port this service listens on (matches docker-compose.yml ports mapping)
 EXPOSE 5001
 
-# gunicorn is the production WSGI server.
-# --workers 1     → single worker to avoid duplicate Kafka consumers per container
-# --timeout 120   → workers killed if they don't respond in 120s
-# app:create_app() → calls the create_app() factory in src/app.py
+# gunicorn must run from src/ so it can find app.py
 WORKDIR /app/src
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "1", "--timeout", "120", "app:create_app()"]
+
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]

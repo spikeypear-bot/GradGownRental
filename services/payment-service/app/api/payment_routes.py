@@ -146,22 +146,6 @@ def refund_payment():
 
     payment = Payment.query.filter_by(payment_id=payment_id, order_id=order_id).first()
     if not payment:
-        # Seeded/demo orders in local environments may carry placeholder payment ids
-        # such as "pay-004" without a real payment-service record. Surface a clear
-        # simulated refund response so the orchestration flow remains testable.
-        if str(payment_id).startswith("pay-"):
-            logger.warning(
-                "Using simulated refund for demo payment | order_id=%s | payment_id=%s | refundable_amount=%s",
-                order_id,
-                payment_id,
-                refundable_amount,
-            )
-            return jsonify({
-                "refund_id": f"manual-{payment_id}",
-                "status": "SIMULATED_REFUND",
-                "refunded_amount": f"{refundable_amount:.2f}",
-            }), 202
-
         return jsonify({"error": "Payment record not found for order_id/payment_id"}), 404
 
     # We store client_secret. PaymentIntent id can be extracted from it:
@@ -183,36 +167,12 @@ def refund_payment():
         logger.error(f"Refund failed for order {order_id}: {e}")
         return jsonify({"error": f"Refund authorisation failed: {str(e)}"}), 402
 
+    payment.status = PaymentStatus.REFUNDED
+    db.session.commit()
+    logger.info(f"Payment {payment_id} marked as REFUNDED for order {order_id}")
+
     return jsonify({
         "refund_id": getattr(refund, "id", None) or refund.get("id"),
         "status": getattr(refund, "status", None) or refund.get("status"),
         "refunded_amount": f"{refundable_amount:.2f}",
     }), 201
-
-@api.route('/test', methods=["GET"])
-def test():
-    """Test endpoint
-    """
-    payments = Payment.query.all()
-
-    try:
-        stmt = Payment(
-            client_secret="ac",
-            order_id="aac",
-            amount=2.51,
-            )
-        db.session.add(stmt)
-        db.session.commit()
-
-    except Exception as e:
-        db.session.rollback()
-
-    payments = Payment.query.all()
-    if len(payments) != 0:
-        result = [ payment.to_dict()
-                  for payment in payments ]
-
-        return jsonify({"payments": result}), 200
-
-    else:
-        abort(400)

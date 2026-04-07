@@ -122,9 +122,9 @@ public class GetService {
         List<PackageWithPriceDto> res= new ArrayList<>();
         List<GraduationPackageDto> graduationPackageDtos= graduationPackageService.getAllGraduationPackages();
         for(GraduationPackageDto graduationPackageDto:  graduationPackageDtos){
-            
-            BigDecimal totalRentalFee=calculateTotalDeposit(graduationPackageDto);
-            BigDecimal totalDeposit=calculateTotalRentalFee(graduationPackageDto);
+
+            BigDecimal totalRentalFee=calculateTotalRentalFee(graduationPackageDto);
+            BigDecimal totalDeposit=calculateTotalDeposit(graduationPackageDto);
             BigDecimal totalPrice=totalRentalFee.add(totalDeposit);
             PackageWithPriceDto temp=new PackageWithPriceDto(graduationPackageDto,totalDeposit,totalRentalFee,totalPrice);
             res.add(temp);
@@ -141,9 +141,9 @@ public class GetService {
         List<PackageWithPriceDto> res= new ArrayList<>();
         List<GraduationPackageDto> graduationPackageDtos= graduationPackageService.getGraduationPackageByEducationLevelAndInstitutionAndFaculty(educationLevel, institution, faculty);
         for(GraduationPackageDto graduationPackageDto:  graduationPackageDtos){
-            
-            BigDecimal totalRentalFee=calculateTotalDeposit(graduationPackageDto);
-            BigDecimal totalDeposit=calculateTotalRentalFee(graduationPackageDto);
+
+            BigDecimal totalRentalFee=calculateTotalRentalFee(graduationPackageDto);
+            BigDecimal totalDeposit=calculateTotalDeposit(graduationPackageDto);
             BigDecimal totalPrice=totalRentalFee.add(totalDeposit);
             PackageWithPriceDto temp=new PackageWithPriceDto(graduationPackageDto,totalDeposit,totalRentalFee,totalPrice);
             res.add(temp);
@@ -168,8 +168,8 @@ public class GetService {
         StyleWithInventoryDto gownStyleWithInventoryDto=getAllInventoryDtoByStyle(gownStyleDto);
         InventoryStyleDto hoodStyleDto=graduationPackageDto.getHoodStyle();
         StyleWithInventoryDto hoodStyleWithInventoryDto=getAllInventoryDtoByStyle(hoodStyleDto);
-        BigDecimal totalRentalFee=calculateTotalDeposit(graduationPackageDto);
-        BigDecimal totalDeposit=calculateTotalRentalFee(graduationPackageDto);
+        BigDecimal totalRentalFee=calculateTotalRentalFee(graduationPackageDto);
+        BigDecimal totalDeposit=calculateTotalDeposit(graduationPackageDto);
         BigDecimal totalPrice=totalRentalFee.add(totalDeposit);
 
         PackageWithStyleAndInventoryDto res=new PackageWithStyleAndInventoryDto(graduationPackageDto.getPackageId(),graduationPackageDto.getEducationLevel(),graduationPackageDto.getInstitution(),graduationPackageDto.getFaculty()

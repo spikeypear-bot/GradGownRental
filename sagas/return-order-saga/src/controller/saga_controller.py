@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request
 
-from model.return_order_context import COMPONENT_DAMAGE_RATES, ReturnOrderContext
+from model.return_order_context import VALID_COMPONENTS, ReturnOrderContext
 
 saga_bp = Blueprint("return_saga", __name__)
 
@@ -31,7 +31,7 @@ def _normalize_components(raw_components: list) -> list:
     valid_components = []
     for component in raw_components or []:
         normalized = str(component).strip().lower()
-        if normalized in COMPONENT_DAMAGE_RATES and normalized not in valid_components:
+        if normalized in VALID_COMPONENTS and normalized not in valid_components:
             valid_components.append(normalized)
     return valid_components
 
@@ -77,9 +77,27 @@ def _parse_complete_order_flag(raw_value) -> bool:
     return str(raw_value).strip().lower() not in {"false", "0", "no"}
 
 
-def _calculate_damage_fee(original_deposit: float, damaged_components: list) -> float:
-    deduction_rate = sum(COMPONENT_DAMAGE_RATES[component] for component in damaged_components)
-    return round(original_deposit * deduction_rate, 2)
+def _compute_deposit_from_items(items: list) -> float:
+    total = 0.0
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        qty = item.get("qty", 1)
+        try:
+            qty = float(qty)
+        except (TypeError, ValueError):
+            qty = 1.0
+        deposit_value = (
+            item.get("deposit")
+            or item.get("depositFee")
+            or item.get("totalDeposit")
+            or 0
+        )
+        try:
+            total += float(deposit_value) * qty
+        except (TypeError, ValueError):
+            continue
+    return round(total, 2)
 
 
 @saga_bp.post("/returns/process")
@@ -96,12 +114,12 @@ def process_return():
     try:
         order = order_client.get_order(body["order_id"])
         items = _default_items(order, body)
-        original_deposit = float(order.get("deposit") or 0.0)
+        original_deposit = _compute_deposit_from_items(items) or float(order.get("deposit") or 0.0)
         damaged_components = _normalize_components(body.get("damaged_components", []))
         damaged_packages, clean_packages = _partition_items_by_damage(items, damaged_components)
         damage_fee = body.get("damage_fee")
         if damage_fee is None:
-            damage_fee = _calculate_damage_fee(original_deposit, damaged_components)
+            damage_fee = _compute_deposit_from_items(damaged_packages)
         else:
             damage_fee = float(damage_fee)
         payment_id = body.get("payment_id") or order.get("payment_id")
@@ -173,7 +191,7 @@ def maintenance_complete():
             payment_id=order.get("payment_id") or "",
             selected_packages=items,
             chosen_date=body.get("chosen_date") or order.get("rental_start_date"),
-            original_deposit=float(order.get("deposit") or 0.0),
+            original_deposit=_compute_deposit_from_items(items) or float(order.get("deposit") or 0.0),
             complete_order=_parse_complete_order_flag(body.get("complete_order")),
         )
         result = saga.maintenance_complete(ctx)
