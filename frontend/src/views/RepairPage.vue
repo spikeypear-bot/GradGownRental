@@ -3,7 +3,7 @@
     <div class="container py-4">
       <div class="page-header">
         <h2 class="fw-bold mb-2">Repair</h2>
-        <p class="text-muted mb-0">Items undergoing repair (1-day maintenance window). Status updates automatically.</p>
+        <p class="text-muted mb-0">Items undergoing repair. Move them to washing only after staff confirms the repair is done.</p>
       </div>
 
       <div class="team-card">
@@ -66,9 +66,9 @@
       <div class="info-banner mt-4">
         <i class="bi bi-info-circle me-2"></i>
         <div>
-          <strong>Automatic Processing:</strong> Items automatically transition through repair (1 day) → washing (3 days) → available inventory.
+          <strong>Repair Flow:</strong> Repair is a manual step. Items stay here until staff marks them as repaired, then they move to washing.
           <br/>
-          <strong>Backup Coverage:</strong> Backup stock automatically allocated while items are in maintenance.
+          <strong>Backup Coverage:</strong> Backup stock can be used while damaged items are under maintenance, but it is not auto-assigned from this screen.
         </div>
       </div>
     </div>
@@ -220,3 +220,5 @@ onMounted(loadData)
   }
 }
 </style>
+
+

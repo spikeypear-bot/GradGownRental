@@ -3,7 +3,7 @@
     <div class="container py-4">
       <div class="page-header">
         <h2 class="fw-bold mb-2">Laundry</h2>
-        <p class="text-muted mb-0">Items undergoing washing (3-day cycle). Status updates automatically.</p>
+        <p class="text-muted mb-0">Items undergoing washing. Mark them complete when they are ready to return to available inventory.</p>
       </div>
 
       <div class="team-card">
@@ -66,9 +66,9 @@
       <div class="info-banner mt-4">
         <i class="bi bi-info-circle me-2"></i>
         <div>
-          <strong>Automatic Processing:</strong> Items in washing automatically transition to available inventory after 3 days.
+          <strong>Laundry Flow:</strong> Washing completion is confirmed manually from this page before items return to available inventory.
           <br/>
-          <strong>Backup Coverage:</strong> Backup stock allocated during washing period to maintain rental availability.
+          <strong>Backup Coverage:</strong> Backup stock supports availability during maintenance windows when staff activates it.
         </div>
       </div>
     </div>
@@ -233,3 +233,4 @@ onMounted(loadData)
   }
 }
 </style>
+
