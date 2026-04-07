@@ -259,13 +259,13 @@ const depositStatus = computed(() => {
 
 
       <!-- Activate (collection only) -->
-      <div v-if="order && canActivate" class="info-card mb-3">
+      <!-- <div v-if="order && canActivate" class="info-card mb-3">
         <h6 class="fw-bold mb-2">Confirm Collection</h6>
         <p class="text-muted small mb-3">Mark this order as collected to activate the rental period.</p>
         <button class="btn btn-lookup fw-bold" :disabled="actionLoading" @click="activateOrder">
           {{ actionLoading ? 'Activating...' : 'Mark as Collected' }}
         </button>
-      </div>
+      </div> -->
     </div>
   </section>
 </template>
