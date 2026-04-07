@@ -14,7 +14,7 @@ Orchestrates the complete checkout flow for the GradGownRental system — from o
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `POST` | `/orders/create` | Phase 1: Initialize order and create Stripe PaymentIntent |
+| `POST` | `/orders/create` | Phase 1: Initialize order and create PaymentIntent |
 | `POST` | `/submit-payment` | Phase 2: Verify payment and finalize the order |
 
 ## Saga Flow
@@ -40,7 +40,7 @@ Initializes the order and returns payment details to the frontend.
 
 **Steps**:
 1. Call **Order Service** `POST /orders` → create order with status `PENDING` → receive `order_id`
-2. Call **Payment Service** `POST /checkout` → create Stripe PaymentIntent → receive `client_secret`
+2. Call **Payment Service** `POST /checkout` → create PaymentIntent → receive `client_secret`
 3. Return `{order_id, client_secret}` to frontend
 
 **Response** `200 OK`:

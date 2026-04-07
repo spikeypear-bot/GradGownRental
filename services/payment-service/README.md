@@ -7,7 +7,7 @@ Handles payment processing and refunds via Stripe for the GradGownRental system.
 - **Port**: 3000
 - **Tech Stack**: Python, Flask, PostgreSQL, Stripe
 - **Database**: `payment`
-- **Role**: Creates Stripe PaymentIntents, verifies payment completion, processes refunds, and handles Stripe webhooks.
+- **Role**: Creates Stripe PaymentIntents, verifies payment completion, and processes refunds.
 
 ## API Endpoints
 
@@ -17,7 +17,6 @@ Handles payment processing and refunds via Stripe for the GradGownRental system.
 | `POST` | `/api/payment/checkout` | Create a Stripe PaymentIntent |
 | `POST` | `/api/payment/payments` | Authorize payment (verify intent & record in DB) |
 | `POST` | `/api/payment/refunds` | Process a refund |
-| `POST` | `/api/payment/webhook` | Stripe webhook handler |
 | `GET` | `/api/payment/payments/<order_id>` | Fetch payment record for an order |
 
 ### POST `/api/payment/checkout`
@@ -99,12 +98,10 @@ Processes a refund for a previously succeeded payment.
 | Variable | Description |
 |----------|-------------|
 | `STRIPE_SECRET_KEY` | Stripe secret API key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `DB_HOST` | PostgreSQL host |
 | `DB_NAME` | Database name (`payment`) |
 | `DB_USER` | Database user |
 | `DB_PASSWORD` | Database password |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address |
 
 ## Running Locally
 
