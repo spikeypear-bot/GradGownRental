@@ -1,85 +1,148 @@
-# Grad-Gown-Rental
-Repository is a service structure supporting a graduation gown rental website, contains multiple composite/microservices.
+# GradGownRental
 
+A microservices-based graduation gown rental system. Students browse packages, reserve gowns, pay online, receive or collect their order, and return items — with automated notifications, logistics tracking, and inventory maintenance throughout.
+
+---
+
+## Architecture
+
+The system is split into **atomic microservices** (each owns its own database) and **saga orchestrators** (stateless, coordinate across services). All traffic is routed through **Kong API Gateway**.
+
+### Services
+
+| Service | Port | Responsibility |
+|---------|------|----------------|
+| `inventory-service` | 8080 | Packages, stock levels, soft-holds, state transitions |
+| `order-service` | 8081 | Order lifecycle (PENDING → CONFIRMED → ACTIVE → RETURNED → COMPLETED) |
+| `payment-service` | 3000 | Stripe PaymentIntents, payment verification, refunds |
+| `notification-service` | 5001 | Transactional emails via SendGrid, triggered by Kafka events |
+| `logistics-service` | 5004 | Shipment tracking proxy to OutSystems |
+| `error-service` | 5002 | Centralized saga failure logging |
+
+### Sagas
+
+| Saga | Port | Responsibility |
+|------|------|----------------|
+| `place-order-saga` | 5003 | Checkout: create order → payment → reserve inventory |
+| `fulfill-order-saga` | 5005 | Fulfillment: activate order → sync logistics → mark inventory RENTED |
+| `return-order-saga` | 5006 | Return: assess damage → refund → trigger maintenance |
+
+---
+
+## Key Flows
+
+### Checkout (`place-order-saga`)
+
+1. `POST /orders/create` — creates order and PaymentIntent, returns `client_secret` to frontend
+2. Frontend collects card details via Stripe.js and confirms payment
+3. `POST /submit-payment` — verifies payment, confirms order, converts soft-hold to hard reservation
+4. Publishes `OrderConfirmed` (email receipt) and `OrderPaid` (logistics scheduling) to Kafka
+
+### Fulfillment (`fulfill-order-saga`)
+
+1. `POST /fulfillment/activate` — activates order, syncs OutSystems tracking (COLLECTED or DELIVERED), transitions inventory RESERVED → RENTED
+2. Publishes `OrderActivated` to Kafka → student receives handover instructions email
+
+### Return (`return-order-saga`)
+
+1. `POST /returns/process` — partitions items into clean/damaged, updates order status, calculates refund, triggers maintenance
+2. Clean items: RENTED → WASH → AVAILABLE
+3. Damaged items: RENTED → DAMAGED → REPAIR → WASH → AVAILABLE
+4. Publishes `ReturnProcessed` to Kafka → student receives refund summary email
+
+---
+
+## Inventory State Machine
+
+```
+AVAILABLE
+  └─ (soft-hold)      → AVAILABLE (hold tracked separately, 10-min expiry)
+  └─ (reserved)       → RESERVED
+       └─ (fulfilled) → RENTED
+            ├─ (clean return)   → WASH → AVAILABLE
+            └─ (damaged return) → DAMAGED → REPAIR → WASH → AVAILABLE
+```
+
+---
+
+## Kafka Events
+
+| Topic | Publisher | Consumer |
+|-------|-----------|----------|
+| `OrderConfirmed` | place-order-saga | notification-service |
+| `OrderPaid` | place-order-saga | logistics-service |
+| `OrderActivated` | fulfill-order-saga | notification-service |
+| `ReturnProcessed` | return-order-saga | notification-service |
+| `pickup_reminder` | order-service (scheduler) | notification-service |
+| `return_reminder` | order-service (scheduler) | notification-service |
 
 ---
 
 ## Project Structure
+
 ```
-project-root/
-├─ docker-compose.yml
-├─ .env.example
-├─ volumes/
-├─ services/                          ← atomic microservices (each owns a DB)
-│  ├─ auth-service/
-│  │  ├─ Dockerfile
-│  │  ├─ src/
-│  │  │  ├─ model/
-│  │  │  ├─ repository/
-│  │  │  ├─ service/
-│  │  │  └─ controller/
-│  │  └─ db/init.sql
-│  ├─ error-service/           
-│  ├─ inventory-service/       
-│  ├─ logistics-service/       
-│  ├─ notification-service/    
-│  ├─ order-service/          
-│  └─ payment-service/       
-│
-└─ sagas/                             ← composite orchestrators (no DB of their own)
-   ├─ place-order-saga/
-   │  ├─ Dockerfile
-   │  └─ src/
-   │     ├─ model/              ← PlaceOrderContext, SagaStatus
-   │     ├─ service/            ← orchestrator logic + KafkaPublisher
-   │     ├─ controller/         ← POST /orders/create, POST /submit-payment
-   │     └─ clients/            ← OrderClient, PaymentClient, InventoryClient, ErrorClient
-   ├─ fulfill-order-saga/       
-   └─ return-order-saga/       
+GradGownRental/
+├── docker-compose.yml
+├── .env.example
+├── kong/
+│   └── kong.yml                   ← Kong route config
+├── services/
+│   ├── error-service/
+│   ├── inventory-service/         ← Java/Spring Boot
+│   ├── logistics-service/
+│   ├── notification-service/
+│   ├── order-service/
+│   └── payment-service/
+└── sagas/
+    ├── place-order-saga/
+    ├── fulfill-order-saga/
+    └── return-order-saga/
 ```
 
-- `services/<service-name>/` – code, Dockerfile, and database scripts for each microservice  
-- `db/init.sql` – optional SQL scripts to initialize the database  
-- `docker-compose.yml` – orchestrates all services and databases  
-- Volumes (e.g., `auth-data`) store database files and persist data across container restarts  
+Each service contains a `Dockerfile`, source code, and a `db/` folder with SQL init scripts where applicable.
 
 ---
 
-## Getting Started
+## Setup
 
-### 1. Clone the repository
+### 1. Clone and configure environment
 
 ```bash
 git clone <repo-url>
-cd project-root
+cd GradGownRental
+cp .env.example .env
 ```
+
+Fill in the required values in `.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `STRIPE_ENDPOINT_SECRET` | Stripe webhook signing secret |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (frontend) |
+| `SENDGRID_API_KEY` | SendGrid API key |
+| `SENDGRID_FROM_EMAIL` | Verified sender email |
+| `VITE_API_BASE_URL` | API base URL (default: `http://localhost:8000`) |
+
+DB passwords and Kafka settings have sensible defaults in `.env.example` and can be left as-is for local development.
+
+### 2. Start all services
+
+```bash
+docker compose up --build -d
+```
+
+This starts all microservices, sagas, Kafka, PostgreSQL databases, and Kong. Databases and Kong are initialised and configured automatically on startup.
+
+### 3. Access the app
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:5173` | Frontend (Vue app) |
+| `http://localhost:8000` | Kong proxy (API gateway) |
+| `http://localhost:8001` | Kong Admin API |
+| `http://localhost:8002` | Kong Admin GUI |
 
 ## API Docs
 
-Swagger/OpenAPI docs are available per service after startup.
-
-- See `docs/SWAGGER_DOCS.md` for the full list of `/docs` and raw spec URLs.
-
-## Recent Updates
-
-- Added OpenAPI/Swagger coverage across the active services and sagas for easier local API inspection.
-- Refined the admin operations flow in the frontend for fulfillment, returns, repair, laundry, and maintenance queue handling.
-- Extended the inventory transition contract so sagas can drive `AVAILABLE_TO_RESERVED`, `RESERVED_TO_RENTED`, `RENTED_TO_WASH`, `RENTED_TO_DAMAGED`, `DAMAGED_TO_REPAIR`, `REPAIR_TO_WASH`, and `WASH_TO_AVAILABLE`.
-- Improved return-order saga handling for split clean versus damaged package processing and maintenance progression.
-- Updated inventory availability and stock overview behavior so default backup stock is treated as a buffer and damaged quantities come from the damage log.
-
-## Today's Changes
-
-- Fixed damaged-return handling so damage logs stay item-specific through return, repair, and wash, with `orderId` captured on each damage log and `damageId` preserved across the saga/frontend flow.
-- Updated checkout so fulfillment selection happens in `OrderView`, live size availability reflects active soft holds, and unavailable sizes are disabled instead of looking selectable.
-- Added manual emergency backup stock activation for fulfillment via `USE_BACKUP_FOR_FULFILLMENT` in inventory-service and the admin fulfillment UI.
-- Integrated admin fulfillment with logistics shipment data from OutSystems so the page can show shipment ID, scheduled time, and tracking status by `order_id`.
-- Changed logistics-service reads to prefer OutSystems as the source of truth, with the in-memory shipment cache kept only as a locked fallback helper.
-- Added lightweight frontend caching for repeated read-heavy admin, order, inventory, and shipment lookups to reduce repeated Kong/API calls.
-- Renamed the customer tracking terminal step from `Processed` to `Closed` and aligned order completion so orders only move to `COMPLETED` after return maintenance is actually finished.
-
-## Notes
-
-- Inventory schema changes now treat `backup_qty` with a default value of `10`.
-- `damaged_qty` and `repair_qty` are no longer stored in `InventoryQuantityTrack`; damaged counts are derived from `DamageLog`.
-
+Swagger/OpenAPI docs are available per service after startup. See `docs/SWAGGER_DOCS.md` for the full list of `/docs` URLs.
