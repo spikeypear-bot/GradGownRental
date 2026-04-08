@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 import requests
 import logging
+from app import db
+from app.models import ErrorLog
 from config import Config
 
 logger = logging.getLogger('main')
@@ -23,6 +25,16 @@ def log_error():
         return jsonify({'error': 'saga_name/saga, step and error_message/detail are required'}), 400
 
     logger.error(f"[{saga_name}] {step} failed | order_id={order_id} | {error_message}")
+
+    entry = ErrorLog(
+        saga_name=saga_name,
+        step=step,
+        error_message=error_message,
+        order_id=order_id,
+        status_code=status_code,
+    )
+    db.session.add(entry)
+    db.session.commit()
 
     # Trigger notification
     try:
